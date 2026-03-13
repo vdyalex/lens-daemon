@@ -4,17 +4,10 @@ import (
 	"fmt"
 	"os"
 	"strconv"
-	"time"
 )
 
 // Config holds all application configuration loaded from environment variables.
 type Config struct {
-	// Capture settings
-	PollInterval      time.Duration // How often to check for screen changes
-	DiffThreshold     float64       // Percentage of pixels that must differ (0.0-1.0)
-	MaxHistory        int           // Number of screenshots to keep in ring buffer
-	ScreenshotQuality int           // JPEG quality for in-memory encoding (1-100)
-
 	// OCR settings
 	TesseractLang string // Tesseract language pack (e.g., "eng")
 
@@ -30,10 +23,6 @@ type Config struct {
 
 func Load() (*Config, error) {
 	cfg := &Config{
-		PollInterval:      envDuration("CCAT_POLL_INTERVAL", 2*time.Second),
-		DiffThreshold:     envFloat("CCAT_DIFF_THRESHOLD", 0.01),
-		MaxHistory:        envInt("CCAT_MAX_HISTORY", 50),
-		ScreenshotQuality: envInt("CCAT_SCREENSHOT_QUALITY", 80),
 		TesseractLang:     envStr("CCAT_TESSERACT_LANG", "eng"),
 		ClaudeAPIKey:      envStr("ANTHROPIC_API_KEY", ""),
 		ClaudeModel:       envStr("CCAT_CLAUDE_MODEL", "claude-sonnet-4-6"),
@@ -71,20 +60,3 @@ func envInt(key string, fallback int) int {
 	return fallback
 }
 
-func envFloat(key string, fallback float64) float64 {
-	if v := os.Getenv(key); v != "" {
-		if f, err := strconv.ParseFloat(v, 64); err == nil {
-			return f
-		}
-	}
-	return fallback
-}
-
-func envDuration(key string, fallback time.Duration) time.Duration {
-	if v := os.Getenv(key); v != "" {
-		if d, err := time.ParseDuration(v); err == nil {
-			return d
-		}
-	}
-	return fallback
-}

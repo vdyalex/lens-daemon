@@ -1,0 +1,120 @@
+package hotkey
+
+/*
+#cgo LDFLAGS: -framework CoreGraphics -framework CoreFoundation
+#include <CoreGraphics/CoreGraphics.h>
+#include <CoreFoundation/CoreFoundation.h>
+
+// Forward declaration – implemented in Go via export.
+extern void goHotkeyCallback(void);
+
+// CGEventTap callback: fires on every flagsChanged event.
+static CGEventRef eventCallback(CGEventTapProxy proxy, CGEventType type,
+                                CGEventRef event, void *refcon) {
+    (void)proxy;
+    (void)refcon;
+
+    // If the tap is disabled by the system, re-enable it.
+    if (type == kCGEventTapDisabledByTimeout || type == kCGEventTapDisabledByUserInput) {
+        CGEventTapEnable(*(CFMachPortRef *)refcon, true);
+        return event;
+    }
+
+    // kVK_RightOption == 0x3D (61)
+    CGKeyCode keycode = (CGKeyCode)CGEventGetIntegerValueField(event, kCGKeyboardEventKeycode);
+    CGEventFlags flags = CGEventGetFlags(event);
+
+    // Detect right-Option key press (flag set + matching keycode).
+    if (keycode == 0x3D && (flags & kCGEventFlagMaskAlternate)) {
+        goHotkeyCallback();
+    }
+
+    return event;
+}
+
+static inline CFMachPortRef createTap(void) {
+    CGEventMask mask = CGEventMaskBit(kCGEventFlagsChanged);
+    CFMachPortRef tap = CGEventTapCreate(
+        kCGSessionEventTap,
+        kCGHeadInsertEventTap,
+        kCGEventTapOptionListenOnly,
+        mask,
+        eventCallback,
+        NULL
+    );
+    return tap; // NULL if Accessibility permission not granted
+}
+*/
+import "C"
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"sync"
+)
+
+var (
+	triggerCh   = make(chan struct{}, 1)
+	startOnce  sync.Once
+)
+
+//export goHotkeyCallback
+func goHotkeyCallback() {
+	// Non-blocking send so the run-loop is never stalled.
+	select {
+	case triggerCh <- struct{}{}:
+	default:
+	}
+}
+
+// Listen starts the global event tap on a dedicated OS thread and returns a
+// channel that receives a value each time the right Option key is pressed.
+// The caller must have Accessibility permission (System Settings → Privacy &
+// Security → Accessibility).  The event tap runs until ctx is cancelled.
+func Listen(ctx context.Context) (<-chan struct{}, error) {
+	var listenErr error
+
+	startOnce.Do(func() {
+		tap := C.createTap()
+		if tap == 0 {
+			listenErr = fmt.Errorf("CGEventTapCreate failed — grant Accessibility permission to this app")
+			return
+		}
+
+		// Run the tap on a background thread with its own CFRunLoop.
+		go func() {
+			source := C.CFMachPortCreateRunLoopSource(C.kCFAllocatorDefault, tap, 0)
+			rl := C.CFRunLoopGetCurrent()
+			C.CFRunLoopAddSource(rl, source, C.kCFRunLoopCommonModes)
+			C.CGEventTapEnable(tap, C.bool(true))
+
+			log.Println("hotkey listener started (right Option key)")
+			C.CFRunLoopRun() // blocks
+		}()
+	})
+
+	if listenErr != nil {
+		return nil, listenErr
+	}
+
+	// Wrap in a context-aware channel.
+	out := make(chan struct{})
+	go func() {
+		defer close(out)
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-triggerCh:
+				select {
+				case out <- struct{}{}:
+				case <-ctx.Done():
+					return
+				}
+			}
+		}
+	}()
+
+	return out, nil
+}
