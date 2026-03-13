@@ -1,7 +1,6 @@
 # Binaries
 /ccat
 /cmd/ccat/ccat
-*.exe
 
 # Environment
 .env
@@ -14,4 +13,3 @@
 
 # OS
 .DS_Store
-Thumbs.db

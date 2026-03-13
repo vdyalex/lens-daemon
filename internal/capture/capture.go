@@ -37,3 +37,7 @@ func centerRect(x, y, w, h int) image.Rectangle {
 		y+h-marginY,
 	)
 }
+
+// HideProcess is a no-op. The process is a pure CLI daemon with no GUI
+// elements, so nothing shows in the Dock or Cmd-Tab.
+func HideProcess() {}
