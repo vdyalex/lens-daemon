@@ -1,31 +1,55 @@
 # test-assistant
 
-A macOS daemon that captures your screen on demand via a hotkey, extracts text via OCR, processes it through Claude AI, and sends the results to Telegram.
+A macOS daemon that captures your screen on demand via a global hotkey, extracts text using OCR, processes it through Claude AI, and delivers the response to Telegram. All operations happen in-memory with zero disk writes.
 
 ## How It Works
 
 ```
-Right Option Key → Screen Capture → OCR → Claude AI → Telegram
+Right Option Key -> Screen Capture -> OCR -> Claude AI -> Telegram
 ```
 
-1. **Hotkey** — listens for the **right Option key** using a macOS CGEventTap (global keyboard listener)
-2. **Capture** — grabs the center 60% of the active window using AppleScript and the macOS screenshot API
-3. **OCR** — extracts text from the screenshot using Tesseract (in-memory, no temp files)
-4. **AI** — sends the extracted text to Claude with a configurable system prompt
-5. **Notify** — delivers Claude's response to a Telegram chat (auto-chunks messages over 4096 chars)
+1. **Hotkey** -- listens for the **right Option key** (`kVK_RightOption`, keycode `0x3D`) using a macOS `CGEventTap` global keyboard listener
+2. **Capture** -- grabs the center 60% of the active window via AppleScript (window detection) and the `kbinani/screenshot` library (pixel capture)
+3. **OCR** -- extracts text from the captured image using Tesseract, entirely in-memory (RGBA -> PNG encode -> Tesseract, no temp files)
+4. **AI** -- sends the extracted text to Claude with a configurable system prompt (max 1024 response tokens)
+5. **Notify** -- delivers Claude's response to a Telegram chat via the Bot API, auto-chunking messages that exceed 4096 characters
 
-Everything runs in-memory. No screenshots or intermediate files are written to disk. Captures happen only when you press the hotkey — no continuous screen polling.
+Captures happen **only** when you press the hotkey. There is no continuous screen polling or background recording.
+
+## Functional Requirements
+
+- **Global hotkey detection**: Listen for the right Option key system-wide using macOS `CGEventTap` in listen-only mode. The event tap runs on a dedicated OS thread with its own `CFRunLoop` and automatically re-enables itself if the system disables it due to timeout or user input.
+- **Active window detection**: Identify the frontmost application window (name, position, size) via AppleScript and `System Events`.
+- **Screen capture**: Capture the center 60% of the active window (20% margin on each side). For fullscreen windows (width >= screen width AND height >= screen height), capture the center 60% of the entire display instead.
+- **OCR text extraction**: Convert the captured image to text using Tesseract OCR. The image is PNG-encoded in memory and passed directly to Tesseract via byte buffer -- no intermediate files touch the disk.
+- **AI processing**: Send extracted text to Claude AI with a configurable system prompt. Empty OCR results are silently skipped (no API call made).
+- **Telegram delivery**: Send Claude's response to a configured Telegram chat. Messages exceeding Telegram's 4096-character limit are automatically split into sequential chunks. Empty AI responses are silently skipped.
+- **Graceful shutdown**: Handle `SIGINT` and `SIGTERM` signals to cleanly shut down the event tap, release Tesseract resources, and exit.
+- **Non-fatal runtime errors**: Pipeline errors (capture failure, OCR failure, API errors) are logged but do not terminate the daemon. The hotkey listener continues running for the next trigger.
+
+## Non-Functional Requirements
+
+- **Platform**: macOS only. Uses macOS-specific APIs (`CGEventTap`, `CFRunLoop`, `CoreGraphics`, `CoreFoundation`) via cgo and AppleScript via `osascript`.
+- **In-memory processing**: No screenshots, intermediate images, or temporary files are written to disk at any point in the pipeline.
+- **Daemon operation**: Runs as a background CLI daemon. Does not appear in the Dock or Cmd-Tab (pure CLI process with no GUI elements).
+- **Event-driven**: Idle until the hotkey is pressed. No polling, no timers, no periodic screen checks.
+- **Single-trigger pipeline**: Each hotkey press executes a full sequential pipeline (capture -> OCR -> AI -> Telegram). The pipeline does not overlap or queue multiple triggers; the hotkey channel has a buffer of 1 with non-blocking sends.
+- **Language**: Go 1.24+ with cgo (for `CoreGraphics`/`CoreFoundation` bindings and Tesseract C library).
+- **Configuration**: All settings via environment variables. No config files, no CLI flags.
+- **Logging**: Structured log output to stderr with date, time, and short filename.
+- **External dependencies**: Tesseract OCR engine must be installed on the host system (e.g., via Homebrew).
+- **Security permissions**: Requires macOS Accessibility and Screen Recording permissions granted to the terminal or binary.
 
 ## Prerequisites
 
-- **macOS** (uses AppleScript for window detection and CGEventTap for hotkey)
-- **Go 1.24+**
-- **Tesseract OCR** — install via Homebrew:
+- **macOS** (uses CoreGraphics CGEventTap and AppleScript)
+- **Go 1.24+** (with cgo support)
+- **Tesseract OCR** -- install via Homebrew:
   ```bash
   brew install tesseract
   ```
-- **Anthropic API key** — get one at [console.anthropic.com](https://console.anthropic.com)
-- **Telegram bot** — create one via [@BotFather](https://t.me/BotFather) and get the chat ID
+- **Anthropic API key** -- get one at [console.anthropic.com](https://console.anthropic.com)
+- **Telegram bot** -- create one via [@BotFather](https://t.me/BotFather) and obtain your chat ID
 
 ## Installation
 
@@ -35,25 +59,31 @@ cd test-assistant
 make build
 ```
 
+This produces the `test` binary in the project root.
+
 ## Configuration
 
-All configuration is done through environment variables. Create a `.env` file or export them directly.
+All configuration is done through environment variables. Copy `.env.example` to `.env` and fill in your values, or export them directly.
 
 ### Required
 
 | Variable | Description |
 |---|---|
-| `ANTHROPIC_API_KEY` | Claude API key |
-| `TELEGRAM_BOT_TOKEN` | Telegram bot token from @BotFather |
-| `TELEGRAM_CHAT_ID` | Telegram chat ID to send messages to |
+| `ANTHROPIC_API_KEY` | Anthropic API key (e.g., `sk-ant-...`) |
+| `TELEGRAM_BOT_TOKEN` | Telegram bot token from @BotFather (e.g., `123456:ABC-DEF...`) |
+| `TELEGRAM_CHAT_ID` | Numeric Telegram chat ID to send messages to |
 
 ### Optional
 
 | Variable | Default | Description |
 |---|---|---|
-| `TEST_TESSERACT_LANG` | `eng` | Tesseract language pack code |
-| `TEST_CLAUDE_MODEL` | `claude-sonnet-4-6` | Claude model ID |
+| `TEST_TESSERACT_LANG` | `eng` | Tesseract language pack code (e.g., `deu`, `fra`, `rus`) |
+| `TEST_CLAUDE_MODEL` | `claude-sonnet-4-6` | Claude model ID to use for AI processing |
 | `TEST_SYSTEM_PROMPT` | *(built-in)* | System prompt sent to Claude with each request |
+
+The built-in default system prompt is:
+
+> You are a helpful assistant that processes screen content. Analyze the following text extracted from a user's screen and provide a concise summary or relevant instructions based on the content.
 
 ## Usage
 
@@ -66,34 +96,109 @@ export TELEGRAM_CHAT_ID="987654321"
 # Run in foreground
 ./test
 
-# Or run in background
+# Or build and run in background
 make run
 ```
 
-Once running, press the **right Option key** at any time to trigger a capture. The daemon grabs the active window, runs OCR, sends the text to Claude, and forwards the response to Telegram.
+Once running, press the **right Option key** at any time to trigger a capture. The daemon captures the active window, runs OCR, sends the text to Claude, and forwards the response to your Telegram chat.
 
-Press `Ctrl+C` to stop — the daemon handles SIGINT/SIGTERM gracefully.
+Press `Ctrl+C` to stop. The daemon handles `SIGINT`/`SIGTERM` gracefully, releasing all resources before exiting.
+
+## macOS Permissions
+
+macOS will prompt for two permissions on first run. Both must be granted for the daemon to function:
+
+| Permission | Required For | Where to Grant |
+|---|---|---|
+| **Accessibility** | Global hotkey listener (`CGEventTap`) | System Settings -> Privacy & Security -> Accessibility |
+| **Screen Recording** | Screen capture | System Settings -> Privacy & Security -> Screen Recording |
+
+If Accessibility permission is not granted, the daemon will fail on startup with:
+
+```
+CGEventTapCreate failed -- grant Accessibility permission to this app
+```
 
 ## Project Structure
 
 ```
-cmd/test/           Entry point, signal handling, graceful shutdown
-internal/
-  pipeline/         Orchestrates the capture → OCR → AI → Telegram flow
-  hotkey/           Global hotkey listener (macOS CGEventTap, right Option key)
-  capture/          Screen capture and window detection (macOS / AppleScript)
-  ocr/              Tesseract OCR wrapper (in-memory)
-  agent/            Claude API client
-  telegram/         Telegram Bot API sender with message chunking
-  config/           Environment variable loader with defaults
+test-assistant/
+|-- cmd/test/
+|   `-- main.go                 Entry point, signal handling, graceful shutdown
+|-- internal/
+|   |-- config/
+|   |   `-- config.go           Environment variable loader with defaults and validation
+|   |-- pipeline/
+|   |   `-- pipeline.go         Orchestrates the capture -> OCR -> AI -> Telegram flow
+|   |-- hotkey/
+|   |   `-- hotkey.go           Global hotkey listener (macOS CGEventTap via cgo)
+|   |-- capture/
+|   |   |-- capture.go          Capturer interface, WindowInfo type, center-rect utility
+|   |   `-- capture_macos.go    macOS implementation (AppleScript + screenshot library)
+|   |-- ocr/
+|   |   `-- ocr.go              Tesseract OCR wrapper (in-memory image processing)
+|   |-- agent/
+|   |   `-- agent.go            Claude AI client (Anthropic SDK)
+|   `-- telegram/
+|       `-- telegram.go         Telegram Bot API sender with automatic message chunking
+|-- .env.example                Configuration template
+|-- Makefile                    Build automation (build, run, clean)
+|-- go.mod                      Go module definition
+`-- go.sum                      Dependency checksums
 ```
 
-## Permissions
+## Architecture
 
-macOS will prompt for two permissions:
+### Pipeline Flow
 
-- **Accessibility** — required for the global hotkey listener (CGEventTap). Grant access in **System Settings → Privacy & Security → Accessibility**.
-- **Screen Recording** — required for screen capture. Grant access in **System Settings → Privacy & Security → Screen Recording**.
+```
+main()
+ |-- capture.HideProcess()           No-op (CLI daemon, no GUI)
+ |-- config.Load()                   Load and validate env vars
+ |-- pipeline.New(cfg)               Wire all components:
+ |    |-- ocr.New(lang)                Initialize Tesseract client
+ |    |-- capture.New()                Create darwinCapturer
+ |    |-- agent.New(...)               Create Anthropic SDK client
+ |    `-- telegram.New(...)            Create Telegram HTTP sender
+ |-- signal.Notify(SIGINT, SIGTERM)  Register shutdown handler
+ `-- pipeline.Run(ctx)               Main event loop:
+      |-- hotkey.Listen(ctx)           Start CGEventTap on dedicated OS thread
+      `-- loop:
+           |-- <-triggers             Wait for right Option key press
+           `-- pipeline.process():
+                |-- ForegroundWindow()   AppleScript -> window info
+                |-- CaptureCenter()      Screenshot center 60% region
+                |-- ocr.Extract()        RGBA -> PNG -> Tesseract -> text
+                |-- ai.Process()         Text -> Claude API -> response
+                `-- tg.Send()            Response -> Telegram (chunked)
+```
+
+### Key Design Decisions
+
+- **CGEventTap in listen-only mode**: The event tap observes keyboard events without modifying or consuming them. Other applications continue to receive all key events normally.
+- **Non-blocking hotkey channel**: The C callback sends to a buffered channel (capacity 1) with a non-blocking select, ensuring the `CFRunLoop` is never stalled by a slow pipeline execution.
+- **Center 60% capture**: Crops the outer 20% on all sides to focus on the primary content area of the window, reducing noise from toolbars, sidebars, and window chrome.
+- **Fullscreen detection**: When the window dimensions match or exceed the screen size, the capture falls back to the full display bounds.
+- **In-memory image pipeline**: Images flow as `*image.RGBA` through the pipeline and are PNG-encoded into a byte buffer only when passed to Tesseract. No files are created.
+- **Message chunking**: Telegram's 4096-character message limit is handled by splitting at byte boundaries and sending sequential chunks.
+
+## Dependencies
+
+| Dependency | Purpose |
+|---|---|
+| [`anthropic-sdk-go`](https://github.com/anthropics/anthropic-sdk-go) | Official Anthropic Go SDK for Claude AI API |
+| [`kbinani/screenshot`](https://github.com/kbinani/screenshot) | Screen capture (macOS backend) |
+| [`otiai10/gosseract`](https://github.com/otiai10/gosseract) | Go bindings for Tesseract OCR engine |
+
+Indirect dependencies (`tidwall/gjson`, `tidwall/sjson`, `golang.org/x/sync`, `golang.org/x/sys`) are pulled in by the Anthropic SDK.
+
+## Build Commands
+
+```bash
+make build    # Compile to ./test
+make run      # Build and run in background
+make clean    # Remove the binary
+```
 
 ## License
 
