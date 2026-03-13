@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
@@ -16,17 +16,21 @@ func main() {
 	// Hide the process from taskbar / Alt-Tab
 	capture.HideProcess()
 
-	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
-	log.SetOutput(os.Stderr)
-
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatalf("configuration error: %v", err)
+		logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
+		logger.Error("configuration error", "error", err)
+		os.Exit(1)
 	}
 
-	p, err := pipeline.New(cfg)
+	handlerOptions := &slog.HandlerOptions{Level: cfg.LogLevel}
+	handler := slog.NewTextHandler(os.Stderr, handlerOptions)
+	logger := slog.New(handler)
+
+	p, err := pipeline.New(cfg, logger)
 	if err != nil {
-		log.Fatalf("pipeline initialization error: %v", err)
+		logger.Error("pipeline initialization error", "error", err)
+		os.Exit(1)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -37,11 +41,12 @@ func main() {
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		sig := <-sigCh
-		log.Printf("received signal %v, shutting down", sig)
+		logger.Info("received signal, shutting down", slog.String("signal", sig.String()))
 		cancel()
 	}()
 
 	if err := p.Run(ctx); err != nil && err != context.Canceled {
-		log.Fatalf("pipeline error: %v", err)
+		logger.Error("pipeline error", "error", err)
+		os.Exit(1)
 	}
 }
