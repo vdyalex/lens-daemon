@@ -1,7 +1,6 @@
 # Binaries
 /test
 /cmd/test/test
-*.exe
 
 # Environment
 .env
@@ -14,4 +13,3 @@
 
 # OS
 .DS_Store
-Thumbs.db
