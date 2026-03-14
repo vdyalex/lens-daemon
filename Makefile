@@ -1,15 +1,10 @@
-.PHONY: build run clean vet fmt check
+.PHONY: build run clean vet fmt check service-install service-uninstall service-start service-stop service-logs
 
 build:
-	@LEPTONICA_VER=$$(ls $$(brew --cellar leptonica) | tail -1) && \
-	TESSERACT_VER=$$(ls $$(brew --cellar tesseract) | tail -1) && \
-	CGO_CFLAGS="-I$$(brew --cellar leptonica)/$$LEPTONICA_VER/include -I$$(brew --cellar tesseract)/$$TESSERACT_VER/include" \
-	CGO_CXXFLAGS="-I$$(brew --cellar leptonica)/$$LEPTONICA_VER/include -I$$(brew --cellar tesseract)/$$TESSERACT_VER/include" \
-	CGO_LDFLAGS="-L$$(brew --cellar leptonica)/$$LEPTONICA_VER/lib -L$$(brew --cellar tesseract)/$$TESSERACT_VER/lib" \
 	go build -o networkd ./src
 
 run: build
-	./networkd &
+	./networkd
 
 clean:
 	rm -f networkd
@@ -21,3 +16,23 @@ fmt:
 	gofmt -w .
 
 check: fmt vet
+
+# Service management targets
+SCRIPTS_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))scripts
+SERVICE_PLIST := $(HOME)/Library/LaunchAgents/com.vdyalex.assistant.plist
+SERVICE_LOG_DIR := $(HOME)/Library/Logs/test
+
+service-install:
+	@bash $(SCRIPTS_DIR)/service-install.sh
+
+service-uninstall:
+	@bash $(SCRIPTS_DIR)/service-uninstall.sh
+
+service-start:
+	launchctl load -w "$(SERVICE_PLIST)"
+
+service-stop:
+	launchctl unload "$(SERVICE_PLIST)"
+
+service-logs:
+	tail -f "$(SERVICE_LOG_DIR)/stdout.log" "$(SERVICE_LOG_DIR)/stderr.log"
