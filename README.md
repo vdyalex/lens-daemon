@@ -1,6 +1,6 @@
 # ccat-assistant
 
-A macOS daemon that captures your screen on demand via a global hotkey, extracts text using OCR, processes it through a local LLM (Ollama), and delivers the response to Telegram. All operations happen in-memory with zero disk writes.
+A macOS daemon that captures your screen on demand via a global hotkey, extracts text using OCR, processes it through Claude AI (Anthropic), and delivers the response to Telegram. All operations happen in-memory with zero disk writes.
 
 ## How It Works
 
