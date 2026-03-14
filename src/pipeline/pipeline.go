@@ -20,7 +20,7 @@ type Pipeline struct {
 	logger    *slog.Logger
 	capturer  capturer.Capturer
 	extractor *extractor.Extractor
-	anthropic *agent.Agent
+	agent     *agent.Agent
 	telegram  *messenger.Sender
 }
 
@@ -37,7 +37,7 @@ func New(settings *config.Config, logger *slog.Logger) (*Pipeline, error) {
 		logger:    logger,
 		capturer:  capturer.New(),
 		extractor: extractor,
-		anthropic: agent.New(settings.AnthropicAPIKey, settings.ClaudeModel, settings.SystemPrompt),
+		agent:     agent.New(settings.OllamaEndpoint, settings.OllamaModel, settings.SystemPrompt),
 		telegram:  messenger.New(settings.TelegramBotToken, settings.TelegramChatID),
 	}, nil
 }
@@ -54,15 +54,31 @@ func (pipeline *Pipeline) Run(ctx context.Context) error {
 
 	pipeline.logger.Info("Pipeline ready — press right Option key to capture")
 
+	// Worker goroutine processes captures sequentially while main loop stays responsive.
+	queue := make(chan struct{})
+	go func() {
+		for range queue {
+			if err := pipeline.process(ctx); err != nil {
+				pipeline.logger.Error("Pipeline error", "error", err)
+			}
+		}
+	}()
+
 	for {
 		select {
 		case <-ctx.Done():
 			pipeline.logger.Info("Pipeline shutting down")
+			close(queue)
 			return ctx.Err()
 		case <-triggers:
-			pipeline.logger.Debug("Hotkey triggered, capturing screen")
-			if err := pipeline.process(ctx); err != nil {
-				pipeline.logger.Error("Pipeline error", "error", err)
+			pipeline.logger.Debug("Hotkey triggered, queueing capture")
+			select {
+			case queue <- struct{}{}:
+			case <-ctx.Done():
+				close(queue)
+				return ctx.Err()
+			default:
+				pipeline.logger.Debug("Capture already queued, skipping")
 			}
 		}
 	}
@@ -102,19 +118,19 @@ func (pipeline *Pipeline) process(ctx context.Context) error {
 	pipeline.logger.Info("OCR extracted text", slog.Int("character_count", len(text)))
 	pipeline.logger.Debug("OCR text content", slog.String("text", text))
 
-	// Step 4: Process with Anthropic
-	response, err := pipeline.anthropic.Process(ctx, text)
+	// Step 4: Process with Ollama
+	response, err := pipeline.agent.Process(ctx, text)
 	if err != nil {
 		return err
 	}
 
 	response = strings.TrimSpace(response)
 	if response == "" {
-		pipeline.logger.Warn("Anthropic returned empty response, skipping")
+		pipeline.logger.Warn("Ollama returned empty response, skipping")
 		return nil
 	}
-	pipeline.logger.Info("Anthropic response received", slog.Int("character_count", len(response)))
-	pipeline.logger.Debug("Anthropic response content", slog.String("response", response))
+	pipeline.logger.Info("Ollama response received", slog.Int("character_count", len(response)))
+	pipeline.logger.Debug("Ollama response content", slog.String("response", response))
 
 	// Step 5: Send to Telegram
 	if err := pipeline.telegram.Send(ctx, response); err != nil {
