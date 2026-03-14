@@ -1,6 +1,6 @@
 # ccat-assistant
 
-A macOS daemon that captures your screen on demand via a global hotkey, extracts text using OCR, processes it through Claude AI, and delivers the response to Telegram. All operations happen in-memory with zero disk writes.
+A macOS daemon that captures your screen on demand via a global hotkey, extracts text using OCR, processes it through a local LLM (Ollama), and delivers the response to Telegram. All operations happen in-memory with zero disk writes.
 
 ## How It Works
 
@@ -84,7 +84,7 @@ All configuration is done through environment variables. Copy `.env.example` to 
 
 The built-in default system prompt is:
 
-> You are a helpful assistant that processes screen content. Analyze the following text extracted from a user's screen and provide a concise summary or relevant instructions based on the content.
+> You're tasked with assisting with a CCAT examination. You're a logical and practical assistant who only returns quick logical responses with maximum efficiency and accuracy.
 
 ## Usage
 
@@ -95,7 +95,7 @@ export TELEGRAM_BOT_TOKEN="123456:ABC..."
 export TELEGRAM_CHAT_ID="987654321"
 
 # Run in foreground
-./networkd
+./ccat
 
 # Or build and run in background
 make run
@@ -170,8 +170,8 @@ main()
                 |-- ForegroundWindow()   AppleScript -> window info
                 |-- CaptureCenter()      Screenshot center 60% region
                 |-- extractor.Extract()  RGBA -> PNG -> Tesseract -> text
-                |-- anthropic.Process()  Text -> Claude API -> response
-                `-- telegram.Send()      Response -> Telegram (chunked)
+                |-- agent.Process()      Text -> Claude API -> response
+                `-- messenger.Send()      Response -> Telegram (chunked)
 ```
 
 ### Key Design Decisions

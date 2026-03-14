@@ -1,6 +1,9 @@
 package capturer
 
-import "image"
+import (
+	"context"
+	"image"
+)
 
 // WindowInfo describes the currently focused window.
 type WindowInfo struct {
@@ -14,7 +17,8 @@ type WindowInfo struct {
 // Capturer detects the foreground window and captures screenshots.
 type Capturer interface {
 	// ForegroundWindow returns information about the currently focused window.
-	ForegroundWindow() (*WindowInfo, error)
+	// The context parameter is used for cancellation and timeout.
+	ForegroundWindow(ctx context.Context) (*WindowInfo, error)
 
 	// ScreenSize returns the full screen dimensions.
 	ScreenSize() (width, height int, err error)
