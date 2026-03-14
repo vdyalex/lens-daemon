@@ -3,6 +3,7 @@
 package capturer
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"image"
@@ -24,7 +25,7 @@ func New() Capturer {
 	return &Capture{}
 }
 
-func (capture *Capture) ForegroundWindow() (*WindowInfo, error) {
+func (capture *Capture) ForegroundWindow(ctx context.Context) (*WindowInfo, error) {
 	// Use AppleScript to get the frontmost application window info
 	script := `
 	tell application "System Events"
@@ -38,7 +39,8 @@ func (capture *Capture) ForegroundWindow() (*WindowInfo, error) {
 		return appName & "," & (item 1 of winPos) & "," & (item 2 of winPos) & "," & (item 1 of winSize) & "," & (item 2 of winSize)
 	end tell`
 
-	out, err := exec.Command("osascript", "-e", script).Output()
+	cmd := exec.CommandContext(ctx, "osascript", "-e", script)
+	out, err := cmd.Output()
 	if err != nil {
 		var exitErr *exec.ExitError
 		if errors.As(err, &exitErr) && len(exitErr.Stderr) > 0 {

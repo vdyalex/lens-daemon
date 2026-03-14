@@ -5,13 +5,14 @@ import (
 	"errors"
 	"log/slog"
 	"strings"
+	"time"
 
-	"github.com/vdyalex/test-assistant/src/adapters/agent"
-	"github.com/vdyalex/test-assistant/src/adapters/messenger"
-	"github.com/vdyalex/test-assistant/src/modules/capturer"
-	"github.com/vdyalex/test-assistant/src/modules/extractor"
-	"github.com/vdyalex/test-assistant/src/modules/listener"
-	config "github.com/vdyalex/test-assistant/src/utils"
+	"github.com/vdyalex/ccat-assistant/src/adapters/agent"
+	"github.com/vdyalex/ccat-assistant/src/adapters/messenger"
+	"github.com/vdyalex/ccat-assistant/src/modules/capturer"
+	"github.com/vdyalex/ccat-assistant/src/modules/extractor"
+	"github.com/vdyalex/ccat-assistant/src/modules/listener"
+	config "github.com/vdyalex/ccat-assistant/src/utils"
 )
 
 // Pipeline orchestrates the full screen-monitor workflow.
@@ -37,7 +38,7 @@ func New(settings *config.Config, logger *slog.Logger) (*Pipeline, error) {
 		logger:    logger,
 		capturer:  capturer.New(),
 		extractor: extractor,
-		agent:     agent.New(settings.OllamaEndpoint, settings.OllamaModel, settings.SystemPrompt),
+		agent:     agent.New(settings.AnthropicAPIKey, settings.ClaudeModel, settings.SystemPrompt),
 		telegram:  messenger.New(settings.TelegramBotToken, settings.TelegramChatID),
 	}, nil
 }
@@ -85,8 +86,11 @@ func (pipeline *Pipeline) Run(ctx context.Context) error {
 }
 
 func (pipeline *Pipeline) process(ctx context.Context) error {
-	// Step 1: Detect the foreground window
-	window, err := pipeline.capturer.ForegroundWindow()
+	// Step 1: Detect the foreground window (with 5-second timeout)
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	window, err := pipeline.capturer.ForegroundWindow(ctxWithTimeout)
 	if errors.Is(err, capturer.ErrNoForegroundWindow) {
 		pipeline.logger.Debug("No foreground window, skipping")
 		return nil
@@ -118,7 +122,7 @@ func (pipeline *Pipeline) process(ctx context.Context) error {
 	pipeline.logger.Info("OCR extracted text", slog.Int("character_count", len(text)))
 	pipeline.logger.Debug("OCR text content", slog.String("text", text))
 
-	// Step 4: Process with Ollama
+	// Step 4: Process with Anthropic
 	response, err := pipeline.agent.Process(ctx, text)
 	if err != nil {
 		return err
@@ -126,11 +130,11 @@ func (pipeline *Pipeline) process(ctx context.Context) error {
 
 	response = strings.TrimSpace(response)
 	if response == "" {
-		pipeline.logger.Warn("Ollama returned empty response, skipping")
+		pipeline.logger.Warn("Anthropic returned empty response, skipping")
 		return nil
 	}
-	pipeline.logger.Info("Ollama response received", slog.Int("character_count", len(response)))
-	pipeline.logger.Debug("Ollama response content", slog.String("response", response))
+	pipeline.logger.Info("Anthropic response received", slog.Int("character_count", len(response)))
+	pipeline.logger.Debug("Anthropic response content", slog.String("response", response))
 
 	// Step 5: Send to Telegram
 	if err := pipeline.telegram.Send(ctx, response); err != nil {

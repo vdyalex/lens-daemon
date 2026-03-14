@@ -31,7 +31,7 @@ func Load() (*Config, error) {
 		TesseractLang:    envStr("TESSERACT_LANG", "eng"),
 		AnthropicAPIKey:  envStr("ANTHROPIC_API_KEY", ""),
 		ClaudeModel:      envStr("CLAUDE_MODEL", "claude-sonnet-4-6"),
-		SystemPrompt:     envStr("SYSTEM_PROMPT", "You're tasked with assisting with a TEST examination. You're a logical and practical assistant who only returns quick logical responses with maximum efficiency and accuracy."),
+		SystemPrompt:     envStr("SYSTEM_PROMPT", "You're tasked with assisting with a CCAT examination. You're a logical and practical assistant who only returns quick logical responses with maximum efficiency and accuracy."),
 		TelegramBotToken: envStr("TELEGRAM_BOT_TOKEN", ""),
 		TelegramChatID:   int64(envInt("TELEGRAM_CHAT_ID", 0)),
 	}

@@ -1,6 +1,6 @@
-# test-assistant
+# ccat-assistant
 
-A macOS daemon that captures your screen on demand via a global hotkey, extracts text using OCR, processes it through Claude AI, and delivers the response to Telegram. All operations happen in-memory with zero disk writes.
+A macOS daemon that captures your screen on demand via a global hotkey, extracts text using OCR, processes it through a local LLM (Ollama), and delivers the response to Telegram. All operations happen in-memory with zero disk writes.
 
 ## How It Works
 
@@ -54,12 +54,12 @@ Captures happen **only** when you press the hotkey. There is no continuous scree
 ## Installation
 
 ```bash
-git clone https://github.com/vdyalex/test-assistant.git
-cd test-assistant
+git clone https://github.com/vdyalex/ccat-assistant.git
+cd ccat-assistant
 make build
 ```
 
-This produces the `test` binary in the project root.
+This produces the `ccat` binary in the project root.
 
 ## Configuration
 
@@ -84,7 +84,7 @@ All configuration is done through environment variables. Copy `.env.example` to 
 
 The built-in default system prompt is:
 
-> You are a helpful assistant that processes screen content. Analyze the following text extracted from a user's screen and provide a concise summary or relevant instructions based on the content.
+> You're tasked with assisting with a CCAT examination. You're a logical and practical assistant who only returns quick logical responses with maximum efficiency and accuracy.
 
 ## Usage
 
@@ -95,7 +95,7 @@ export TELEGRAM_BOT_TOKEN="123456:ABC..."
 export TELEGRAM_CHAT_ID="987654321"
 
 # Run in foreground
-./networkd
+./ccat
 
 # Or build and run in background
 make run
@@ -123,7 +123,7 @@ CGEventTapCreate failed -- grant Accessibility permission to this app
 ## Project Structure
 
 ```
-test-assistant/
+ccat-assistant/
 |-- src/
 |   |-- main.go                 Entry point, signal handling, graceful shutdown
 |   |-- pipeline/
@@ -170,8 +170,8 @@ main()
                 |-- ForegroundWindow()   AppleScript -> window info
                 |-- CaptureCenter()      Screenshot center 60% region
                 |-- extractor.Extract()  RGBA -> PNG -> Tesseract -> text
-                |-- anthropic.Process()  Text -> Claude API -> response
-                `-- telegram.Send()      Response -> Telegram (chunked)
+                |-- agent.Process()      Text -> Claude API -> response
+                `-- messenger.Send()      Response -> Telegram (chunked)
 ```
 
 ### Key Design Decisions
@@ -196,7 +196,7 @@ Indirect dependencies (`tidwall/gjson`, `tidwall/sjson`, `golang.org/x/sync`, `g
 ## Build Commands
 
 ```bash
-make build    # Compile to ./test
+make build    # Compile to ./ccat
 make run      # Build and run in background
 make clean    # Remove the binary
 make check    # Run gofmt and go vet (fmt + vet)
