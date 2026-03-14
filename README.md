@@ -19,11 +19,11 @@ Captures happen **only** when you press the hotkey. There is no continuous scree
 ## Functional Requirements
 
 - **Global hotkey detection**: Listen for the right Option key system-wide using macOS `CGEventTap` in listen-only mode. The event tap runs on a dedicated OS thread with its own `CFRunLoop` and automatically re-enables itself if the system disables it due to timeout or user input.
-- **Active window detection**: Identify the frontmost application window (name, position, size) via AppleScript and `System Events`.
+- **Active window detection**: Identify the frontmost application window (name, position, size) via AppleScript and `System Events`. Unparseable coordinates in the osascript output are treated as errors and surface through the pipeline's non-fatal error path (logged, hotkey listener continues).
 - **Screen capture**: Capture the center 60% of the active window (20% margin on each side). For fullscreen windows (width >= screen width AND height >= screen height), capture the center 60% of the entire display instead.
 - **OCR text extraction**: Convert the captured image to text using Tesseract OCR. The image is PNG-encoded in memory and passed directly to Tesseract via byte buffer -- no intermediate files touch the disk.
 - **AI processing**: Send extracted text to Claude AI with a configurable system prompt. Empty OCR results are silently skipped (no API call made).
-- **Telegram delivery**: Send Claude's response to a configured Telegram chat. Messages exceeding Telegram's 4096-character limit are automatically split into sequential chunks. Empty AI responses are silently skipped.
+- **Telegram delivery**: Send Claude's response to a configured Telegram chat. Messages exceeding Telegram's 4096-character limit are automatically split into sequential chunks. Empty AI responses are silently skipped. The HTTP client enforces a 30-second timeout per request; a non-responsive Telegram API will not stall the pipeline indefinitely.
 - **Graceful shutdown**: Handle `SIGINT` and `SIGTERM` signals to cleanly shut down the event tap, release Tesseract resources, and exit.
 - **Non-fatal runtime errors**: Pipeline errors (capture failure, OCR failure, API errors) are logged but do not terminate the daemon. The hotkey listener continues running for the next trigger.
 
@@ -35,8 +35,8 @@ Captures happen **only** when you press the hotkey. There is no continuous scree
 - **Event-driven**: Idle until the hotkey is pressed. No polling, no timers, no periodic screen checks.
 - **Single-trigger pipeline**: Each hotkey press executes a full sequential pipeline (capture -> OCR -> AI -> Telegram). The pipeline does not overlap or queue multiple triggers; the hotkey channel has a buffer of 1 with non-blocking sends.
 - **Language**: Go 1.24+ with cgo (for `CoreGraphics`/`CoreFoundation` bindings and Tesseract C library).
-- **Configuration**: All settings via environment variables. No config files, no CLI flags.
-- **Logging**: Structured log output to stderr with date, time, and short filename.
+- **Settings**: All settings via environment variables. No config files, no CLI flags.
+- **Logging**: Structured log output to stderr using Go's slog TextHandler (time, level, message, and key-value fields). Log verbosity is controlled by `LOG_LEVEL`.
 - **External dependencies**: Tesseract OCR engine must be installed on the host system (e.g., via Homebrew).
 - **Security permissions**: Requires macOS Accessibility and Screen Recording permissions granted to the terminal or binary.
 
@@ -77,9 +77,10 @@ All configuration is done through environment variables. Copy `.env.example` to 
 
 | Variable | Default | Description |
 |---|---|---|
-| `CCAT_TESSERACT_LANG` | `eng` | Tesseract language pack code (e.g., `deu`, `fra`, `rus`) |
-| `CCAT_CLAUDE_MODEL` | `claude-sonnet-4-6` | Claude model ID to use for AI processing |
-| `CCAT_SYSTEM_PROMPT` | *(built-in)* | System prompt sent to Claude with each request |
+| `LOG_LEVEL` | `info` | Minimum log level (`debug`, `info`, `warn`, `error`) |
+| `TESSERACT_LANG` | `eng` | Tesseract language pack code (e.g., `deu`, `fra`, `rus`) |
+| `CLAUDE_MODEL` | `claude-sonnet-4-6` | Claude model ID to use for AI processing |
+| `SYSTEM_PROMPT` | *(built-in)* | System prompt sent to Claude with each request |
 
 The built-in default system prompt is:
 
@@ -94,7 +95,7 @@ export TELEGRAM_BOT_TOKEN="123456:ABC..."
 export TELEGRAM_CHAT_ID="987654321"
 
 # Run in foreground
-./ccat
+./networkd
 
 # Or build and run in background
 make run
@@ -123,28 +124,29 @@ CGEventTapCreate failed -- grant Accessibility permission to this app
 
 ```
 ccat-assistant/
-|-- cmd/ccat/
-|   `-- main.go                 Entry point, signal handling, graceful shutdown
-|-- internal/
-|   |-- config/
-|   |   `-- config.go           Environment variable loader with defaults and validation
+|-- src/
+|   |-- main.go                 Entry point, signal handling, graceful shutdown
 |   |-- pipeline/
 |   |   `-- pipeline.go         Orchestrates the capture -> OCR -> AI -> Telegram flow
-|   |-- hotkey/
-|   |   `-- hotkey.go           Global hotkey listener (macOS CGEventTap via cgo)
-|   |-- capture/
-|   |   |-- capture.go          Capturer interface, WindowInfo type, center-rect utility
-|   |   `-- capture_macos.go    macOS implementation (AppleScript + screenshot library)
-|   |-- ocr/
-|   |   `-- ocr.go              Tesseract OCR wrapper (in-memory image processing)
-|   |-- agent/
-|   |   `-- agent.go            Claude AI client (Anthropic SDK)
-|   `-- telegram/
-|       `-- telegram.go         Telegram Bot API sender with automatic message chunking
-|-- .env.example                Configuration template
-|-- Makefile                    Build automation (build, run, clean)
+|   |-- modules/
+|   |   |-- listener/
+|   |   |   `-- listener.go     Global hotkey listener (macOS CGEventTap via cgo)
+|   |   |-- capturer/
+|   |   |   |-- capturer.go     Capturer interface, WindowInfo type, center-rect utility
+|   |   |   `-- capturer_macos.go   macOS implementation (AppleScript + screenshot library)
+|   |   `-- extractor/
+|   |       `-- extractor.go    Tesseract OCR wrapper (in-memory image processing)
+|   |-- adapters/
+|   |   |-- agent/
+|   |   |   `-- agent.go        Claude AI client (Anthropic SDK)
+|   |   `-- messenger/
+|   |       `-- messenger.go    Telegram Bot API sender with automatic message chunking
+|   `-- utils/
+|       `-- config.go           Environment variable loader with defaults and validation
+|-- Makefile                    Build automation (build, run, clean, check)
 |-- go.mod                      Go module definition
-`-- go.sum                      Dependency checksums
+|-- go.sum                      Dependency checksums
+`-- README.md                   This file
 ```
 
 ## Architecture
@@ -153,34 +155,33 @@ ccat-assistant/
 
 ```
 main()
- |-- capture.HideProcess()           No-op (CLI daemon, no GUI)
  |-- config.Load()                   Load and validate env vars
- |-- pipeline.New(cfg)               Wire all components:
- |    |-- ocr.New(lang)                Initialize Tesseract client
- |    |-- capture.New()                Create darwinCapturer
+ |-- pipeline.New(cfg, logger)       Wire all components:
+ |    |-- extractor.New(lang)          Initialize Tesseract client
+ |    |-- capturer.New()               Create macOS capturer
  |    |-- agent.New(...)               Create Anthropic SDK client
- |    `-- telegram.New(...)            Create Telegram HTTP sender
+ |    `-- messenger.New(...)           Create Telegram HTTP sender
  |-- signal.Notify(SIGINT, SIGTERM)  Register shutdown handler
  `-- pipeline.Run(ctx)               Main event loop:
-      |-- hotkey.Listen(ctx)           Start CGEventTap on dedicated OS thread
+      |-- listener.Listen(ctx)         Start CGEventTap on dedicated OS thread
       `-- loop:
            |-- <-triggers             Wait for right Option key press
            `-- pipeline.process():
                 |-- ForegroundWindow()   AppleScript -> window info
                 |-- CaptureCenter()      Screenshot center 60% region
-                |-- ocr.Extract()        RGBA -> PNG -> Tesseract -> text
-                |-- ai.Process()         Text -> Claude API -> response
-                `-- tg.Send()            Response -> Telegram (chunked)
+                |-- extractor.Extract()  RGBA -> PNG -> Tesseract -> text
+                |-- anthropic.Process()  Text -> Claude API -> response
+                `-- telegram.Send()      Response -> Telegram (chunked)
 ```
 
 ### Key Design Decisions
 
-- **CGEventTap in listen-only mode**: The event tap observes keyboard events without modifying or consuming them. Other applications continue to receive all key events normally.
+- **CGEventTap in listen-only mode**: The event tap (in `modules/listener/`) observes keyboard events without modifying or consuming them. Other applications continue to receive all key events normally. On shutdown, the listener uses a `CFRunLoopRunInMode` polling loop (0.5 s timeout per iteration) to check for context cancellation, then disables the tap and releases all C resources (`CFRelease`) before the goroutine exits.
 - **Non-blocking hotkey channel**: The C callback sends to a buffered channel (capacity 1) with a non-blocking select, ensuring the `CFRunLoop` is never stalled by a slow pipeline execution.
-- **Center 60% capture**: Crops the outer 20% on all sides to focus on the primary content area of the window, reducing noise from toolbars, sidebars, and window chrome.
+- **Center 60% capture**: The capturer (`modules/capturer/`) crops the outer 20% on all sides to focus on the primary content area of the window, reducing noise from toolbars, sidebars, and window chrome.
 - **Fullscreen detection**: When the window dimensions match or exceed the screen size, the capture falls back to the full display bounds.
-- **In-memory image pipeline**: Images flow as `*image.RGBA` through the pipeline and are PNG-encoded into a byte buffer only when passed to Tesseract. No files are created.
-- **Message chunking**: Telegram's 4096-character message limit is handled by splitting at byte boundaries and sending sequential chunks.
+- **In-memory image pipeline**: Images flow as `*image.RGBA` through the pipeline and are PNG-encoded into a byte buffer only when passed to Tesseract (in `modules/extractor/`). No files are created.
+- **Message chunking**: Telegram's 4096-character message limit is handled by the messenger adapter (`adapters/messenger/`) by splitting at rune boundaries (respecting Unicode character width) and sending sequential chunks.
 
 ## Dependencies
 
@@ -198,6 +199,9 @@ Indirect dependencies (`tidwall/gjson`, `tidwall/sjson`, `golang.org/x/sync`, `g
 make build    # Compile to ./ccat
 make run      # Build and run in background
 make clean    # Remove the binary
+make check    # Run gofmt and go vet (fmt + vet)
+make fmt      # Format source files with gofmt
+make vet      # Run go vet static analysis
 ```
 
 ## License

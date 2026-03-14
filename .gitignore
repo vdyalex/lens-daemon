@@ -1,6 +1,5 @@
 # Binaries
-/ccat
-/cmd/ccat/ccat
+/networkd
 
 # Environment
 .env

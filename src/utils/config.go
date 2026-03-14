@@ -10,15 +10,15 @@ import (
 // Config holds all application configuration loaded from environment variables.
 type Config struct {
 	// Logging settings
-	LogLevel slog.Level // Minimum log level (CCAT_LOG_LEVEL, default: info)
+	LogLevel slog.Level // Minimum log level (LOG_LEVEL, default: info)
 
 	// OCR settings
 	TesseractLang string // Tesseract language pack (e.g., "eng")
 
 	// Claude AI settings
-	ClaudeAPIKey string
-	ClaudeModel  string
-	SystemPrompt string
+	AnthropicAPIKey string
+	ClaudeModel     string
+	SystemPrompt    string
 
 	// Telegram settings
 	TelegramBotToken string
@@ -27,16 +27,16 @@ type Config struct {
 
 func Load() (*Config, error) {
 	cfg := &Config{
-		LogLevel:         envLogLevel("CCAT_LOG_LEVEL", slog.LevelInfo),
-		TesseractLang:    envStr("CCAT_TESSERACT_LANG", "eng"),
-		ClaudeAPIKey:     envStr("ANTHROPIC_API_KEY", ""),
-		ClaudeModel:      envStr("CCAT_CLAUDE_MODEL", "claude-sonnet-4-6"),
-		SystemPrompt:     envStr("CCAT_SYSTEM_PROMPT", "You are a helpful assistant that processes screen content. Analyze the following text extracted from a user's screen and provide a concise summary or relevant instructions based on the content."),
+		LogLevel:         envLogLevel("LOG_LEVEL", slog.LevelInfo),
+		TesseractLang:    envStr("TESSERACT_LANG", "eng"),
+		AnthropicAPIKey:  envStr("ANTHROPIC_API_KEY", ""),
+		ClaudeModel:      envStr("CLAUDE_MODEL", "claude-sonnet-4-6"),
+		SystemPrompt:     envStr("SYSTEM_PROMPT", "You're tasked with assisting with a CCAT examination. You're a logical and practical assistant who only returns quick logical responses with maximum efficiency and accuracy."),
 		TelegramBotToken: envStr("TELEGRAM_BOT_TOKEN", ""),
 		TelegramChatID:   int64(envInt("TELEGRAM_CHAT_ID", 0)),
 	}
 
-	if cfg.ClaudeAPIKey == "" {
+	if cfg.AnthropicAPIKey == "" {
 		return nil, fmt.Errorf("ANTHROPIC_API_KEY environment variable is required")
 	}
 	if cfg.TelegramBotToken == "" {

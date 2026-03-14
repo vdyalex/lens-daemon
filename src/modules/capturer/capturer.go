@@ -1,4 +1,4 @@
-package capture
+package capturer
 
 import "image"
 
@@ -22,22 +22,11 @@ type Capturer interface {
 	// CaptureCenter captures the center region of the given window.
 	// The returned image is cropped to the center portion of the window.
 	// If the window is full-screen, it captures the center of the full screen.
-	CaptureCenter(win *WindowInfo) (*image.RGBA, error)
+	CaptureCenter(window *WindowInfo) (*image.RGBA, error)
 }
 
-// centerRect computes a centered sub-rectangle within the given bounds.
-// It captures roughly 60% of the width and 60% of the height, centered.
+// centerRect computes a sub-rectangle that skips the top 200px of the window.
+// It captures the full width and the height below the 200px top margin.
 func centerRect(x, y, w, h int) image.Rectangle {
-	marginX := w * 20 / 100 // 20% margin on each side = 60% center
-	marginY := h * 20 / 100
-	return image.Rect(
-		x+marginX,
-		y+marginY,
-		x+w-marginX,
-		y+h-marginY,
-	)
+	return image.Rect(x, y+200, x+w, y+h)
 }
-
-// HideProcess is a no-op. The process is a pure CLI daemon with no GUI
-// elements, so nothing shows in the Dock or Cmd-Tab.
-func HideProcess() {}
