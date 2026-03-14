@@ -3,6 +3,8 @@ package pipeline
 import (
 	"context"
 	"errors"
+	"fmt"
+	"image"
 	"log/slog"
 	"strings"
 	"time"
@@ -22,7 +24,7 @@ type Pipeline struct {
 	capturer  capturer.Capturer
 	extractor *extractor.Extractor
 	agent     *agent.Agent
-	telegram  *messenger.Sender
+	messenger *messenger.Sender
 }
 
 // New creates a fully wired pipeline from settings.
@@ -39,7 +41,7 @@ func New(settings *config.Config, logger *slog.Logger) (*Pipeline, error) {
 		capturer:  capturer.New(),
 		extractor: extractor,
 		agent:     agent.New(settings.AnthropicAPIKey, settings.ClaudeModel, settings.SystemPrompt),
-		telegram:  messenger.New(settings.TelegramBotToken, settings.TelegramChatID),
+		messenger: messenger.New(settings.TelegramBotToken, settings.TelegramChatID),
 	}, nil
 }
 
@@ -100,16 +102,35 @@ func (pipeline *Pipeline) process(ctx context.Context) error {
 	}
 	pipeline.logger.Debug("Foreground window", slog.String("title", window.Title), slog.Int("width", window.Width), slog.Int("height", window.Height), slog.Int("x", window.X), slog.Int("y", window.Y))
 
-	// Step 2: Capture the center of the window
+	// Step 2: Capture the center of the window (with 30-second timeout)
 	pipeline.logger.Debug("Capturing center of window")
-	image, err := pipeline.capturer.CaptureCenter(window)
-	if err != nil {
+	ctxCapture, cancelCapture := context.WithTimeout(ctx, 30*time.Second)
+	defer cancelCapture()
+
+	imageCh := make(chan *image.RGBA, 1)
+	errCh := make(chan error, 1)
+	go func() {
+		img, err := pipeline.capturer.CaptureCenter(window)
+		if err != nil {
+			errCh <- err
+		} else {
+			imageCh <- img
+		}
+	}()
+
+	var img *image.RGBA
+	select {
+	case img = <-imageCh:
+		// Capture succeeded
+	case err := <-errCh:
 		return err
+	case <-ctxCapture.Done():
+		return fmt.Errorf("screenshot capture timeout (30s)")
 	}
 
 	// Step 3: Extract text via OCR
-	pipeline.logger.Debug("Running OCR on captured image", slog.Int("width", image.Bounds().Dx()), slog.Int("height", image.Bounds().Dy()))
-	text, err := pipeline.extractor.Extract(image)
+	pipeline.logger.Debug("Running OCR on captured image", slog.Int("width", img.Bounds().Dx()), slog.Int("height", img.Bounds().Dy()))
+	text, err := pipeline.extractor.Extract(img)
 	if err != nil {
 		return err
 	}
@@ -137,7 +158,7 @@ func (pipeline *Pipeline) process(ctx context.Context) error {
 	pipeline.logger.Debug("Anthropic response content", slog.String("response", response))
 
 	// Step 5: Send to Telegram
-	if err := pipeline.telegram.Send(ctx, response); err != nil {
+	if err := pipeline.messenger.Send(ctx, response); err != nil {
 		return err
 	}
 	pipeline.logger.Info("Sent to Telegram successfully")
