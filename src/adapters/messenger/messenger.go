@@ -5,25 +5,32 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
+
+	"github.com/vdyalex/ccat-assistant/src/adapters/messenger/subscriber"
 )
 
 const telegramAPI = "https://api.telegram.org"
 
-// Sender sends messages to a Telegram chat via the Bot API.
+// Sender broadcasts messages to all subscribers via the Telegram Bot API.
 type Sender struct {
 	token  string
-	chatID int64
+	store  *subscriber.Store
 	client *http.Client
+	logger *slog.Logger
 }
 
-// New creates a new Telegram message sender.
-func New(botToken string, chatID int64) *Sender {
+// New creates a new Telegram message broadcaster.
+func New(botToken string, store *subscriber.Store, logger *slog.Logger) *Sender {
 	return &Sender{
 		token:  botToken,
-		chatID: chatID,
+		store:  store,
 		client: &http.Client{Timeout: 30 * time.Second},
+		logger: logger,
 	}
 }
 
@@ -38,14 +45,31 @@ type Response struct {
 	Description string `json:"description,omitempty"`
 }
 
-// Send sends a text message to the configured Telegram chat.
-// Long messages are automatically split into chunks of 4096 runes
-// (Telegram's message limit), preserving Unicode character boundaries.
-func (sender *Sender) Send(ctx context.Context, text string) error {
+// Broadcast sends a text message to all subscribers.
+// Long messages are automatically split into chunks of 4096 runes.
+func (sender *Sender) Broadcast(ctx context.Context, text string) error {
 	if text == "" {
 		return nil
 	}
 
+	chatIDs := sender.store.All()
+	if len(chatIDs) == 0 {
+		sender.logger.Warn("No subscribers, skipping broadcast")
+		return nil
+	}
+
+	var lastErr error
+	for _, chatID := range chatIDs {
+		if err := sender.sendTo(ctx, chatID, text); err != nil {
+			sender.logger.Error("Broadcast send failed", "chat_id", chatID, "error", err)
+			lastErr = err
+		}
+	}
+	return lastErr
+}
+
+// sendTo sends a message to a specific chat, handling chunking and rate limits.
+func (sender *Sender) sendTo(ctx context.Context, chatID int64, text string) error {
 	const max = 4096
 	runes := []rune(text)
 	for len(runes) > 0 {
@@ -56,17 +80,43 @@ func (sender *Sender) Send(ctx context.Context, text string) error {
 		chunk := string(runes[:end])
 		runes = runes[end:]
 
-		if err := sender.sendChunk(ctx, chunk); err != nil {
+		if err := sender.sendChunk(ctx, chatID, chunk); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (sender *Sender) sendChunk(ctx context.Context, text string) error {
+// sendChunk sends a single chunk to a chat ID with rate-limit retry support.
+func (sender *Sender) sendChunk(ctx context.Context, chatID int64, text string) error {
+	const maxRetries = 1
+	for attempt := 0; attempt <= maxRetries; attempt++ {
+		err := sender.doSendChunk(ctx, chatID, text)
+		if err == nil {
+			return nil
+		}
+
+		// Check for rate limit (429) and retry if applicable
+		if isRateLimit(err) && attempt < maxRetries {
+			retryAfter := parseRetryAfter(err.Error())
+			select {
+			case <-time.After(retryAfter):
+				continue
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		}
+		return err
+	}
+	return nil
+}
+
+// doSendChunk performs the actual HTTP call to Telegram.
+func (sender *Sender) doSendChunk(ctx context.Context, chatID int64, text string) error {
 	payload := Request{
-		ChatID: sender.chatID,
-		Text:   text,
+		ChatID:    chatID,
+		Text:      toTelegramMarkdown(text),
+		ParseMode: "MarkdownV2",
 	}
 
 	body, err := json.Marshal(payload)
@@ -93,8 +143,29 @@ func (sender *Sender) sendChunk(ctx context.Context, text string) error {
 	}
 
 	if !telegram.OK {
+		if response.StatusCode == http.StatusTooManyRequests {
+			return fmt.Errorf("rate_limit: %s", telegram.Description)
+		}
 		return fmt.Errorf("Telegram API error: %s", telegram.Description)
 	}
 
 	return nil
+}
+
+// isRateLimit checks if an error is a Telegram rate-limit error.
+func isRateLimit(err error) bool {
+	return strings.Contains(err.Error(), "rate_limit")
+}
+
+// parseRetryAfter extracts the retry-after duration from a Telegram error message.
+// Expected format: "Too Many Requests: retry after 23" (where 23 is seconds).
+func parseRetryAfter(errMsg string) time.Duration {
+	parts := strings.Fields(errMsg)
+	if len(parts) > 0 {
+		seconds, err := strconv.Atoi(parts[len(parts)-1])
+		if err == nil && seconds > 0 {
+			return time.Duration(seconds) * time.Second
+		}
+	}
+	return 1 * time.Second
 }

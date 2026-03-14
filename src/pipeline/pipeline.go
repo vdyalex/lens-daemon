@@ -7,10 +7,13 @@ import (
 	"image"
 	"log/slog"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/vdyalex/ccat-assistant/src/adapters/agent"
 	"github.com/vdyalex/ccat-assistant/src/adapters/messenger"
+	"github.com/vdyalex/ccat-assistant/src/adapters/messenger/poller"
+	"github.com/vdyalex/ccat-assistant/src/adapters/messenger/subscriber"
 	"github.com/vdyalex/ccat-assistant/src/modules/capturer"
 	"github.com/vdyalex/ccat-assistant/src/modules/extractor"
 	"github.com/vdyalex/ccat-assistant/src/modules/listener"
@@ -19,18 +22,26 @@ import (
 
 // Pipeline orchestrates the full screen-monitor workflow.
 type Pipeline struct {
-	settings  *config.Config
-	logger    *slog.Logger
-	capturer  capturer.Capturer
-	extractor *extractor.Extractor
-	agent     *agent.Agent
-	messenger *messenger.Sender
+	settings      *config.Config
+	logger        *slog.Logger
+	capturer      capturer.Capturer
+	extractor     extractor.Extractor
+	agent         *agent.Agent
+	messenger     *messenger.Sender
+	poller        *poller.Poller
+	boundsMu      sync.RWMutex
+	captureBounds *image.Rectangle
 }
 
 // New creates a fully wired pipeline from settings.
 // logger must not be nil; pass slog.Default() if no custom logger is required.
 func New(settings *config.Config, logger *slog.Logger) (*Pipeline, error) {
-	extractor, err := extractor.New(settings.TesseractLang)
+	ocr, err := extractor.New(settings.VisionLanguage)
+	if err != nil {
+		return nil, err
+	}
+
+	store, err := subscriber.NewStore(settings.SubscriberStorePath, settings.TelegramChatID)
 	if err != nil {
 		return nil, err
 	}
@@ -39,31 +50,51 @@ func New(settings *config.Config, logger *slog.Logger) (*Pipeline, error) {
 		settings:  settings,
 		logger:    logger,
 		capturer:  capturer.New(),
-		extractor: extractor,
+		extractor: ocr,
 		agent:     agent.New(settings.AnthropicAPIKey, settings.ClaudeModel, settings.SystemPrompt),
-		messenger: messenger.New(settings.TelegramBotToken, settings.TelegramChatID),
+		messenger: messenger.New(settings.TelegramBotToken, store, logger),
+		poller:    poller.New(settings.TelegramBotToken, store, logger),
 	}, nil
 }
 
 // Run starts listening for the hotkey and processes on each trigger.
-// It blocks until the context is cancelled.
+// It blocks until the context is cancelled. Each trigger spawns an async
+// goroutine (limited by semaphore to 1 concurrent run for compatibility with
+// OCR engines that serialize operations). The function waits for all in-flight
+// goroutines before closing the OCR client on exit.
 func (pipeline *Pipeline) Run(ctx context.Context) error {
 	defer pipeline.extractor.Close()
 
-	triggers, err := listener.Listen(ctx, pipeline.logger)
+	triggers, bounds, err := listener.Listen(ctx, pipeline.logger)
 	if err != nil {
 		return err
 	}
 
-	pipeline.logger.Info("Pipeline ready — press right Option key to capture")
+	// Start the Telegram subscriber poller in background
+	go pipeline.poller.Run(ctx)
+
+	// Start the bounds tracker goroutine
+	go func() {
+		for rect := range bounds {
+			pipeline.boundsMu.Lock()
+			pipeline.captureBounds = &rect
+			pipeline.boundsMu.Unlock()
+			pipeline.logger.Info("Capture bounds updated", slog.Int("minX", rect.Min.X), slog.Int("minY", rect.Min.Y), slog.Int("maxX", rect.Max.X), slog.Int("maxY", rect.Max.Y))
+		}
+	}()
+
+	pipeline.logger.Info("Pipeline ready — press right Option key to capture (right Shift to set bounds)")
 
 	// Worker goroutine processes captures sequentially while main loop stays responsive.
 	queue := make(chan struct{})
 	go func() {
 		for range queue {
-			if err := pipeline.process(ctx); err != nil {
+			// Create a 5-minute context for this run (allows long OCR+API calls)
+			runCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+			if err := pipeline.process(runCtx); err != nil && !errors.Is(err, context.Canceled) {
 				pipeline.logger.Error("Pipeline error", "error", err)
 			}
+			cancel()
 		}
 	}()
 
@@ -74,14 +105,11 @@ func (pipeline *Pipeline) Run(ctx context.Context) error {
 			close(queue)
 			return ctx.Err()
 		case <-triggers:
-			pipeline.logger.Debug("Hotkey triggered, queueing capture")
 			select {
 			case queue <- struct{}{}:
-			case <-ctx.Done():
-				close(queue)
-				return ctx.Err()
+				// Queued
 			default:
-				pipeline.logger.Debug("Capture already queued, skipping")
+				pipeline.logger.Debug("Capture queue full, skipping trigger")
 			}
 		}
 	}
@@ -103,17 +131,28 @@ func (pipeline *Pipeline) process(ctx context.Context) error {
 	pipeline.logger.Debug("Foreground window", slog.String("title", window.Title), slog.Int("width", window.Width), slog.Int("height", window.Height), slog.Int("x", window.X), slog.Int("y", window.Y))
 
 	// Step 2: Capture the center of the window (with 30-second timeout)
-	pipeline.logger.Debug("Capturing center of window")
+	pipeline.boundsMu.RLock()
+	bounds := pipeline.captureBounds
+	pipeline.boundsMu.RUnlock()
+
+	if bounds != nil {
+		pipeline.logger.Debug("Capturing with custom bounds", slog.Int("minX", bounds.Min.X), slog.Int("minY", bounds.Min.Y), slog.Int("maxX", bounds.Max.X), slog.Int("maxY", bounds.Max.Y))
+	} else {
+		pipeline.logger.Debug("Capturing center of window (no custom bounds)")
+	}
 	ctxCapture, cancelCapture := context.WithTimeout(ctx, 30*time.Second)
 	defer cancelCapture()
 
 	imageCh := make(chan *image.RGBA, 1)
 	errCh := make(chan error, 1)
 	go func() {
-		img, err := pipeline.capturer.CaptureCenter(window)
+		pipeline.logger.Debug("Screenshot goroutine started")
+		img, err := pipeline.capturer.CaptureCenter(window, bounds)
 		if err != nil {
+			pipeline.logger.Error("Screenshot capture failed", "error", err)
 			errCh <- err
 		} else {
+			pipeline.logger.Debug("Screenshot captured successfully", "width", img.Bounds().Dx(), "height", img.Bounds().Dy())
 			imageCh <- img
 		}
 	}()
@@ -121,18 +160,40 @@ func (pipeline *Pipeline) process(ctx context.Context) error {
 	var img *image.RGBA
 	select {
 	case img = <-imageCh:
+		pipeline.logger.Debug("Screenshot received from goroutine")
 		// Capture succeeded
 	case err := <-errCh:
+		pipeline.logger.Debug("Screenshot error received from goroutine")
 		return err
 	case <-ctxCapture.Done():
+		pipeline.logger.Error("Screenshot capture timeout after 30s")
 		return fmt.Errorf("screenshot capture timeout (30s)")
 	}
 
-	// Step 3: Extract text via OCR
+	// Step 3: Extract text via OCR (30-second timeout)
 	pipeline.logger.Debug("Running OCR on captured image", slog.Int("width", img.Bounds().Dx()), slog.Int("height", img.Bounds().Dy()))
-	text, err := pipeline.extractor.Extract(img)
-	if err != nil {
+	ocrCtx, ocrCancel := context.WithTimeout(ctx, 30*time.Second)
+	defer ocrCancel()
+
+	textCh := make(chan string, 1)
+	ocrErrCh := make(chan error, 1)
+	go func() {
+		text, err := pipeline.extractor.Extract(img)
+		if err != nil {
+			ocrErrCh <- err
+		} else {
+			textCh <- text
+		}
+	}()
+
+	var text string
+	select {
+	case text = <-textCh:
+		// OCR succeeded
+	case err := <-ocrErrCh:
 		return err
+	case <-ocrCtx.Done():
+		return fmt.Errorf("OCR timeout (30s)")
 	}
 
 	text = strings.TrimSpace(text)
@@ -143,8 +204,10 @@ func (pipeline *Pipeline) process(ctx context.Context) error {
 	pipeline.logger.Info("OCR extracted text", slog.Int("character_count", len(text)))
 	pipeline.logger.Debug("OCR text content", slog.String("text", text))
 
-	// Step 4: Process with Anthropic
-	response, err := pipeline.agent.Process(ctx, text)
+	// Step 4: Process with Anthropic (60-second timeout)
+	agentCtx, agentCancel := context.WithTimeout(ctx, 60*time.Second)
+	defer agentCancel()
+	response, err := pipeline.agent.Process(agentCtx, text)
 	if err != nil {
 		return err
 	}
@@ -157,11 +220,13 @@ func (pipeline *Pipeline) process(ctx context.Context) error {
 	pipeline.logger.Info("Anthropic response received", slog.Int("character_count", len(response)))
 	pipeline.logger.Debug("Anthropic response content", slog.String("response", response))
 
-	// Step 5: Send to Telegram
-	if err := pipeline.messenger.Send(ctx, response); err != nil {
+	// Step 5: Broadcast to Telegram subscribers (30-second timeout)
+	telegramCtx, telegramCancel := context.WithTimeout(ctx, 30*time.Second)
+	defer telegramCancel()
+	if err := pipeline.messenger.Broadcast(telegramCtx, response); err != nil {
 		return err
 	}
-	pipeline.logger.Info("Sent to Telegram successfully")
+	pipeline.logger.Info("Broadcast to Telegram subscribers successfully")
 
 	return nil
 }

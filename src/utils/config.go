@@ -13,7 +13,7 @@ type Config struct {
 	LogLevel slog.Level // Minimum log level (LOG_LEVEL, default: info)
 
 	// OCR settings
-	TesseractLang string // Tesseract language pack (e.g., "eng")
+	VisionLanguage string // VISION_LANG: Vision language (BCP 47, e.g., "en-US", default: "en-US")
 
 	// Claude AI settings
 	AnthropicAPIKey string
@@ -21,19 +21,21 @@ type Config struct {
 	SystemPrompt    string
 
 	// Telegram settings
-	TelegramBotToken string
-	TelegramChatID   int64
+	TelegramBotToken   string
+	TelegramChatID     int64  // Optional: seed subscriber (legacy single-chat mode, default: 0)
+	SubscriberStorePath string // File path for subscriber list (default: "subscribers.json")
 }
 
 func Load() (*Config, error) {
 	cfg := &Config{
-		LogLevel:         envLogLevel("LOG_LEVEL", slog.LevelInfo),
-		TesseractLang:    envStr("TESSERACT_LANG", "eng"),
-		AnthropicAPIKey:  envStr("ANTHROPIC_API_KEY", ""),
-		ClaudeModel:      envStr("CLAUDE_MODEL", "claude-sonnet-4-6"),
-		SystemPrompt:     envStr("SYSTEM_PROMPT", "You're tasked with assisting with a CCAT examination. You're a logical and practical assistant who only returns quick logical responses with maximum efficiency and accuracy."),
-		TelegramBotToken: envStr("TELEGRAM_BOT_TOKEN", ""),
-		TelegramChatID:   int64(envInt("TELEGRAM_CHAT_ID", 0)),
+		LogLevel:            envLogLevel("LOG_LEVEL", slog.LevelInfo),
+		VisionLanguage:      envStr("VISION_LANG", "en-US"),
+		AnthropicAPIKey:     envStr("ANTHROPIC_API_KEY", ""),
+		ClaudeModel:         envStr("CLAUDE_MODEL", "claude-sonnet-4-6"),
+		SystemPrompt:        envStr("SYSTEM_PROMPT", "You're a questionnaire assistant. Provide quick, accurate responses with maximum efficiency."),
+		TelegramBotToken:    envStr("TELEGRAM_BOT_TOKEN", ""),
+		TelegramChatID:      int64(envInt("TELEGRAM_CHAT_ID", 0)),
+		SubscriberStorePath: envStr("SUBSCRIBER_STORE_PATH", "subscribers.json"),
 	}
 
 	if cfg.AnthropicAPIKey == "" {
@@ -41,9 +43,6 @@ func Load() (*Config, error) {
 	}
 	if cfg.TelegramBotToken == "" {
 		return nil, fmt.Errorf("TELEGRAM_BOT_TOKEN environment variable is required")
-	}
-	if cfg.TelegramChatID == 0 {
-		return nil, fmt.Errorf("TELEGRAM_CHAT_ID environment variable is required")
 	}
 
 	return cfg, nil

@@ -6,45 +6,54 @@ import (
 	"image"
 	"image/png"
 
-	"github.com/otiai10/gosseract/v2"
+	"github.com/vdyalex/ccat-assistant/src/adapters/vision"
 )
 
-// Extractor extracts text from images using Tesseract OCR.
-type Extractor struct {
-	client *gosseract.Client
+// Extractor extracts text from an in-memory image.
+// Callers must call Close to release resources.
+type Extractor interface {
+	// Extract converts the image to text.
+	// No files are written to disk.
+	Extract(image *image.RGBA) (string, error)
+
+	// Close releases underlying resources.
+	Close() error
 }
 
-// New creates a new OCR extractor with the specified language.
-func New(language string) (*Extractor, error) {
-	client := gosseract.NewClient()
-	if err := client.SetLanguage(language); err != nil {
-		client.Close()
-		return nil, fmt.Errorf("Set tesseract language %q: %w", language, err)
-	}
-	return &Extractor{client: client}, nil
-}
-
-// Extract takes an in-memory image and returns the recognized text.
-// No files are written to disk.
-func (extractor *Extractor) Extract(file *image.RGBA) (string, error) {
+// encodeImage encodes an RGBA image to PNG bytes.
+func encodeImage(image *image.RGBA) ([]byte, error) {
 	var buffer bytes.Buffer
-	if err := png.Encode(&buffer, file); err != nil {
-		return "", fmt.Errorf("Encode image to png: %w", err)
+	if err := png.Encode(&buffer, image); err != nil {
+		return nil, fmt.Errorf("encode image to PNG: %w", err)
 	}
-
-	if err := extractor.client.SetImageFromBytes(buffer.Bytes()); err != nil {
-		return "", fmt.Errorf("Set image from bytes: %w", err)
-	}
-
-	text, err := extractor.client.Text()
-	if err != nil {
-		return "", fmt.Errorf("Tesseract OCR: %w", err)
-	}
-
-	return text, nil
+	return buffer.Bytes(), nil
 }
 
-// Close releases the Tesseract client resources.
-func (extractor *Extractor) Close() error {
-	return extractor.client.Close()
+// VisionExtractor uses the Vision framework adapter for OCR.
+type VisionExtractor struct {
+	client *vision.Client
+}
+
+// New creates an extractor using the Vision framework adapter.
+// language should be a BCP 47 code (e.g., "en-US", "zh-Hans", "ja", "ko").
+func New(language string) (Extractor, error) {
+	return &VisionExtractor{
+		client: vision.New(language),
+	}, nil
+}
+
+// Extract recognizes text in the image.
+// No files are written to disk.
+func (e *VisionExtractor) Extract(file *image.RGBA) (string, error) {
+	pngData, err := encodeImage(file)
+	if err != nil {
+		return "", err
+	}
+
+	return e.client.RecognizeText(pngData)
+}
+
+// Close is a no-op (Vision framework has no persistent resources to release).
+func (e *VisionExtractor) Close() error {
+	return nil
 }
