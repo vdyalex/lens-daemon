@@ -1,6 +1,5 @@
 # Binaries
-/test
-/cmd/test/test
+/networkd
 
 # Environment
 .env
