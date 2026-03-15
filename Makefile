@@ -1,5 +1,8 @@
 .PHONY: build run clean vet fmt check service-install service-uninstall service-start service-stop service-logs
 
+-include .env
+export
+
 build:
 	go build -o networkd ./src
 
