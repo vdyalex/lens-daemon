@@ -3,14 +3,16 @@
 -include .env
 export
 
+BINARY_NAME ?= lensd
+
 build:
-	go build -o lensd ./src
+	go build -o $(BINARY_NAME) ./src
 
 run: build
-	./lensd
+	./$(BINARY_NAME)
 
 clean:
-	rm -f lensd
+	rm -f $(BINARY_NAME)
 
 vet:
 	go vet ./...
