@@ -148,7 +148,7 @@ func Listen(parentCtx context.Context, logger *slog.Logger) (<-chan struct{}, <-
 			C.CFRunLoopAddSource(rl, source, C.kCFRunLoopCommonModes)
 			C.CGEventTapEnable(tap, C.bool(true))
 
-			logger.Info("hotkey listener started (right Shift key, right Option for bounds)")
+			logger.Info("Hotkey listener started (right Shift key, right Option for bounds)")
 
 			// Poll the run loop with a timeout so we can check context cancellation.
 			for parentCtx.Err() == nil {
@@ -160,7 +160,7 @@ func Listen(parentCtx context.Context, logger *slog.Logger) (<-chan struct{}, <-
 			C.CFRunLoopRemoveSource(rl, source, C.kCFRunLoopCommonModes)
 			C.CFRelease(C.CFTypeRef(source))
 			C.CFRelease(C.CFTypeRef(tap))
-			logger.Info("hotkey listener stopped")
+			logger.Info("Hotkey listener stopped")
 		}()
 	})
 
