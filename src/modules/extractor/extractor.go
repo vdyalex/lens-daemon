@@ -6,7 +6,7 @@ import (
 	"image"
 	"image/png"
 
-	"github.com/vdyalex/test-assistant/src/adapters/vision"
+	"github.com/vdyalex/lens-daemon/src/adapters/vision"
 )
 
 // Extractor extracts text from an in-memory image.

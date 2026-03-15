@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vdyalex/test-assistant/src/adapters/messenger/subscriber"
+	"github.com/vdyalex/lens-daemon/src/adapters/messenger/subscriber"
 )
 
 // Poller long-polls Telegram's getUpdates API and dispatches /start and /stop commands

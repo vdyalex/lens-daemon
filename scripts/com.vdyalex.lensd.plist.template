@@ -4,7 +4,7 @@
 <plist version="1.0">
 <dict>
   <key>Label</key>
-  <string>com.vdyalex.assistant</string>
+  <string>com.vdyalex.lensd</string>
   <key>ProgramArguments</key>
   <array>
     <string>__BINARY_PATH__</string>

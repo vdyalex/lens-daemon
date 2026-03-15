@@ -1,4 +1,4 @@
-module github.com/vdyalex/test-assistant
+module github.com/vdyalex/lens-daemon
 
 go 1.24.7
 

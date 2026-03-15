@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vdyalex/test-assistant/src/adapters/messenger/subscriber"
+	"github.com/vdyalex/lens-daemon/src/adapters/messenger/subscriber"
 )
 
 const telegramAPI = "https://api.telegram.org"

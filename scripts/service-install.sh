@@ -5,10 +5,11 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 GOBIN="${GOPATH:-$HOME/go}/bin"
-PLIST_PATH="$HOME/Library/LaunchAgents/com.vdyalex.assistant.plist"
-LOG_DIR="$HOME/Library/Logs/test"
+PLIST_PATH="$HOME/Library/LaunchAgents/com.vdyalex.lensd.plist"
+LOG_DIR="$HOME/Library/Logs/lens"
 ENV_FILE="$REPO_DIR/.env"
-TEMPLATE_FILE="$SCRIPT_DIR/com.vdyalex.assistant.plist.template"
+TEMPLATE_FILE="$SCRIPT_DIR/com.vdyalex.lensd.plist.template"
+BINARY_NAME="lensd"
 
 echo "Installing service..."
 echo "  Repo dir: $REPO_DIR"
@@ -40,7 +41,6 @@ echo "✓ .env validated"
 echo ""
 
 # Build binary
-BINARY_NAME=$(grep '^module ' "$REPO_DIR/go.mod" | awk '{print $NF}' | xargs basename)
 echo "Building binary: $BINARY_NAME"
 go build -o "$GOBIN/$BINARY_NAME" "$REPO_DIR/src"
 echo "✓ Binary built at $GOBIN/$BINARY_NAME"
@@ -93,7 +93,7 @@ echo "✓ Plist generated at $PLIST_PATH"
 echo ""
 
 # Unload existing agent if it exists
-if launchctl list com.vdyalex.assistant &>/dev/null; then
+if launchctl list com.vdyalex.lensd &>/dev/null; then
   echo "Unloading existing agent..."
   launchctl unload "$PLIST_PATH" || true
 fi
@@ -108,8 +108,8 @@ echo ""
 sleep 1
 
 # Check if running
-if launchctl list com.vdyalex.assistant &>/dev/null; then
-  PID=$(launchctl list com.vdyalex.assistant 2>/dev/null | grep PID | awk '{print $NF}')
+if launchctl list com.vdyalex.lensd &>/dev/null; then
+  PID=$(launchctl list com.vdyalex.lensd 2>/dev/null | grep PID | awk '{print $NF}')
   if [[ -n "$PID" && "$PID" != "PID" ]]; then
     echo "✓ Service running (PID: $PID)"
   else

@@ -2,18 +2,15 @@
 set -euo pipefail
 
 # Resolve paths dynamically (same logic as install)
-REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 GOBIN="${GOPATH:-$HOME/go}/bin"
-PLIST_PATH="$HOME/Library/LaunchAgents/com.vdyalex.assistant.plist"
+PLIST_PATH="$HOME/Library/LaunchAgents/com.vdyalex.lensd.plist"
+BINARY_NAME="lensd"
 
 echo "Uninstalling service..."
 echo ""
 
-# Get binary name from go.mod
-BINARY_NAME=$(grep '^module ' "$REPO_DIR/go.mod" | awk '{print $NF}' | xargs basename)
-
 # Unload the service
-if launchctl list com.vdyalex.assistant &>/dev/null; then
+if launchctl list com.vdyalex.lensd &>/dev/null; then
   echo "Unloading service..."
   launchctl unload "$PLIST_PATH" || true
   echo "✓ Service unloaded"

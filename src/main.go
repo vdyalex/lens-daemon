@@ -7,8 +7,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/vdyalex/test-assistant/src/pipeline"
-	config "github.com/vdyalex/test-assistant/src/utils"
+	"github.com/vdyalex/lens-daemon/src/pipeline"
+	config "github.com/vdyalex/lens-daemon/src/utils"
 )
 
 func main() {

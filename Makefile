@@ -4,13 +4,13 @@
 export
 
 build:
-	go build -o networkd ./src
+	go build -o lensd ./src
 
 run: build
-	./networkd
+	./lensd
 
 clean:
-	rm -f networkd
+	rm -f lensd
 
 vet:
 	go vet ./...
@@ -22,8 +22,8 @@ check: fmt vet
 
 # Service management targets
 SCRIPTS_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))scripts
-SERVICE_PLIST := $(HOME)/Library/LaunchAgents/com.vdyalex.assistant.plist
-SERVICE_LOG_DIR := $(HOME)/Library/Logs/test
+SERVICE_PLIST := $(HOME)/Library/LaunchAgents/com.vdyalex.lensd.plist
+SERVICE_LOG_DIR := $(HOME)/Library/Logs/lens
 
 service-install:
 	@bash $(SCRIPTS_DIR)/service-install.sh

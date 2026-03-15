@@ -1,4 +1,4 @@
-# test-assistant
+# Lens
 
 A macOS daemon that captures your screen on demand via a global hotkey, extracts text using OCR, processes it through Claude AI (Anthropic), and broadcasts the response to Telegram subscribers. All operations happen in-memory with zero disk writes for screenshots.
 
@@ -134,12 +134,12 @@ For fullscreen windows (width and height >= screen dimensions), the daemon captu
 ## Installation
 
 ```bash
-git clone https://github.com/vdyalex/test-assistant.git
-cd test-assistant
+git clone https://github.com/vdyalex/lens-daemon.git
+cd lens-daemon
 make build
 ```
 
-This produces the `networkd` binary in the project root.
+This produces the `lensd` binary in the project root.
 
 ## Configuration
 
@@ -177,7 +177,7 @@ export ANTHROPIC_API_KEY="sk-ant-..."
 export TELEGRAM_BOT_TOKEN="123456:ABC..."
 
 # Run in foreground
-./networkd
+./lensd
 
 # Or build and run
 make run
@@ -210,7 +210,7 @@ The service will:
 - Start automatically on login
 - Restart automatically if it crashes
 - Run in the background with all hotkey functionality
-- Log output to `~/Library/Logs/test/stdout.log` and `~/Library/Logs/test/stderr.log`
+- Log output to `~/Library/Logs/lens/stdout.log` and `~/Library/Logs/lens/stderr.log`
 
 **Service management commands:**
 
@@ -221,7 +221,7 @@ make service-start      # Start the service (if already installed)
 make service-uninstall  # Remove the service
 ```
 
-The service is managed as a macOS LaunchAgent (`com.vdyalex.assistant`) and environment variables from your `.env` file are embedded into the LaunchAgent plist at installation time.
+The service is managed as a macOS LaunchAgent (`com.vdyalex.lensd`) and environment variables from your `.env` file are embedded into the LaunchAgent plist at installation time.
 
 After installation, you may need to re-grant **Accessibility** and **Screen Recording** permissions in System Settings if they don't automatically persist. See [macOS Permissions](#macos-permissions) below.
 

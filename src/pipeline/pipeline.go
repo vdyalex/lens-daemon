@@ -10,14 +10,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/vdyalex/test-assistant/src/adapters/agent"
-	"github.com/vdyalex/test-assistant/src/adapters/messenger"
-	"github.com/vdyalex/test-assistant/src/adapters/messenger/poller"
-	"github.com/vdyalex/test-assistant/src/adapters/messenger/subscriber"
-	"github.com/vdyalex/test-assistant/src/modules/capturer"
-	"github.com/vdyalex/test-assistant/src/modules/extractor"
-	"github.com/vdyalex/test-assistant/src/modules/listener"
-	config "github.com/vdyalex/test-assistant/src/utils"
+	"github.com/vdyalex/lens-daemon/src/adapters/agent"
+	"github.com/vdyalex/lens-daemon/src/adapters/messenger"
+	"github.com/vdyalex/lens-daemon/src/adapters/messenger/poller"
+	"github.com/vdyalex/lens-daemon/src/adapters/messenger/subscriber"
+	"github.com/vdyalex/lens-daemon/src/modules/capturer"
+	"github.com/vdyalex/lens-daemon/src/modules/extractor"
+	"github.com/vdyalex/lens-daemon/src/modules/listener"
+	config "github.com/vdyalex/lens-daemon/src/utils"
 )
 
 // Pipeline orchestrates the full screen-monitor workflow.
