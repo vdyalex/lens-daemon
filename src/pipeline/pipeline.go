@@ -83,7 +83,7 @@ func (pipeline *Pipeline) Run(ctx context.Context) error {
 		}
 	}()
 
-	pipeline.logger.Info("Pipeline ready — press right Option key to capture (right Shift to set bounds)")
+	pipeline.logger.Info("Pipeline ready — press right Shift key to capture (right Option to set bounds)")
 
 	// Worker goroutine processes captures sequentially while main loop stays responsive.
 	queue := make(chan struct{})

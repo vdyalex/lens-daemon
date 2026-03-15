@@ -12,8 +12,8 @@ extern void goRecordBounds(CGFloat minX, CGFloat minY, CGFloat maxX, CGFloat max
 // Global tap reference so the callback can re-enable it on timeout.
 static CFMachPortRef gTap = NULL;
 
-// Right Shift bounds tracking state.
-static bool gShiftHeld = false;
+// Right Option bounds tracking state.
+static bool gOptionHeld = false;
 static CGFloat gMinX, gMinY, gMaxX, gMaxY;
 
 // CGEventTap callback: fires on every flagsChanged event.
@@ -30,35 +30,35 @@ static CGEventRef eventCallback(CGEventTapProxy proxy, CGEventType type,
         return event;
     }
 
-    // Handle Right Shift (keycode 0x3C) bounds tracking.
+    // Handle Right Option (keycode 0x3D) bounds tracking.
     if (type == kCGEventFlagsChanged) {
         CGKeyCode keycode = (CGKeyCode)CGEventGetIntegerValueField(event, kCGKeyboardEventKeycode);
         CGEventFlags flags = CGEventGetFlags(event);
 
-        // Right Shift: keycode 0x3C (60).
-        if (keycode == 0x3C) {
-            bool shiftNowHeld = (flags & kCGEventFlagMaskShift) != 0;
-            if (shiftNowHeld && !gShiftHeld) {
-                // Right Shift pressed: start tracking.
-                gShiftHeld = true;
+        // Right Option: keycode 0x3D (61).
+        if (keycode == 0x3D) {
+            bool optionNowHeld = (flags & kCGEventFlagMaskAlternate) != 0;
+            if (optionNowHeld && !gOptionHeld) {
+                // Right Option pressed: start tracking.
+                gOptionHeld = true;
                 CGPoint loc = CGEventGetLocation(event);
                 gMinX = gMaxX = loc.x;
                 gMinY = gMaxY = loc.y;
-            } else if (!shiftNowHeld && gShiftHeld) {
-                // Right Shift released: record bounds.
-                gShiftHeld = false;
+            } else if (!optionNowHeld && gOptionHeld) {
+                // Right Option released: record bounds.
+                gOptionHeld = false;
                 goRecordBounds(gMinX, gMinY, gMaxX, gMaxY);
             }
         }
 
-        // kVK_RightOption == 0x3D (61)
-        // Detect right-Option key press (flag set + matching keycode).
-        if (keycode == 0x3D && (flags & kCGEventFlagMaskAlternate)) {
+        // kVK_RightShift == 0x3C (60)
+        // Detect right-Shift key press (flag set + matching keycode).
+        if (keycode == 0x3C && (flags & kCGEventFlagMaskShift)) {
             goHotkeyCallback();
         }
     }
-    // Handle mouse movement while Right Shift is held.
-    else if ((type == kCGEventMouseMoved || type == kCGEventLeftMouseDragged || type == kCGEventRightMouseDragged) && gShiftHeld) {
+    // Handle mouse movement while Right Option is held.
+    else if ((type == kCGEventMouseMoved || type == kCGEventLeftMouseDragged || type == kCGEventRightMouseDragged) && gOptionHeld) {
         CGPoint loc = CGEventGetLocation(event);
         if (loc.x < gMinX) gMinX = loc.x;
         if (loc.y < gMinY) gMinY = loc.y;
@@ -148,7 +148,7 @@ func Listen(parentCtx context.Context, logger *slog.Logger) (<-chan struct{}, <-
 			C.CFRunLoopAddSource(rl, source, C.kCFRunLoopCommonModes)
 			C.CGEventTapEnable(tap, C.bool(true))
 
-			logger.Info("hotkey listener started (right Option key, right Shift for bounds)")
+			logger.Info("hotkey listener started (right Shift key, right Option for bounds)")
 
 			// Poll the run loop with a timeout so we can check context cancellation.
 			for parentCtx.Err() == nil {
