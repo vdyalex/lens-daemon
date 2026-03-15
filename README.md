@@ -1,8 +1,8 @@
-# 🎯 Lens
+# Lens
 
 A macOS daemon that captures your screen on demand via a global hotkey, extracts text using OCR, processes it through Claude AI (Anthropic), and broadcasts the response to Telegram subscribers. All operations happen in-memory with zero disk writes for screenshots.
 
-## ⚡ How It Works
+## ⚡ How it works
 
 ```
 Right Option Key → Screen Capture → OCR → Claude AI → Telegram
@@ -18,7 +18,7 @@ Captures happen **only** when you press the hotkey. No continuous polling or bac
 
 For detailed architecture, design decisions, and requirements, see [REQUIREMENTS.md](REQUIREMENTS.md).
 
-## 📋 Prerequisites
+## 📋 Pre-requisites
 
 - **macOS** (uses CoreGraphics CGEventTap, Vision framework, and AppleScript)
 - **Go 1.24+** (with cgo support)
@@ -117,7 +117,7 @@ The service will:
 
 The service is managed as a macOS LaunchAgent (`com.vdyalex.lensd`) and environment variables from your `.env` file are embedded into the LaunchAgent plist at installation time.
 
-After installation, you may need to re-grant **Accessibility** and **Screen Recording** permissions in System Settings if they don't automatically persist. See [macOS Permissions](#-macos-permissions) below.
+After installation, you may need to re-grant **Accessibility** and **Screen Recording** permissions in System Settings if they don't automatically persist. See [Permissions](#-permissions) below.
 
 ### Build Commands
 
@@ -130,7 +130,7 @@ After installation, you may need to re-grant **Accessibility** and **Screen Reco
 | `make fmt` | Format source files with gofmt |
 | `make vet` | Run go vet static analysis |
 
-## 🔐 macOS Permissions
+## 🔐 Permissions
 
 macOS will prompt for two permissions on first run. Both must be granted for the daemon to function:
 
@@ -153,7 +153,3 @@ CGEventTapCreate failed -- grant Accessibility permission to this app
 | [`kbinani/screenshot`](https://github.com/kbinani/screenshot) | Screen capture (macOS backend) |
 
 Indirect dependencies (`tidwall/gjson`, `tidwall/sjson`, `golang.org/x/sync`, `golang.org/x/sys`) are pulled in by the Anthropic SDK. The Vision framework is built-in to macOS.
-
-## 📄 License
-
-See [LICENSE](LICENSE) for details.
