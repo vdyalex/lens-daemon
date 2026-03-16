@@ -8,7 +8,6 @@ import (
 	"log/slog"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/vdyalex/lens-daemon/src/adapters/agent"
 	"github.com/vdyalex/lens-daemon/src/adapters/messenger"
@@ -17,7 +16,8 @@ import (
 	"github.com/vdyalex/lens-daemon/src/modules/capturer"
 	"github.com/vdyalex/lens-daemon/src/modules/extractor"
 	"github.com/vdyalex/lens-daemon/src/modules/listener"
-	config "github.com/vdyalex/lens-daemon/src/utils"
+	"github.com/vdyalex/lens-daemon/src/utils/config"
+	"github.com/vdyalex/lens-daemon/src/utils/constants"
 )
 
 // Pipeline orchestrates the full screen-monitor workflow.
@@ -89,8 +89,8 @@ func (pipeline *Pipeline) Run(ctx context.Context) error {
 	queue := make(chan struct{})
 	go func() {
 		for range queue {
-			// Create a 5-minute context for this run (allows long OCR+API calls)
-			runCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+			// Create a context for this run (allows long OCR+API calls)
+			runCtx, cancel := context.WithTimeout(ctx, constants.TimeoutPipelineOverall)
 			if err := pipeline.process(runCtx); err != nil && !errors.Is(err, context.Canceled) {
 				pipeline.logger.Error("Pipeline error", "error", err)
 			}
@@ -116,8 +116,8 @@ func (pipeline *Pipeline) Run(ctx context.Context) error {
 }
 
 func (pipeline *Pipeline) process(ctx context.Context) error {
-	// Step 1: Detect the foreground window (with 5-second timeout)
-	ctxWithTimeout, cancel := context.WithTimeout(ctx, 5*time.Second)
+	// Step 1: Detect the foreground window
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, constants.TimeoutForegroundWindow)
 	defer cancel()
 
 	window, err := pipeline.capturer.ForegroundWindow(ctxWithTimeout)
@@ -130,7 +130,7 @@ func (pipeline *Pipeline) process(ctx context.Context) error {
 	}
 	pipeline.logger.Debug("Foreground window", slog.String("title", window.Title), slog.Int("width", window.Width), slog.Int("height", window.Height), slog.Int("x", window.X), slog.Int("y", window.Y))
 
-	// Step 2: Capture the center of the window (with 30-second timeout)
+	// Step 2: Capture the center of the window
 	pipeline.boundsMu.RLock()
 	bounds := pipeline.captureBounds
 	pipeline.boundsMu.RUnlock()
@@ -140,7 +140,7 @@ func (pipeline *Pipeline) process(ctx context.Context) error {
 	} else {
 		pipeline.logger.Debug("Capturing center of window (no custom bounds)")
 	}
-	ctxCapture, cancelCapture := context.WithTimeout(ctx, 30*time.Second)
+	ctxCapture, cancelCapture := context.WithTimeout(ctx, constants.TimeoutCapture)
 	defer cancelCapture()
 
 	imageCh := make(chan *image.RGBA, 1)
@@ -170,9 +170,9 @@ func (pipeline *Pipeline) process(ctx context.Context) error {
 		return fmt.Errorf("screenshot capture timeout (30s)")
 	}
 
-	// Step 3: Extract text via OCR (30-second timeout)
+	// Step 3: Extract text via OCR
 	pipeline.logger.Debug("Running OCR on captured image", slog.Int("width", img.Bounds().Dx()), slog.Int("height", img.Bounds().Dy()))
-	ocrCtx, ocrCancel := context.WithTimeout(ctx, 30*time.Second)
+	ocrCtx, ocrCancel := context.WithTimeout(ctx, constants.TimeoutOCRExtract)
 	defer ocrCancel()
 
 	textCh := make(chan string, 1)
@@ -204,8 +204,8 @@ func (pipeline *Pipeline) process(ctx context.Context) error {
 	pipeline.logger.Info("OCR extracted text", slog.Int("character_count", len(text)))
 	pipeline.logger.Debug("OCR text content", slog.String("text", text))
 
-	// Step 4: Process with Anthropic (60-second timeout)
-	agentCtx, agentCancel := context.WithTimeout(ctx, 60*time.Second)
+	// Step 4: Process with Anthropic
+	agentCtx, agentCancel := context.WithTimeout(ctx, constants.TimeoutAgentProcess)
 	defer agentCancel()
 	response, err := pipeline.agent.Process(agentCtx, text)
 	if err != nil {
@@ -220,8 +220,8 @@ func (pipeline *Pipeline) process(ctx context.Context) error {
 	pipeline.logger.Info("Anthropic response received", slog.Int("character_count", len(response)))
 	pipeline.logger.Debug("Anthropic response content", slog.String("response", response))
 
-	// Step 5: Broadcast to Telegram subscribers (30-second timeout)
-	telegramCtx, telegramCancel := context.WithTimeout(ctx, 30*time.Second)
+	// Step 5: Broadcast to Telegram subscribers
+	telegramCtx, telegramCancel := context.WithTimeout(ctx, constants.TimeoutTelegramBroadcast)
 	defer telegramCancel()
 	if err := pipeline.messenger.Broadcast(telegramCtx, response); err != nil {
 		return err

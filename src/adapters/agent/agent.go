@@ -6,6 +6,7 @@ import (
 
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/anthropics/anthropic-sdk-go/option"
+	"github.com/vdyalex/lens-daemon/src/utils/constants"
 )
 
 // Agent communicates with Claude AI to process extracted screen text.
@@ -33,7 +34,7 @@ func (agent *Agent) Process(ctx context.Context, text string) (string, error) {
 
 	response, err := agent.client.Messages.New(ctx, anthropic.MessageNewParams{
 		Model:     anthropic.Model(agent.model),
-		MaxTokens: 1024,
+		MaxTokens: int64(constants.ClaudeMaxResponseTokens),
 		System: []anthropic.TextBlockParam{
 			{Text: agent.prompt},
 		},

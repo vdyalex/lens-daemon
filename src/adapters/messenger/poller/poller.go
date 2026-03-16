@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/vdyalex/lens-daemon/src/adapters/messenger/subscriber"
+	"github.com/vdyalex/lens-daemon/src/utils/constants"
 )
 
 // Poller long-polls Telegram's getUpdates API and dispatches /start and /stop commands
@@ -44,7 +45,7 @@ func (p *Poller) Run(ctx context.Context) {
 			}
 			p.logger.Warn("Poller error", "error", err)
 			select {
-			case <-time.After(5 * time.Second):
+			case <-time.After(constants.TimeoutTelegramRetryBackoff):
 			case <-ctx.Done():
 				return
 			}
@@ -54,7 +55,7 @@ func (p *Poller) Run(ctx context.Context) {
 
 // poll fetches updates, processes them, and advances the offset.
 func (p *Poller) poll(ctx context.Context) error {
-	httpCtx, cancel := context.WithTimeout(ctx, 35*time.Second)
+	httpCtx, cancel := context.WithTimeout(ctx, constants.TimeoutTelegramPoller)
 	defer cancel()
 
 	u := url.URL{
@@ -64,7 +65,7 @@ func (p *Poller) poll(ctx context.Context) error {
 	}
 	q := u.Query()
 	q.Set("offset", fmt.Sprintf("%d", p.offset))
-	q.Set("timeout", "30")
+	q.Set("timeout", fmt.Sprintf("%.0f", constants.TimeoutTelegramLongPoll.Seconds()))
 	u.RawQuery = q.Encode()
 
 	req, err := http.NewRequestWithContext(httpCtx, "GET", u.String(), nil)

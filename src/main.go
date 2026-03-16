@@ -8,7 +8,7 @@ import (
 	"syscall"
 
 	"github.com/vdyalex/lens-daemon/src/pipeline"
-	config "github.com/vdyalex/lens-daemon/src/utils"
+	"github.com/vdyalex/lens-daemon/src/utils/config"
 )
 
 func main() {

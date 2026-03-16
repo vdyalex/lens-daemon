@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/vdyalex/lens-daemon/src/adapters/messenger/subscriber"
+	"github.com/vdyalex/lens-daemon/src/utils/constants"
 )
 
 const telegramAPI = "https://api.telegram.org"
@@ -29,7 +30,7 @@ func New(botToken string, store *subscriber.Store, logger *slog.Logger) *Sender 
 	return &Sender{
 		token:  botToken,
 		store:  store,
-		client: &http.Client{Timeout: 30 * time.Second},
+		client: &http.Client{Timeout: constants.TimeoutTelegramHTTPClient},
 		logger: logger,
 	}
 }
@@ -70,7 +71,7 @@ func (sender *Sender) Broadcast(ctx context.Context, text string) error {
 
 // sendTo sends a message to a specific chat, handling chunking and rate limits.
 func (sender *Sender) sendTo(ctx context.Context, chatID int64, text string) error {
-	const max = 4096
+	max := constants.TelegramMessageChunkSize
 	runes := []rune(text)
 	for len(runes) > 0 {
 		end := max
@@ -168,6 +169,6 @@ func parseRetryAfter(logger *slog.Logger, errMsg string) time.Duration {
 			return time.Duration(seconds) * time.Second
 		}
 	}
-	logger.Warn("Failed to parse retry-after from Telegram error; using 1s default", "error_msg", errMsg)
-	return 1 * time.Second
+	logger.Warn("Failed to parse retry-after from Telegram error; using default", "error_msg", errMsg)
+	return constants.TimeoutTelegramRetryFallback
 }

@@ -94,6 +94,8 @@ import (
 	"log/slog"
 	"runtime"
 	"sync"
+
+	"github.com/vdyalex/lens-daemon/src/utils/constants"
 )
 
 var (
@@ -152,7 +154,7 @@ func Listen(parentCtx context.Context, logger *slog.Logger) (<-chan struct{}, <-
 
 			// Poll the run loop with a timeout so we can check context cancellation.
 			for parentCtx.Err() == nil {
-				C.CFRunLoopRunInMode(C.kCFRunLoopDefaultMode, 0.5, 0)
+				C.CFRunLoopRunInMode(C.kCFRunLoopDefaultMode, C.double(constants.EventTapPollInterval.Seconds()), 0)
 			}
 
 			// Cleanup on context cancellation.
