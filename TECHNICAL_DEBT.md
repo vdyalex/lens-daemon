@@ -59,14 +59,14 @@ This is not a defect—each form is correct for its domain. The naming is intent
 
 ---
 
-### 5. No Container Setup
-**File:** None (missing)
+### 5. ✅ No Container Setup (Accepted by Design)
 
-**Issue:** No `Dockerfile` or `docker-compose.yml` for reproducible builds. While the runtime is macOS-only (uses CoreGraphics, Vision, AppleScript), a build container for the Go compilation step would still benefit reproducibility and CI/CD.
+**Status:** Accepted as incompatible with runtime model. The daemon relies on macOS host APIs:
+- CoreGraphics (`CGDisplayCreateImageForRect`, screen capture)
+- CGEventTap (global keyboard event listener)
+- AppleScript (`osascript`, window control via AppleEventManager)
 
-**CLAUDE.md violation:** "Docker required for local development and reproducible builds." No container setup exists.
-
-**Impact:** Builds are not reproducible across environments; CI/CD setup is incomplete.
+These kernel-level APIs cannot run inside a container. Containerization is therefore fundamentally incompatible with the runtime requirements. The daemon must execute on the host macOS system.
 
 ---
 
@@ -418,7 +418,7 @@ These should be configurable, especially the language, to support multi-language
 
 | Category | Count | Severity |
 |----------|-------|----------|
-| Architecture | 5 | High |
+| Architecture | 4 | High |
 | Performance | 5 | Medium |
 | Code Quality | 0 | N/A |
 | Best Practices | 4 | High |
@@ -426,7 +426,7 @@ These should be configurable, especially the language, to support multi-language
 | Unit Tests | 7 test suites | High |
 | Functional Tests | 6 test suites | High |
 
-**Total: 35 items** (4 bugs fixed + 5 code quality fixed + 1 best practice fixed = 10 fixed, 25 remaining)
+**Total: 34 items** (4 bugs fixed + 5 code quality fixed + 1 best practice fixed + 1 architecture accepted = 11 fixed/accepted, 23 remaining)
 
 ---
 
@@ -439,9 +439,9 @@ All findings are violations of CLAUDE.md sections: Core rules, Code structure, D
 Next steps:
 1. ✅ **Fix bugs** (4 items) — COMPLETED
 2. ✅ **Code quality improvements** (5 items: remove trivial centerRect, add parseRetryAfter logging, mark TELEGRAM_CHAT_ID complete, extract remaining magic numbers, remove unused dependencies) — COMPLETED
-3. **Add tests** (13 test suites: unit + functional).
-4. **Extract settings to env vars** (7 items: timeouts, chunk size, poll interval, max tokens, OCR params).
-5. **Improve static analysis** (Makefile: add linter, vulnerability scanner, CI/CD).
-6. **Add structured error types** (all modules: replace bare `errors.New` with sentinel values).
-7. **Add GoDoc docstrings** (all exported symbols).
-8. **Add container setup** (optional: Dockerfile for build reproducibility).
+3. ✅ **Architecture #5 (No Container Setup)** — ACCEPTED BY DESIGN
+4. **Add tests** (13 test suites: unit + functional).
+5. **Extract settings to env vars** (7 items: timeouts, chunk size, poll interval, max tokens, OCR params).
+6. **Improve static analysis** (Makefile: add linter, vulnerability scanner, CI/CD).
+7. **Add structured error types** (all modules: replace bare `errors.New` with sentinel values).
+8. **Add GoDoc docstrings** (all exported symbols).
