@@ -140,36 +140,18 @@ These should be named constants at minimum, ideally configurable env vars.
 
 ---
 
-### 2. Unexplained centerRect Logic
-**File:** [src/modules/capturer/capturer.go](src/modules/capturer/capturer.go) (lines 44–46)
-
-**Issue:** The `centerRect` helper skips the top 200 pixels of the window and captures the rest at full width. The `200` is a magic number with no explanation. The logic contradicts the documented "center 60% with 20% margin" behavior (see Bugs section).
-
-**CLAUDE.md violation:** "Names: full words; single word unless compound required. No abbreviations. No type-redundant suffixes." The implementation needs a comment explaining why 200px is the right value.
-
-**Impact:** Logic is non-obvious; maintenance confusion; contradicts documentation.
+### 2. ✅ Unexplained centerRect Logic (FIXED)
+**Status:** Fixed (commit 637c092). Removed trivial centerRect() passthrough; replaced with direct image.Rect() calls.
 
 ---
 
-### 3. Brittle Telegram Rate-Limit Parsing
-**File:** [src/adapters/messenger/messenger.go](src/adapters/messenger/messenger.go) (lines 62–68)
-
-**Issue:** `parseRetryAfter()` searches for a trailing number in the Telegram error message string via regex. If Telegram changes the error message format, the parsing silently fails and defaults to `1s`. No logging of the unparsed message.
-
-**CLAUDE.md violation:** "Handle edge cases explicitly." Silent failure to parse is not explicit.
-
-**Impact:** If Telegram changes error messages, the app will retry at 1s instead of the server-requested delay, causing hammering.
+### 3. ✅ Brittle Telegram Rate-Limit Parsing (FIXED)
+**Status:** Fixed (commit 2fe92a8). Added logging to parseRetryAfter() when error message parsing fails.
 
 ---
 
-### 4. Inconsistent TELEGRAM_CHAT_ID Contract
-**File:** [scripts/service-install.sh](scripts/service-install.sh) (line 33), [src/utils/config.go](src/utils/config.go) (line 20)
-
-**Issue:** `service-install.sh` validates `TELEGRAM_CHAT_ID` as a required env var (loop includes it alongside `ANTHROPIC_API_KEY` and `TELEGRAM_BOT_TOKEN`). However, `config.go` loads it with a default of `0`, treating it as optional. Callers of `make service-install` will get a validation error unless `TELEGRAM_CHAT_ID` is set, even though the app runs fine without it.
-
-**CLAUDE.md violation:** "Handle edge cases explicitly. Readability and maintainability before performance." The contract is inconsistent.
-
-**Impact:** `make service-install` fails if `TELEGRAM_CHAT_ID` is unset, even though it's optional; confusing UX.
+### 4. ✅ Inconsistent TELEGRAM_CHAT_ID Contract (FIXED)
+**Status:** Fixed during Bugs phase (commit c01a768). Removed `TELEGRAM_CHAT_ID` from required vars validation in `service-install.sh`.
 
 ---
 
@@ -208,14 +190,8 @@ These should be named constants at minimum, ideally configurable env vars.
 
 ---
 
-### 3. Missing SUBSCRIBER_STORE_PATH in LaunchAgent Plist
-**File:** [scripts/com.vdyalex.lensd.plist.template](scripts/com.vdyalex.lensd.plist.template)
-
-**Issue:** The plist template does not include `SUBSCRIBER_STORE_PATH` as an environment variable. When the daemon runs as a LaunchAgent, the subscriber store is written to `subscribers.json` relative to the current working directory at launch time. LaunchAgent's working directory is unpredictable and may change between reboots, causing the subscriber list to be lost or duplicated.
-
-**CLAUDE.md violation:** "Align with ... Agile principles. Extract hardcoded settings to environment variables."
-
-**Impact:** Subscriber list loss on service restart; users lose message delivery after a reboot.
+### 3. ✅ Missing SUBSCRIBER_STORE_PATH in LaunchAgent Plist (FIXED)
+**Status:** Fixed during Bugs phase (commit 082ba53). Added SUBSCRIBER_STORE_PATH to plist template and install script with stable default path.
 
 ---
 
@@ -439,13 +415,13 @@ These should be configurable, especially the language, to support multi-language
 |----------|-------|----------|
 | Architecture | 5 | High |
 | Performance | 5 | Medium |
-| Code Quality | 5 | Medium |
-| Best Practices | 5 | High |
+| Code Quality | 2 | Medium |
+| Best Practices | 4 | High |
 | Application Settings | 7 | Medium |
 | Unit Tests | 7 test suites | High |
 | Functional Tests | 6 test suites | High |
 
-**Total: 39 items** (4 bugs fixed)
+**Total: 35 items** (4 bugs + 3 code quality + 1 best practice fixed)
 
 ---
 
@@ -455,9 +431,10 @@ All findings are violations of CLAUDE.md sections: Core rules, Code structure, D
 
 Priority order:
 1. ✅ **Fix bugs** (4 items: hotkey description, capture mismatch, subscriber path, service install validation) — COMPLETED
-2. **Add tests** (13 test suites: unit + functional).
-3. **Extract settings to env vars** (7 items: timeouts, chunk size, poll interval, max tokens, OCR params).
-4. **Improve static analysis** (Makefile: add linter, vulnerability scanner, CI/CD).
-5. **Add structured error types** (all modules: replace bare `errors.New` with sentinel values).
-6. **Add GoDoc docstrings** (all exported symbols).
-7. **Add container setup** (optional: Dockerfile for build reproducibility).
+2. 🔄 **Code quality improvements** (3 of 5 items: remove trivial centerRect, add parseRetryAfter logging, mark TELEGRAM_CHAT_ID complete) — IN PROGRESS
+3. **Add tests** (13 test suites: unit + functional).
+4. **Extract settings to env vars** (7 items: timeouts, chunk size, poll interval, max tokens, OCR params).
+5. **Improve static analysis** (Makefile: add linter, vulnerability scanner, CI/CD).
+6. **Add structured error types** (all modules: replace bare `errors.New` with sentinel values).
+7. **Add GoDoc docstrings** (all exported symbols).
+8. **Add container setup** (optional: Dockerfile for build reproducibility).
