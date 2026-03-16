@@ -120,23 +120,17 @@ Comprehensive review of the `ccat-assistant` project against CLAUDE.md coding st
 
 ## Code Quality
 
-### 1. Magic Numbers Throughout Codebase
-**File:** [src/pipeline/pipeline.go](src/pipeline/pipeline.go) (lines 39–45), [src/modules/capturer/capturer.go](src/modules/capturer/capturer.go) (line 44), [src/adapters/messenger/messenger.go](src/adapters/messenger/messenger.go) (line 55), [src/adapters/agent/agent.go](src/adapters/agent/agent.go) (line 24), [src/modules/listener/listener.go](src/modules/listener/listener.go) (line 43), [src/adapters/messenger/poller/poller.go](src/adapters/messenger/poller/poller.go) (lines 24, 25)
+### 1. ✅ Magic Numbers Throughout Codebase (FIXED)
 
-**Issue:** Hardcoded literals throughout:
-- Pipeline timeouts: `5s`, `30s`, `60s`, `5 * time.Minute`
-- Capture crop: `200` (pixels)
-- Chunk size: `4096` (runes)
-- Claude max tokens: `1024`
-- CGEventTap poll: `0.5` (seconds)
-- Telegram poller timeouts: `30s`, `35s`
-- Worker queue: buffer size `1`
+**Status:** Fixed (commit pending). Extracted all remaining magic numbers:
 
-These should be named constants at minimum, ideally configurable env vars.
-
-**CLAUDE.md violation:** "Block order: ... constants/variables near first use." Magic numbers bypass this pattern.
-
-**Impact:** Hard to tune behavior without code changes; values are scattered and hard to maintain.
+- Worker queue capacity: now uses `constants.WorkerQueueCapacity` in `pipeline.go` (was hardcoded 0, now buffered to 1)
+- Pipeline timeout strings: now use `constants.TimeoutCapture` and `constants.TimeoutOCRExtract` instead of hardcoded "30s"
+- Telegram retry count: moved `maxRetries` from local const to `constants.TelegramMaxRetries`
+- Telegram parse mode: added `constants.TelegramParseMode` ("MarkdownV2")
+- Rate-limit sentinel string: extracted to local `rateLimitPrefix` constant
+- AppleScript error codes: added named constants for `errNoForegroundWindowCode`, `errAccessibilityDeniedCode`, `osascriptOutputParts`
+- Claude block type: added `textBlockType` constant in agent.go
 
 ---
 

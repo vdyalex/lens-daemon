@@ -44,6 +44,13 @@ type Capturer interface {
 // or when System Events lacks permission to access the window.
 var ErrNoForegroundWindow = errors.New("no foreground window")
 
+// AppleScript error codes returned by System Events.
+const (
+	errNoForegroundWindowCode  = "(-1728)"
+	errAccessibilityDeniedCode = "(-10003)"
+	osascriptOutputParts       = 5
+)
+
 type Capture struct{}
 
 func New() Capturer {
@@ -71,11 +78,11 @@ func (capture *Capture) ForegroundWindow(ctx context.Context) (*WindowInfo, erro
 		if errors.As(err, &exitErr) && len(exitErr.Stderr) > 0 {
 			stderrStr := string(exitErr.Stderr)
 			// Check for "no foreground window" error (-1728)
-			if strings.Contains(stderrStr, "(-1728)") {
+			if strings.Contains(stderrStr, errNoForegroundWindowCode) {
 				return nil, ErrNoForegroundWindow
 			}
 			// Permission denied (-10003) indicates Accessibility access not granted
-			if strings.Contains(stderrStr, "(-10003)") {
+			if strings.Contains(stderrStr, errAccessibilityDeniedCode) {
 				return nil, fmt.Errorf("Accessibility permission denied: grant access to this app in System Settings > Privacy & Security > Accessibility")
 			}
 			return nil, fmt.Errorf("osascript: %s", strings.TrimSpace(stderrStr))
@@ -84,7 +91,7 @@ func (capture *Capture) ForegroundWindow(ctx context.Context) (*WindowInfo, erro
 	}
 
 	parts := strings.Split(strings.TrimSpace(string(out)), ",")
-	if len(parts) != 5 {
+	if len(parts) != osascriptOutputParts {
 		return nil, fmt.Errorf("Unexpected osascript output: %s", out)
 	}
 

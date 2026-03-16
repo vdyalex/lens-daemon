@@ -86,7 +86,7 @@ func (pipeline *Pipeline) Run(ctx context.Context) error {
 	pipeline.logger.Info("Pipeline ready — press right Shift key to capture (right Option to set bounds)")
 
 	// Worker goroutine processes captures sequentially while main loop stays responsive.
-	queue := make(chan struct{})
+	queue := make(chan struct{}, constants.WorkerQueueCapacity)
 	go func() {
 		for range queue {
 			// Create a context for this run (allows long OCR+API calls)
@@ -166,8 +166,8 @@ func (pipeline *Pipeline) process(ctx context.Context) error {
 		pipeline.logger.Debug("Screenshot error received from goroutine")
 		return err
 	case <-ctxCapture.Done():
-		pipeline.logger.Error("Screenshot capture timeout after 30s")
-		return fmt.Errorf("screenshot capture timeout (30s)")
+		pipeline.logger.Error("Screenshot capture timeout", slog.String("timeout", constants.TimeoutCapture.String()))
+		return fmt.Errorf("screenshot capture timeout (%s)", constants.TimeoutCapture)
 	}
 
 	// Step 3: Extract text via OCR
@@ -193,7 +193,7 @@ func (pipeline *Pipeline) process(ctx context.Context) error {
 	case err := <-ocrErrCh:
 		return err
 	case <-ocrCtx.Done():
-		return fmt.Errorf("OCR timeout (30s)")
+		return fmt.Errorf("OCR timeout (%s)", constants.TimeoutOCRExtract)
 	}
 
 	text = strings.TrimSpace(text)

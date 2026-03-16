@@ -50,6 +50,14 @@ const (
 	// TelegramMessageChunkSize is the maximum number of UTF-8 runes per Telegram message.
 	// Telegram API enforces a 4096-character limit; we split on rune boundaries.
 	TelegramMessageChunkSize = 4096
+
+	// TelegramParseMode is the Telegram message parsing mode for formatted text.
+	// MarkdownV2 enables bold, italic, inline code, code blocks, and other formatting.
+	TelegramParseMode = "MarkdownV2"
+
+	// TelegramMaxRetries is the maximum number of retry attempts for failed Telegram API calls.
+	// Set to 1 to retry once on rate-limit or transient failure; 0 means no retries.
+	TelegramMaxRetries = 1
 )
 
 // Claude API constants.

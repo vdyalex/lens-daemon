@@ -9,6 +9,8 @@ import (
 	"github.com/vdyalex/lens-daemon/src/utils/constants"
 )
 
+const textBlockType = "text"
+
 // Agent communicates with Claude AI to process extracted screen text.
 type Agent struct {
 	client anthropic.Client
@@ -50,7 +52,7 @@ func (agent *Agent) Process(ctx context.Context, text string) (string, error) {
 
 	var result string
 	for _, block := range response.Content {
-		if block.Type == "text" {
+		if block.Type == textBlockType {
 			result += block.Text
 		}
 	}

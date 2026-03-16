@@ -15,7 +15,10 @@ import (
 	"github.com/vdyalex/lens-daemon/src/utils/constants"
 )
 
-const telegramAPI = "https://api.telegram.org"
+const (
+	telegramAPI     = "https://api.telegram.org"
+	rateLimitPrefix = "rate_limit"
+)
 
 // Sender broadcasts messages to all subscribers via the Telegram Bot API.
 type Sender struct {
@@ -90,15 +93,14 @@ func (sender *Sender) sendTo(ctx context.Context, chatID int64, text string) err
 
 // sendChunk sends a single chunk to a chat ID with rate-limit retry support.
 func (sender *Sender) sendChunk(ctx context.Context, chatID int64, text string) error {
-	const maxRetries = 1
-	for attempt := 0; attempt <= maxRetries; attempt++ {
+	for attempt := 0; attempt <= constants.TelegramMaxRetries; attempt++ {
 		err := sender.doSendChunk(ctx, chatID, text)
 		if err == nil {
 			return nil
 		}
 
 		// Check for rate limit (429) and retry if applicable
-		if isRateLimit(err) && attempt < maxRetries {
+		if isRateLimit(err) && attempt < constants.TelegramMaxRetries {
 			retryAfter := parseRetryAfter(sender.logger, err.Error())
 			select {
 			case <-time.After(retryAfter):
@@ -117,7 +119,7 @@ func (sender *Sender) doSendChunk(ctx context.Context, chatID int64, text string
 	payload := Request{
 		ChatID:    chatID,
 		Text:      toTelegramMarkdown(text),
-		ParseMode: "MarkdownV2",
+		ParseMode: constants.TelegramParseMode,
 	}
 
 	body, err := json.Marshal(payload)
@@ -145,7 +147,7 @@ func (sender *Sender) doSendChunk(ctx context.Context, chatID int64, text string
 
 	if !telegram.OK {
 		if response.StatusCode == http.StatusTooManyRequests {
-			return fmt.Errorf("rate_limit: %s", telegram.Description)
+			return fmt.Errorf("%s: %s", rateLimitPrefix, telegram.Description)
 		}
 		return fmt.Errorf("Telegram API error: %s", telegram.Description)
 	}
@@ -155,7 +157,7 @@ func (sender *Sender) doSendChunk(ctx context.Context, chatID int64, text string
 
 // isRateLimit checks if an error is a Telegram rate-limit error.
 func isRateLimit(err error) bool {
-	return strings.Contains(err.Error(), "rate_limit")
+	return strings.Contains(err.Error(), rateLimitPrefix)
 }
 
 // parseRetryAfter extracts the retry-after duration from a Telegram error message.
