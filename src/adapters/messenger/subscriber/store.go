@@ -1,8 +1,11 @@
 package subscriber
 
 import (
-	"encoding/json"
+	"bufio"
+	"bytes"
 	"os"
+	"strconv"
+	"strings"
 	"sync"
 )
 
@@ -61,38 +64,39 @@ func (s *Store) All() []int64 {
 	return result
 }
 
-// load reads subscribers from the file. If the file does not exist, it is not an error.
+// load reads subscribers from the file as newline-delimited int64s.
+// If the file does not exist, it is not an error.
 func (s *Store) load() error {
 	data, err := os.ReadFile(s.path)
 	if err != nil {
 		return err
 	}
-	var payload struct {
-		Subscribers []int64 `json:"subscribers"`
-	}
-	if err := json.Unmarshal(data, &payload); err != nil {
-		return err
-	}
-	for _, id := range payload.Subscribers {
+
+	scanner := bufio.NewScanner(bytes.NewReader(data))
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue // skip blank lines
+		}
+		id, err := strconv.ParseInt(line, 10, 64)
+		if err != nil {
+			return err
+		}
 		s.subscribers[id] = struct{}{}
 	}
-	return nil
+	return scanner.Err()
 }
 
 // persist writes subscribers to a temp file and atomically renames it into place.
+// Format: newline-delimited int64s (one per line).
 func (s *Store) persist() error {
-	payload := struct {
-		Subscribers []int64 `json:"subscribers"`
-	}{
-		Subscribers: make([]int64, 0, len(s.subscribers)),
-	}
+	var buf strings.Builder
 	for id := range s.subscribers {
-		payload.Subscribers = append(payload.Subscribers, id)
+		buf.WriteString(strconv.FormatInt(id, 10))
+		buf.WriteString("\n")
 	}
-	data, err := json.Marshal(payload)
-	if err != nil {
-		return err
-	}
+	data := []byte(buf.String())
+
 	tmpPath := s.path + ".tmp"
 	if err := os.WriteFile(tmpPath, data, 0600); err != nil {
 		return err

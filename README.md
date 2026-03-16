@@ -51,7 +51,7 @@ All configuration is done through environment variables. Copy `.env.example` to 
 | Variable | Default | Description |
 |---|---|---|
 | `TELEGRAM_CHAT_ID` | `0` (none) | Seed an initial subscriber chat ID (legacy single-chat mode). If set, this chat is added as the first subscriber on startup |
-| `SUBSCRIBER_STORE_PATH` | `subscribers.json` | File path for the subscriber list (persists users who sent `/start`) |
+| `SUBSCRIBER_STORE_PATH` | `tmp/subscribers` | File path for the subscriber list (persists users who sent `/start`) |
 | `LOG_LEVEL` | `info` | Minimum log level (`debug`, `info`, `warn`, `error`) |
 | `VISION_LANG` | `en-US` | OCR language (BCP 47 code, e.g., `en-US`, `fr-FR`, `de-DE`, `zh-Hans`, `ja`, `ko`) |
 | `CLAUDE_MODEL` | `claude-sonnet-4-6` | Claude model ID to use for AI processing |

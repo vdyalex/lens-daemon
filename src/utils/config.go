@@ -23,7 +23,7 @@ type Config struct {
 	// Telegram settings
 	TelegramBotToken   string
 	TelegramChatID     int64  // Optional: seed subscriber (legacy single-chat mode, default: 0)
-	SubscriberStorePath string // File path for subscriber list (default: "subscribers.json")
+	SubscriberStorePath string // File path for subscriber list (default: "tmp/subscribers")
 }
 
 func Load() (*Config, error) {
@@ -35,7 +35,7 @@ func Load() (*Config, error) {
 		SystemPrompt:        envStr("SYSTEM_PROMPT", "You're a questionnaire assistant. Provide quick, accurate responses with maximum efficiency."),
 		TelegramBotToken:    envStr("TELEGRAM_BOT_TOKEN", ""),
 		TelegramChatID:      int64(envInt("TELEGRAM_CHAT_ID", 0)),
-		SubscriberStorePath: envStr("SUBSCRIBER_STORE_PATH", "subscribers.json"),
+		SubscriberStorePath: envStr("SUBSCRIBER_STORE_PATH", "tmp/subscribers"),
 	}
 
 	if cfg.AnthropicAPIKey == "" {
