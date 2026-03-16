@@ -68,6 +68,7 @@ LOG_LEVEL="${LOG_LEVEL:-info}"
 CLAUDE_MODEL="${CLAUDE_MODEL:-claude-sonnet-4-6}"
 VISION_LANG="${VISION_LANG:-en-US}"
 SYSTEM_PROMPT="${SYSTEM_PROMPT:-}"
+SUBSCRIBER_STORE_PATH="${SUBSCRIBER_STORE_PATH:-$HOME/Library/Application Support/lensd/subscribers}"
 
 # XML escape SYSTEM_PROMPT
 SYSTEM_PROMPT_ESCAPED=$(xml_escape "$SYSTEM_PROMPT")
@@ -84,6 +85,7 @@ sed -i '' "s|__LOG_LEVEL__|${LOG_LEVEL}|g" "$TEMP_PLIST"
 sed -i '' "s|__CLAUDE_MODEL__|${CLAUDE_MODEL}|g" "$TEMP_PLIST"
 sed -i '' "s|__VISION_LANG__|${VISION_LANG}|g" "$TEMP_PLIST"
 sed -i '' "s|__SYSTEM_PROMPT__|${SYSTEM_PROMPT_ESCAPED}|g" "$TEMP_PLIST"
+sed -i '' "s|__SUBSCRIBER_STORE_PATH__|${SUBSCRIBER_STORE_PATH}|g" "$TEMP_PLIST"
 sed -i '' "s|__LOG_DIR__|${LOG_DIR}|g" "$TEMP_PLIST"
 
 # Move plist to final location

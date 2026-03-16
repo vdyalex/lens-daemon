@@ -18,6 +18,7 @@
     <key>CLAUDE_MODEL</key><string>__CLAUDE_MODEL__</string>
     <key>VISION_LANG</key><string>__VISION_LANG__</string>
     <key>SYSTEM_PROMPT</key><string>__SYSTEM_PROMPT__</string>
+    <key>SUBSCRIBER_STORE_PATH</key><string>__SUBSCRIBER_STORE_PATH__</string>
   </dict>
   <key>KeepAlive</key><true/>
   <key>RunAtLoad</key><true/>
