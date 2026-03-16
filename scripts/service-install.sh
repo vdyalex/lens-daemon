@@ -30,7 +30,7 @@ set +e
 source "$ENV_FILE"
 set -e
 
-for var in ANTHROPIC_API_KEY TELEGRAM_BOT_TOKEN TELEGRAM_CHAT_ID; do
+for var in ANTHROPIC_API_KEY TELEGRAM_BOT_TOKEN; do
   if [[ -z "${!var:-}" ]]; then
     echo "Error: $var is not set or empty in .env"
     exit 1
