@@ -78,6 +78,7 @@ TEMP_PLIST=$(mktemp)
 cat "$TEMPLATE_FILE" > "$TEMP_PLIST"
 
 sed -i '' "s|__BINARY_PATH__|$GOBIN/$BINARY_NAME|g" "$TEMP_PLIST"
+sed -i '' "s|__HOME_DIR__|$HOME|g" "$TEMP_PLIST"
 sed -i '' "s|__ANTHROPIC_API_KEY__|${ANTHROPIC_API_KEY}|g" "$TEMP_PLIST"
 sed -i '' "s|__TELEGRAM_BOT_TOKEN__|${TELEGRAM_BOT_TOKEN}|g" "$TEMP_PLIST"
 sed -i '' "s|__LOG_LEVEL__|${LOG_LEVEL}|g" "$TEMP_PLIST"

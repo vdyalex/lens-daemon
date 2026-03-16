@@ -56,13 +56,26 @@ type Config struct {
 }
 
 // Load reads application configuration from environment variables.
-// Loads .env file if present (via godotenv.Load), then reads env vars.
+//
+// Environment Variable Precedence and Loading:
+// 1. godotenv.Load() loads variables from .env file (safe variant: does NOT override already-set vars)
+// 2. os.Getenv() reads variables in this order (first match wins):
+//    a. Variables already set in the shell environment (highest priority)
+//    b. Variables loaded from .env by godotenv (only if not in shell env)
+//    c. Default fallback values defined in config struct
+//
+// Typical usage patterns:
+// - Development: .env file contains config, loaded automatically on startup
+// - Service (macOS LaunchAgent): env vars embedded in plist take precedence, .env is supplementary
+// - CI/Container: env vars injected before process start, .env file optional
+//
 // Required env vars: ANTHROPIC_API_KEY, TELEGRAM_BOT_TOKEN.
 // Optional env vars are loaded with sensible defaults (see Config struct field comments).
 // Returns ConfigMissingAPIKeyException if ANTHROPIC_API_KEY is not set.
 // Returns ConfigMissingBotTokenException if TELEGRAM_BOT_TOKEN is not set.
+// Returns ConfigInvalidHotkeyException if HOTKEY_TRIGGER_KEYNAME or HOTKEY_BOUNDS_KEYNAME are invalid.
 func Load() (*Config, error) {
-	_ = godotenv.Load() // Load .env if present; no-op if absent
+	_ = godotenv.Load() // Load .env if present; no-op if absent or already-set vars are preserved
 
 	cfg := &Config{
 		LogLevel:                  envLogLevel("LOG_LEVEL", slog.LevelInfo),

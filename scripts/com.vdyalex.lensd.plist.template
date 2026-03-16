@@ -9,6 +9,8 @@
   <array>
     <string>__BINARY_PATH__</string>
   </array>
+  <key>WorkingDirectory</key>
+  <string>__HOME_DIR__</string>
   <key>EnvironmentVariables</key>
   <dict>
     <key>ANTHROPIC_API_KEY</key><string>__ANTHROPIC_API_KEY__</string>
