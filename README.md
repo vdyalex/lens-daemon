@@ -9,7 +9,7 @@ Hotkey (configurable) → Screen Capture → OCR → Claude AI → Telegram
 ```
 
 1. **Hotkey** — global keyboard listener via macOS `CGEventTap`. Default: `RightShift` key. Customizable via `HOTKEY_TRIGGER_KEYNAME` environment variable
-2. **Capture** — grabs the entire active window via AppleScript and the `kbinani/screenshot` library. Default: hold `RightOption` key to define custom bounds. Customizable via `HOTKEY_BOUNDS_KEYNAME`
+2. **Capture** — grabs the entire active window via AppleScript and CoreGraphics (direct CGo bridge, no external libraries). Default: hold `RightOption` key to define custom bounds. Customizable via `HOTKEY_BOUNDS_KEYNAME`
 3. **OCR** — extracts text from the image using Apple Vision framework, entirely in-memory
 4. **AI** — sends extracted text to Claude with a configurable system prompt (max 1024 response tokens)
 5. **Notify** — broadcasts Claude's response to all Telegram subscribers, auto-chunking messages exceeding 4096 characters
@@ -51,13 +51,30 @@ All configuration is done through environment variables. Copy `.env.example` to 
 | Variable | Default | Description |
 |---|---|---|
 | `TELEGRAM_CHAT_ID` | `0` (none) | Seed an initial subscriber chat ID (legacy single-chat mode). If set, this chat is added as the first subscriber on startup |
-| `SUBSCRIBER_STORE_PATH` | `tmp/subscribers` | File path for the subscriber list (persists users who sent `/start`) |
+| `SUBSCRIBER_STORE_PATH` | `tmp/subscribers`* | File path for the subscriber list (persists users who sent `/start`) |
+| `VISION_ACCURACY` | `accurate` | OCR accuracy level: `accurate` (slower, higher quality) or `fast` (faster, lower quality) |
+| `CLAUDE_MAX_RESPONSE_TOKENS` | `1024` | Maximum tokens per Claude API response |
+| `TELEGRAM_MESSAGE_CHUNK_SIZE` | `4096` | Maximum runes per Telegram message (auto-splits longer responses) |
+| `TELEGRAM_MAX_RETRIES` | `1` | Retry attempts on Telegram rate limit (HTTP 429) |
+| `TELEGRAM_LONG_POLL_TIMEOUT` | `30s` | Server-side long-poll timeout for Telegram updates |
+| `TELEGRAM_POLLER_TIMEOUT` | `35s` | Client-side timeout for Telegram poller (5s longer than server timeout for network jitter) |
+| `TELEGRAM_HTTP_CLIENT_TIMEOUT` | `30s` | Per-request HTTP timeout for Telegram API calls |
+| `TIMEOUT_PIPELINE_OVERALL` | `5m` | Total deadline for a complete capture-to-broadcast cycle |
+| `TIMEOUT_FOREGROUND_WINDOW` | `5s` | Deadline for detecting the active window via AppleScript |
+| `TIMEOUT_CAPTURE` | `30s` | Deadline for taking a screenshot |
+| `TIMEOUT_OCR_EXTRACT` | `30s` | Deadline for OCR text extraction via Vision framework |
+| `TIMEOUT_AGENT_PROCESS` | `60s` | Deadline for Claude API call and response |
+| `TIMEOUT_TELEGRAM_BROADCAST` | `30s` | Deadline for broadcasting to all subscribers |
+| `EVENT_TAP_POLL_INTERVAL` | `500ms` | CFRunLoop polling interval for keyboard event detection |
+| `WORKER_QUEUE_CAPACITY` | `1` | Buffer size for capture queue (only 1 concurrent capture allowed; additional triggers are dropped) |
 | `LOG_LEVEL` | `info` | Minimum log level (`debug`, `info`, `warn`, `error`) |
 | `VISION_LANG` | `en-US` | OCR language (BCP 47 code, e.g., `en-US`, `fr-FR`, `de-DE`, `zh-Hans`, `ja`, `ko`) |
 | `CLAUDE_MODEL` | `claude-sonnet-4-6` | Claude model ID to use for AI processing |
 | `SYSTEM_PROMPT` | *(built-in)* | System prompt sent to Claude with each request |
 | `HOTKEY_TRIGGER_KEYNAME` | `RightShift` | Hotkey to trigger capture (see [Hotkey Configuration](#-hotkey-configuration) below) |
 | `HOTKEY_BOUNDS_KEYNAME` | `RightOption` | Hotkey to define custom capture bounds (see [Hotkey Configuration](#-hotkey-configuration) below) |
+
+**Note:** `*` When using `make service-install`, the `SUBSCRIBER_STORE_PATH` defaults to `$HOME/Library/Application Support/lensd/subscribers` instead of `tmp/subscribers`.
 
 The built-in default system prompt is:
 
@@ -121,6 +138,8 @@ cp .env.example .env
 make service-install
 ```
 
+This builds the binary to `$GOBIN` (`${GOPATH:-$HOME/go}/bin/lensd`), not the project root, and installs it as a macOS LaunchAgent.
+
 The service will:
 
 - Start automatically on login
@@ -137,7 +156,7 @@ The service will:
 | `make service-logs` | View real-time service logs |
 | `make service-uninstall` | Uninstall and remove the service |
 
-The service is managed as a macOS LaunchAgent (`com.vdyalex.lensd`) and environment variables from your `.env` file are embedded into the LaunchAgent plist at installation time.
+The service is managed as a macOS LaunchAgent (`com.vdyalex.lensd`). The following environment variables from your `.env` file are embedded into the LaunchAgent plist at installation time: `ANTHROPIC_API_KEY`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `LOG_LEVEL`, `CLAUDE_MODEL`, `VISION_LANG`, `SYSTEM_PROMPT`, `SUBSCRIBER_STORE_PATH`. Other optional variables (timeouts, accuracy modes, etc.) will use their built-in defaults unless you modify the plist directly.
 
 After installation, you may need to re-grant **Accessibility** and **Screen Recording** permissions in System Settings if they don't automatically persist. See [Permissions](#-permissions) below.
 
@@ -148,9 +167,12 @@ After installation, you may need to re-grant **Accessibility** and **Screen Reco
 | `make build` | Compile the binary |
 | `make run` | Build and run in foreground |
 | `make clean` | Remove the binary |
-| `make check` | Run gofmt and go vet (fmt + vet) |
+| `make check` | Run all static checks (fmt, vet, lint, vuln) |
 | `make fmt` | Format source files with gofmt |
 | `make vet` | Run go vet static analysis |
+| `make lint` | Run golangci-lint static analysis |
+| `make vuln` | Run govulncheck vulnerability scanner |
+| `make tools` | Install golangci-lint and govulncheck tools |
 
 ## 🔐 Permissions
 
@@ -172,6 +194,7 @@ CGEventTapCreate failed -- grant Accessibility permission to this app
 | Dependency | Purpose |
 |---|---|
 | [`anthropic-sdk-go`](https://github.com/anthropics/anthropic-sdk-go) | Official Anthropic Go SDK for Claude AI API |
-| [`kbinani/screenshot`](https://github.com/kbinani/screenshot) | Screen capture (macOS backend) |
 
-Indirect dependencies (`tidwall/gjson`, `tidwall/sjson`, `golang.org/x/sync`, `golang.org/x/sys`) are pulled in by the Anthropic SDK. The Vision framework is built-in to macOS.
+**Indirect dependencies** (pulled in by the Anthropic SDK): `tidwall/gjson`, `tidwall/sjson`, `tidwall/match`, `tidwall/pretty`, `golang.org/x/sync`.
+
+**Built-in frameworks**: CoreGraphics (screen capture via CGo), Apple Vision framework (OCR via CGo), AppleScript (window detection). No external OCR libraries required.

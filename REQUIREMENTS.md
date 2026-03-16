@@ -55,7 +55,7 @@ The daemon supports multiple Telegram subscribers through a dynamic subscription
 
 - Users send `/start` to the Telegram bot to subscribe and receive responses
 - Users send `/stop` to unsubscribe
-- The subscriber list is persisted to a JSON file (default: `subscribers.json`) and survives daemon restarts
+- The subscriber list is persisted to a plain-text file (default: `tmp/subscribers`), with one chat ID per line, and survives daemon restarts
 - All responses are broadcast to every active subscriber
 - The optional `TELEGRAM_CHAT_ID` environment variable can seed an initial subscriber (legacy single-chat mode)
 
