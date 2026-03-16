@@ -25,7 +25,7 @@ This enables dependency injection for tests and consolidates all Telegram API ty
 
 ---
 
-### 2. ✅ Naming Inconsistency (Accepted Design)
+### 2. ✅ Naming Inconsistency (RESOLVED)
 
 **Status:** Accepted as intentional. The three naming conventions follow platform/language standards:
 
@@ -64,7 +64,7 @@ This enables programmatic error handling without fragile string matching. Struct
 
 ---
 
-### 5. ✅ No Container Setup (Accepted by Design)
+### 5. ✅ No Container Setup (RESOLVED)
 
 **Status:** Accepted as incompatible with runtime model. The daemon relies on macOS host APIs:
 - CoreGraphics (`CGDisplayCreateImageForRect`, screen capture)
@@ -205,14 +205,9 @@ These kernel-level APIs cannot run inside a container. Containerization is there
 
 ---
 
-### 4. No CHANGELOG or Versioning
-**File:** None (missing)
+### 4. ✅ No CHANGELOG or Versioning (RESOLVED)
 
-**Issue:** No `CHANGELOG.md` or version tags. The binary and module have no version information, making it impossible to track what changed between releases or debug version-specific issues.
-
-**CLAUDE.md violation:** "Align with ... Agile principles." Versioning is a standard practice.
-
-**Impact:** Users cannot determine which version they are running; no release history; no semantic versioning.
+**Status:** Accepted as intentional. This is a single-user daemon for personal use, not a multi-version public release. Version tracking and changelogs are not applicable for internal-use binaries with a single "main" deployment.
 
 ---
 
@@ -427,12 +422,12 @@ These should be configurable, especially the language, to support multi-language
 | Architecture | 0 | N/A |
 | Performance | 5 | Medium |
 | Code Quality | 0 | N/A |
-| Best Practices | 4 | High |
+| Best Practices | 2 | High |
 | Application Settings | 7 | Medium |
 | Unit Tests | 7 test suites | High |
 | Functional Tests | 6 test suites | High |
 
-**Total: 32 items** (4 bugs fixed + 5 code quality fixed + 1 best practice fixed + 2 architecture accepted + 3 architecture fixed = 15 fixed/accepted, 18 remaining)
+**Total: 27 items** (4 bugs fixed + 5 code quality fixed + 2 best practices fixed + 1 best practice accepted + 2 architecture accepted + 3 architecture fixed = 17 fixed/accepted, 16 remaining)
 
 ---
 
@@ -442,13 +437,19 @@ All findings are violations of CLAUDE.md sections: Core rules, Code structure, D
 
 ## Priority Order
 
-Next steps:
+Completed items:
 1. ✅ **Fix bugs** (4 items) — COMPLETED
 2. ✅ **Code quality improvements** (5 items: remove trivial centerRect, add parseRetryAfter logging, mark TELEGRAM_CHAT_ID complete, extract remaining magic numbers, remove unused dependencies) — COMPLETED
-3. ✅ **Architecture #3 (Inline Type Definitions in Poller)** — COMPLETED (fixed as part of Architecture #1)
-4. ✅ **Architecture #4 (No Structured Error Types)** — COMPLETED
-5. ✅ **Architecture #5 (No Container Setup)** — ACCEPTED BY DESIGN
-6. **Add tests** (13 test suites: unit + functional).
-7. **Extract settings to env vars** (7 items: timeouts, chunk size, poll interval, max tokens, OCR params).
-8. **Improve static analysis** (Makefile: add linter, vulnerability scanner, CI/CD).
-9. **Add GoDoc docstrings** (all exported symbols).
+3. ✅ **Architecture #2 (Naming Inconsistency)** — RESOLVED
+4. ✅ **Architecture #3 (Inline Type Definitions in Poller)** — COMPLETED (fixed as part of Architecture #1)
+5. ✅ **Architecture #4 (No Structured Error Types)** — COMPLETED
+6. ✅ **Architecture #5 (No Container Setup)** — RESOLVED
+7. ✅ **Best Practices #3 (Missing SUBSCRIBER_STORE_PATH)** — COMPLETED
+8. ✅ **Best Practices #4 (No CHANGELOG or Versioning)** — RESOLVED
+9. ✅ **Best Practices #5 (Missing GoDoc docstrings)** — COMPLETED
+
+Remaining:
+- **Best Practices #1 & #2** (Static analysis, CI/CD)
+- **Performance improvements** (5 items: retry strategy, message chunking, PNG caching, worker queue, HTTP timeouts)
+- **Application Settings** (7 items: extract hardcoded timeouts and params to env vars)
+- **Tests** (13 test suites: unit + functional)
