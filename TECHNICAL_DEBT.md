@@ -241,63 +241,6 @@ These should be named constants at minimum, ideally configurable env vars.
 
 ---
 
-## Bugs
-
-### 1. Hotkey Description Inversion
-**File:** [src/pipeline/pipeline.go](src/pipeline/pipeline.go) (line 86), [README.md](README.md) (usage section), [src/modules/listener/listener.go](src/modules/listener/listener.go) (lines 21–22, comments)
-
-**Issue:** The log message at line 86 of `pipeline.go` states: "press right Shift key to capture (right Option to set bounds)". However, the actual mapping in `listener.go` is:
-- Right Shift (`0x3C`) → `goHotkeyCallback()` (triggers capture)
-- Right Option (`0x3D`) → `goRecordBounds()` (tracks bounds)
-
-The descriptions are **correct**, but the README states the opposite: "Right Option triggers capture; Right Shift defines custom bounds." The log message is also backwards relative to the README.
-
-**CLAUDE.md violation:** "Readability and maintainability before performance. No fragile workarounds."
-
-**Impact:** Users are confused about which key does what; documentation contradicts itself and the code.
-
----
-
-### 2. Capture Behavior Documentation Mismatch
-**File:** [README.md](README.md) (How It Works), [REQUIREMENTS.md](REQUIREMENTS.md) (Design Decisions), [src/modules/capturer/capturer.go](src/modules/capturer/capturer.go) (lines 44–46)
-
-**Issue:** README and REQUIREMENTS describe the default capture as "center 60% of the active window (20% margin on each side)". However, the actual `centerRect` implementation skips the top 200 pixels and captures the rest at full width. This is **not** a center-60%-with-margins crop; it is a fixed-pixel top-skip crop.
-
-**CLAUDE.md violation:** "Documentation matches reality. Include or update documentation."
-
-**Impact:** Users expect a different crop behavior than the code implements; documentation is misleading.
-
----
-
-### 3. Subscriber Store Path Lost in LaunchAgent
-**File:** [scripts/com.vdyalex.lensd.plist.template](scripts/com.vdyalex.lensd.plist.template), [src/adapters/messenger/subscriber/store.go](src/adapters/messenger/subscriber/store.go) (line 22)
-
-**Issue:** The plist template does not set `SUBSCRIBER_STORE_PATH`. When the daemon runs as a LaunchAgent, the store defaults to `subscribers.json` in the current working directory. LaunchAgent may change its working directory between launches, causing:
-1. Loss of the subscriber list if the working directory changes (subscribers written to a new location).
-2. Or duplication if the service re-registers subscribers from an old location.
-
-**CLAUDE.md violation:** "Extract hardcoded settings to environment variables; group by prefix or domain."
-
-**Impact:** Users lose all subscribers and message routing when the service restarts.
-
----
-
-### 4. service-install.sh Incorrectly Requires TELEGRAM_CHAT_ID
-**File:** [scripts/service-install.sh](scripts/service-install.sh) (line 33)
-
-**Issue:** The validation loop includes `TELEGRAM_CHAT_ID` as a required env var:
-```bash
-for var in ANTHROPIC_API_KEY TELEGRAM_BOT_TOKEN TELEGRAM_CHAT_ID; do
-```
-
-However, the application treats `TELEGRAM_CHAT_ID` as optional (default `0` in `config.go`). A user running `make service-install` without setting `TELEGRAM_CHAT_ID` will get a validation error and the install will fail, even though the app can run and function without it.
-
-**CLAUDE.md violation:** "Handle edge cases explicitly. Readability and maintainability before performance."
-
-**Impact:** `make service-install` fails unnecessarily if `TELEGRAM_CHAT_ID` is not set; poor UX and confusing error messages.
-
----
-
 ## Application Settings
 
 ### 1. Pipeline Step Timeouts Hardcoded
@@ -498,12 +441,11 @@ These should be configurable, especially the language, to support multi-language
 | Performance | 5 | Medium |
 | Code Quality | 5 | Medium |
 | Best Practices | 5 | High |
-| Bugs | 4 | High |
 | Application Settings | 7 | Medium |
 | Unit Tests | 7 test suites | High |
 | Functional Tests | 6 test suites | High |
 
-**Total: 43 items**
+**Total: 39 items** (4 bugs fixed)
 
 ---
 
@@ -512,7 +454,7 @@ These should be configurable, especially the language, to support multi-language
 All findings are violations of CLAUDE.md sections: Core rules, Code structure, Design principles, Docstrings, Workflow, Project setup (Tests and coverage, Static checks, Containers), Security, and Review process.
 
 Priority order:
-1. **Fix bugs** (4 items: hotkey description, capture mismatch, subscriber path, service install validation).
+1. ✅ **Fix bugs** (4 items: hotkey description, capture mismatch, subscriber path, service install validation) — COMPLETED
 2. **Add tests** (13 test suites: unit + functional).
 3. **Extract settings to env vars** (7 items: timeouts, chunk size, poll interval, max tokens, OCR params).
 4. **Improve static analysis** (Makefile: add linter, vulnerability scanner, CI/CD).

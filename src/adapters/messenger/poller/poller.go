@@ -79,9 +79,9 @@ func (p *Poller) poll(ctx context.Context) error {
 	defer resp.Body.Close()
 
 	var result struct {
-		OK     bool      `json:"ok"`
-		Result []Update  `json:"result"`
-		Desc   string    `json:"description"`
+		OK     bool     `json:"ok"`
+		Result []Update `json:"result"`
+		Desc   string   `json:"description"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return err

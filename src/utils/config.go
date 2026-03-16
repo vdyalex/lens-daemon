@@ -21,8 +21,8 @@ type Config struct {
 	SystemPrompt    string
 
 	// Telegram settings
-	TelegramBotToken   string
-	TelegramChatID     int64  // Optional: seed subscriber (legacy single-chat mode, default: 0)
+	TelegramBotToken    string
+	TelegramChatID      int64  // Optional: seed subscriber (legacy single-chat mode, default: 0)
 	SubscriberStorePath string // File path for subscriber list (default: "tmp/subscribers")
 }
 
