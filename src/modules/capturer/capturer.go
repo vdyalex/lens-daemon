@@ -34,22 +34,6 @@ type WindowInfo struct {
 	Height int
 }
 
-// Capturer detects the foreground window and captures screenshots.
-type Capturer interface {
-	// ForegroundWindow returns information about the currently focused window.
-	// The context parameter is used for cancellation and timeout.
-	ForegroundWindow(ctx context.Context) (*WindowInfo, error)
-
-	// ScreenSize returns the full screen dimensions.
-	ScreenSize() (width, height int, err error)
-
-	// CaptureCenter captures a region of the given window.
-	// If bounds is non-nil, it is used as the capture rectangle (in screen coordinates)
-	// instead of the default centerRect heuristic. Coordinates are clamped to screen bounds.
-	// If bounds is nil, the entire active window is captured.
-	CaptureCenter(window *WindowInfo, bounds *image.Rectangle) (*image.RGBA, error)
-}
-
 // AppleScript error codes returned by System Events.
 const (
 	errNoForegroundWindowCode  = "(-1728)"
@@ -57,13 +41,13 @@ const (
 	osascriptOutputParts       = 5
 )
 
-// Capture is a macOS-specific implementation of the Capturer interface.
+// Capturer detects the foreground window and captures screenshots on macOS.
 // It uses AppleScript to detect the foreground window and CoreGraphics (via CGo) to capture screenshots.
-type Capture struct{}
+type Capturer struct{}
 
 // New creates a new Capturer instance for macOS.
-func New() Capturer {
-	return &Capture{}
+func New() *Capturer {
+	return &Capturer{}
 }
 
 // ForegroundWindow returns information about the currently focused window using AppleScript.
@@ -71,7 +55,7 @@ func New() Capturer {
 // Returns CapturerNoForegroundWindowException if no foreground window exists (e.g., on the desktop).
 // Returns CapturerAccessibilityDeniedException if Accessibility permission is not granted.
 // Returns CapturerAppleScriptFailedException for other AppleScript errors.
-func (capture *Capture) ForegroundWindow(ctx context.Context) (*WindowInfo, error) {
+func (capture *Capturer) ForegroundWindow(ctx context.Context) (*WindowInfo, error) {
 	// Use AppleScript to get the frontmost application window info
 	script := `
 	tell application "System Events"
@@ -137,7 +121,7 @@ func (capture *Capture) ForegroundWindow(ctx context.Context) (*WindowInfo, erro
 
 // ScreenSize returns the full screen dimensions of the main display using CoreGraphics.
 // Returns CapturerInvalidDisplayDimensionsException if the dimensions are invalid (zero or negative).
-func (capture *Capture) ScreenSize() (int, int, error) {
+func (capture *Capturer) ScreenSize() (int, int, error) {
 	width := int(C.getMainDisplayWidth())
 	height := int(C.getMainDisplayHeight())
 	if width <= 0 || height <= 0 {
@@ -152,7 +136,7 @@ func (capture *Capture) ScreenSize() (int, int, error) {
 // The capture rectangle is clamped to screen bounds to avoid capturing offscreen areas.
 // Returns CapturerInvalidCaptureRectException if the rectangle is invalid or becomes empty after clamping.
 // Returns CapturerCaptureFailedException if the CoreGraphics capture call fails.
-func (capture *Capture) CaptureCenter(window *WindowInfo, bounds *image.Rectangle) (*image.RGBA, error) {
+func (capture *Capturer) CaptureCenter(window *WindowInfo, bounds *image.Rectangle) (*image.RGBA, error) {
 	screenW, screenH, err := capture.ScreenSize()
 	if err != nil {
 		return nil, fmt.Errorf("Get screen size: %w", err)

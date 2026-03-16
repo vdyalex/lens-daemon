@@ -25,8 +25,8 @@ import (
 type Pipeline struct {
 	settings      *config.Config
 	logger        *slog.Logger
-	capturer      capturer.Capturer
-	extractor     extractor.Extractor
+	capturer      *capturer.Capturer
+	extractor     *extractor.Extractor
 	agent         types.AgentProcessor
 	messenger     types.MessengerBroadcaster
 	poller        *poller.Poller
@@ -37,10 +37,7 @@ type Pipeline struct {
 // New creates a fully wired pipeline from settings.
 // logger must not be nil; pass slog.Default() if no custom logger is required.
 func New(settings *config.Config, logger *slog.Logger) (*Pipeline, error) {
-	ocr, err := extractor.New(settings.VisionLanguage, settings.VisionAccuracy)
-	if err != nil {
-		return nil, err
-	}
+	ocr := extractor.New(settings.VisionLanguage, settings.VisionAccuracy)
 
 	store, err := subscriber.NewStore(settings.SubscriberStorePath, logger)
 	if err != nil {
