@@ -409,13 +409,13 @@ These should be configurable, especially the language, to support multi-language
 |----------|-------|----------|
 | Architecture | 5 | High |
 | Performance | 5 | Medium |
-| Code Quality | 2 | Medium |
+| Code Quality | 1 | Medium |
 | Best Practices | 4 | High |
 | Application Settings | 7 | Medium |
 | Unit Tests | 7 test suites | High |
 | Functional Tests | 6 test suites | High |
 
-**Total: 35 items** (4 bugs + 3 code quality + 1 best practice fixed)
+**Total: 35 items** (4 bugs fixed + 4 code quality fixed + 1 best practice fixed = 9 fixed, 26 remaining)
 
 ---
 
@@ -425,10 +425,11 @@ All findings are violations of CLAUDE.md sections: Core rules, Code structure, D
 
 Priority order:
 1. ✅ **Fix bugs** (4 items: hotkey description, capture mismatch, subscriber path, service install validation) — COMPLETED
-2. 🔄 **Code quality improvements** (3 of 5 items: remove trivial centerRect, add parseRetryAfter logging, mark TELEGRAM_CHAT_ID complete) — IN PROGRESS
-3. **Add tests** (13 test suites: unit + functional).
-4. **Extract settings to env vars** (7 items: timeouts, chunk size, poll interval, max tokens, OCR params).
-5. **Improve static analysis** (Makefile: add linter, vulnerability scanner, CI/CD).
-6. **Add structured error types** (all modules: replace bare `errors.New` with sentinel values).
-7. **Add GoDoc docstrings** (all exported symbols).
-8. **Add container setup** (optional: Dockerfile for build reproducibility).
+2. ✅ **Code quality improvements** (4 of 5 items: remove trivial centerRect, add parseRetryAfter logging, mark TELEGRAM_CHAT_ID complete, extract remaining magic numbers) — COMPLETED
+3. 🔄 **Code quality item #5** (Unused Platform-Specific Dependencies) — PENDING
+4. **Add tests** (13 test suites: unit + functional).
+5. **Extract settings to env vars** (7 items: timeouts, chunk size, poll interval, max tokens, OCR params).
+6. **Improve static analysis** (Makefile: add linter, vulnerability scanner, CI/CD).
+7. **Add structured error types** (all modules: replace bare `errors.New` with sentinel values).
+8. **Add GoDoc docstrings** (all exported symbols).
+9. **Add container setup** (optional: Dockerfile for build reproducibility).
