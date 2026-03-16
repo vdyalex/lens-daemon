@@ -55,6 +55,55 @@ type Config struct {
 	WorkerQueueCapacity int // WORKER_QUEUE_CAPACITY: capture queue buffer size (default: 1)
 }
 
+// getStr retrieves a string environment variable, returning fallback if not set.
+func getStr(key, fallback string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return fallback
+}
+
+// getInt retrieves an integer environment variable, returning fallback if not set or invalid.
+// Logs a warning if the env var value cannot be parsed as an integer.
+func getInt(key string, fallback int) int {
+	if value := os.Getenv(key); value != "" {
+		if parsed, err := strconv.Atoi(value); err == nil {
+			return parsed
+		}
+		logger.Warn("Invalid environment variable value, using default", "key", key, "value", value, "fallback", fallback)
+	}
+	return fallback
+}
+
+// getLogLevel parses the named environment variable as a log level string.
+// Accepted values (case-insensitive): "debug", "info", "warn", "error".
+// Returns fallback if the variable is absent or unrecognised.
+func getLogLevel(key string, fallback slog.Level) slog.Level {
+	value := os.Getenv(key)
+	if value == "" {
+		return fallback
+	}
+	var level slog.Level
+	if err := level.UnmarshalText([]byte(value)); err != nil {
+		logger.Warn("Invalid log level value, using default", "key", key, "value", value, "fallback", fallback.String())
+		return fallback
+	}
+	return level
+}
+
+// getDuration parses the named environment variable as a time.Duration.
+// Accepted formats: "300ms", "1.5h", "2h45m", etc. (see time.ParseDuration).
+// Returns fallback if the variable is absent or invalid.
+func getDuration(key string, fallback time.Duration) time.Duration {
+	if value := os.Getenv(key); value != "" {
+		if d, err := time.ParseDuration(value); err == nil {
+			return d
+		}
+		logger.Warn("Invalid duration value, using default", "key", key, "value", value, "fallback", fallback.String())
+	}
+	return fallback
+}
+
 // Load reads application configuration from environment variables.
 //
 // Environment Variable Precedence and Loading:
@@ -126,50 +175,4 @@ func Load() (*Config, error) {
 	cfg.HotkeyBoundsKeycode = boundsKeycode
 
 	return cfg, nil
-}
-
-func getStr(key, fallback string) string {
-	if v := os.Getenv(key); v != "" {
-		return v
-	}
-	return fallback
-}
-
-func getInt(key string, fallback int) int {
-	if v := os.Getenv(key); v != "" {
-		if n, err := strconv.Atoi(v); err == nil {
-			return n
-		}
-		logger.Warn("Invalid environment variable value, using default", "key", key, "value", v, "fallback", fallback)
-	}
-	return fallback
-}
-
-// getLogLevel parses the named environment variable as a log level string.
-// Accepted values (case-insensitive): "debug", "info", "warn", "error".
-// Returns fallback if the variable is absent or unrecognised.
-func getLogLevel(key string, fallback slog.Level) slog.Level {
-	value := os.Getenv(key)
-	if value == "" {
-		return fallback
-	}
-	var level slog.Level
-	if err := level.UnmarshalText([]byte(value)); err != nil {
-		logger.Warn("Invalid log level value, using default", "key", key, "value", value, "fallback", fallback.String())
-		return fallback
-	}
-	return level
-}
-
-// getDuration parses the named environment variable as a time.Duration.
-// Accepted formats: "300ms", "1.5h", "2h45m", etc. (see time.ParseDuration).
-// Returns fallback if the variable is absent or invalid.
-func getDuration(key string, fallback time.Duration) time.Duration {
-	if v := os.Getenv(key); v != "" {
-		if d, err := time.ParseDuration(v); err == nil {
-			return d
-		}
-		logger.Warn("Invalid duration value, using default", "key", key, "value", v, "fallback", fallback.String())
-	}
-	return fallback
 }

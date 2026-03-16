@@ -160,6 +160,56 @@ Transport timeout is now explicit and configurable.
 
 ---
 
+### 6. ✅ Abbreviations in Local Variables (FIXED)
+
+**Status:** Fixed. Replaced all unexported local variable abbreviations with full words (CLAUDE.md: "No abbreviations"):
+
+- `src/modules/capturer/capturer.go:104,108` — `w`/`h` → `width`/`height`
+- `src/adapters/messenger/poller/poller.go:69,79,84,88` — `u` → `parsedURL`, `req` → `request`, `resp` → `response`
+- `src/adapters/messenger/poller/poller.go:93` — JSON struct field `Desc` → `Description`
+- `src/utils/config/config.go:140` — `n` → `parsed`
+- `src/adapters/messenger/format.go:28` — `n` → `runeCount`
+
+All variable names now use full, unabbreviated words for clarity.
+
+---
+
+### 7. ✅ Block Order Violations: Helpers After Callers (FIXED)
+
+**Status:** Fixed. Reordered functions to place helpers before main flow (CLAUDE.md: "Block order: ... helpers → main flow"):
+
+- `src/pipeline/pipeline.go` — moved `process()` helper before `Run()` caller
+- `src/adapters/messenger/messenger.go` — moved `sendTo()`, `sendChunk()`, `doSendChunk()`, `isRateLimit()`, `parseRetryAfter()` helpers before `Broadcast()` caller
+- `src/utils/config/config.go` — moved `getStr()`, `getInt()`, `getLogLevel()`, `getDuration()` helpers before `Load()` caller
+
+All helper functions now appear before the main functions that call them.
+
+---
+
+### 8. ✅ Missing Docstrings on Top-Level Functions (FIXED)
+
+**Status:** Fixed. Added GoDoc docstrings to all 7 top-level helper functions (CLAUDE.md: "Docstring every top-level function"):
+
+- `src/pipeline/pipeline.go:58-60` — `process()` method docstring
+- `src/utils/config/config.go:58` — `getStr()` function docstring
+- `src/utils/config/config.go:66-67` — `getInt()` function docstring
+- `src/utils/config/config.go:78-80` — `getLogLevel()` function docstring
+- `src/utils/config/config.go:94-96` — `getDuration()` function docstring
+
+All helpers now have proper GoDoc comments documenting purpose, parameters, return values, and edge cases.
+
+---
+
+### 9. ✅ README.md Inaccuracy (FIXED)
+
+**Status:** Fixed. Corrected terminology in documentation:
+
+- `README.md:15` — "auto-chunking messages exceeding 4096 characters" → "4096 runes"
+- The Telegram message chunking implementation (messenger.go:73–79) splits on `[]rune` boundaries, not character boundaries
+- Line 60 of README.md already correctly uses "runes"; line 15 now matches for consistency
+
+---
+
 ## Best Practices
 
 ### 1. ✅ Static Analysis Beyond go vet (FIXED)
@@ -387,7 +437,7 @@ Updated [src/adapters/vision/vision_bridge.m](src/adapters/vision/vision_bridge.
 | Unit Tests | 7 test suites | High |
 | Functional Tests | 6 test suites | High |
 
-**Total: 25 items** (4 bugs fixed + 5 code quality fixed + 5 performance fixed/resolved + 2 best practices fixed + 2 best practices resolved + 2 architecture resolved + 3 architecture fixed + 7 application settings fixed = 30 fixed/resolved, 0 remaining)
+**Total: 34 items** (4 bugs fixed + 9 code quality fixed + 5 performance fixed/resolved + 2 best practices fixed + 2 best practices resolved + 2 architecture resolved + 3 architecture fixed + 7 application settings fixed = 34 fixed/resolved, 0 remaining excluding tests)
 
 ---
 
@@ -411,7 +461,11 @@ Completed items:
 11. ✅ **Best Practices #5 (Missing GoDoc docstrings)** — COMPLETED
 12. ✅ **Application Settings** (7 items: extract hardcoded timeouts and params to env vars) — COMPLETED
 13. ✅ **Performance** (5 items: rate limit retry, message chunking, PNG caching, worker queue, HTTP timeout) — RESOLVED/FIXED
+14. ✅ **Code Quality #6 (Abbreviations in Local Variables)** — COMPLETED
+15. ✅ **Code Quality #7 (Block Order Violations)** — COMPLETED
+16. ✅ **Code Quality #8 (Missing Docstrings on Helpers)** — COMPLETED
+17. ✅ **Code Quality #9 (README.md Documentation Inaccuracy)** — COMPLETED
 
 Remaining:
 
-- **Tests** (13 test suites: unit + functional)
+- **Tests** (13 test suites: unit + functional) — The file must remain until tests are implemented

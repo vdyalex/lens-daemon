@@ -101,11 +101,11 @@ func (capture *Capturer) ForegroundWindow(ctx context.Context) (*WindowInfo, err
 	if err != nil {
 		return nil, fmt.Errorf("Parse window y from AppleScript: %w", err)
 	}
-	w, err := strconv.Atoi(strings.TrimSpace(parts[3]))
+	width, err := strconv.Atoi(strings.TrimSpace(parts[3]))
 	if err != nil {
 		return nil, fmt.Errorf("Parse window width from AppleScript: %w", err)
 	}
-	h, err := strconv.Atoi(strings.TrimSpace(parts[4]))
+	height, err := strconv.Atoi(strings.TrimSpace(parts[4]))
 	if err != nil {
 		return nil, fmt.Errorf("Parse window height from AppleScript: %w", err)
 	}
@@ -114,8 +114,8 @@ func (capture *Capturer) ForegroundWindow(ctx context.Context) (*WindowInfo, err
 		Title:  strings.TrimSpace(parts[0]),
 		X:      x,
 		Y:      y,
-		Width:  w,
-		Height: h,
+		Width:  width,
+		Height: height,
 	}, nil
 }
 

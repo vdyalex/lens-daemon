@@ -25,23 +25,23 @@ var reserved = map[rune]bool{
 // TODO: split at formatting boundaries instead of rune count.
 func toTelegramMarkdown(text string) string {
 	runes := []rune(text)
-	n := len(runes)
+	runeCount := len(runes)
 	var out strings.Builder
 
-	for i := 0; i < n; {
+	for i := 0; i < runeCount; {
 		// Fenced code block: ```[lang]\n...\n```
-		if i+2 < n && runes[i] == '`' && runes[i+1] == '`' && runes[i+2] == '`' {
+		if i+2 < runeCount && runes[i] == '`' && runes[i+1] == '`' && runes[i+2] == '`' {
 			out.WriteString("```")
 			i += 3
-			for i < n && runes[i] != '\n' { // skip language hint
+			for i < runeCount && runes[i] != '\n' { // skip language hint
 				i++
 			}
-			if i < n {
+			if i < runeCount {
 				out.WriteRune('\n')
 				i++
 			}
-			for i < n {
-				if i+2 < n && runes[i] == '`' && runes[i+1] == '`' && runes[i+2] == '`' {
+			for i < runeCount {
+				if i+2 < runeCount && runes[i] == '`' && runes[i+1] == '`' && runes[i+2] == '`' {
 					out.WriteString("```")
 					i += 3
 					break
@@ -56,11 +56,11 @@ func toTelegramMarkdown(text string) string {
 		if runes[i] == '`' {
 			out.WriteRune('`')
 			i++
-			for i < n && runes[i] != '`' {
+			for i < runeCount && runes[i] != '`' {
 				out.WriteRune(runes[i])
 				i++
 			}
-			if i < n {
+			if i < runeCount {
 				out.WriteRune('`')
 				i++
 			}
@@ -68,14 +68,14 @@ func toTelegramMarkdown(text string) string {
 		}
 
 		// Bold: **text** → *text*
-		if i+1 < n && runes[i] == '*' && runes[i+1] == '*' {
+		if i+1 < runeCount && runes[i] == '*' && runes[i+1] == '*' {
 			out.WriteRune('*')
 			i += 2
-			for i < n && !(i+1 < n && runes[i] == '*' && runes[i+1] == '*') {
+			for i < runeCount && !(i+1 < runeCount && runes[i] == '*' && runes[i+1] == '*') {
 				writeEscaped(&out, runes[i])
 				i++
 			}
-			if i+1 < n {
+			if i+1 < runeCount {
 				out.WriteRune('*')
 				i += 2
 			}
@@ -86,11 +86,11 @@ func toTelegramMarkdown(text string) string {
 		if runes[i] == '*' {
 			out.WriteRune('_')
 			i++
-			for i < n && runes[i] != '*' {
+			for i < runeCount && runes[i] != '*' {
 				writeEscaped(&out, runes[i])
 				i++
 			}
-			if i < n {
+			if i < runeCount {
 				out.WriteRune('_')
 				i++
 			}
@@ -101,11 +101,11 @@ func toTelegramMarkdown(text string) string {
 		if runes[i] == '_' {
 			out.WriteRune('_')
 			i++
-			for i < n && runes[i] != '_' {
+			for i < runeCount && runes[i] != '_' {
 				writeEscaped(&out, runes[i])
 				i++
 			}
-			if i < n {
+			if i < runeCount {
 				out.WriteRune('_')
 				i++
 			}
@@ -114,14 +114,14 @@ func toTelegramMarkdown(text string) string {
 
 		// Header: # Heading → *Heading* (MarkdownV2 has no heading concept)
 		if runes[i] == '#' && (i == 0 || runes[i-1] == '\n') {
-			for i < n && runes[i] == '#' {
+			for i < runeCount && runes[i] == '#' {
 				i++
 			}
-			for i < n && runes[i] == ' ' {
+			for i < runeCount && runes[i] == ' ' {
 				i++
 			}
 			out.WriteRune('*')
-			for i < n && runes[i] != '\n' {
+			for i < runeCount && runes[i] != '\n' {
 				writeEscaped(&out, runes[i])
 				i++
 			}

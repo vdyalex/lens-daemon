@@ -44,29 +44,6 @@ func New(botToken string, store *subscriber.Store, logger *slog.Logger, chunkSiz
 	}
 }
 
-// Broadcast sends a text message to all subscribers.
-// Long messages are automatically split into chunks of 4096 runes.
-func (sender *Sender) Broadcast(ctx context.Context, text string) error {
-	if text == "" {
-		return nil
-	}
-
-	chatIDs := sender.store.All()
-	if len(chatIDs) == 0 {
-		sender.logger.Warn("No subscribers, skipping broadcast")
-		return nil
-	}
-
-	var lastErr error
-	for _, chatID := range chatIDs {
-		if err := sender.sendTo(ctx, chatID, text); err != nil {
-			sender.logger.Error("Broadcast send failed", "chat_id", chatID, "error", err)
-			lastErr = err
-		}
-	}
-	return lastErr
-}
-
 // sendTo sends a message to a specific chat, handling chunking and rate limits.
 func (sender *Sender) sendTo(ctx context.Context, chatID int64, text string) error {
 	max := sender.chunkSize
@@ -168,4 +145,27 @@ func parseRetryAfter(logger *slog.Logger, errMsg string) time.Duration {
 	}
 	logger.Warn("Failed to parse retry-after from Telegram error; using default", "error_msg", errMsg)
 	return constants.TimeoutTelegramRetryFallback
+}
+
+// Broadcast sends a text message to all subscribers.
+// Long messages are automatically split into chunks of 4096 runes.
+func (sender *Sender) Broadcast(ctx context.Context, text string) error {
+	if text == "" {
+		return nil
+	}
+
+	chatIDs := sender.store.All()
+	if len(chatIDs) == 0 {
+		sender.logger.Warn("No subscribers, skipping broadcast")
+		return nil
+	}
+
+	var lastErr error
+	for _, chatID := range chatIDs {
+		if err := sender.sendTo(ctx, chatID, text); err != nil {
+			sender.logger.Error("Broadcast send failed", "chat_id", chatID, "error", err)
+			lastErr = err
+		}
+	}
+	return lastErr
 }

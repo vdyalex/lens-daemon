@@ -12,7 +12,7 @@ Hotkey (configurable) → Screen Capture → OCR → Claude AI → Telegram
 2. **Capture** — grabs the entire active window via AppleScript and CoreGraphics (direct CGo bridge, no external libraries). Default: hold `RightOption` key to define custom bounds. Customizable via `HOTKEY_BOUNDS_KEYNAME`
 3. **OCR** — extracts text from the image using Apple Vision framework, entirely in-memory
 4. **AI** — sends extracted text to Claude with a configurable system prompt (max 1024 response tokens)
-5. **Notify** — broadcasts Claude's response to all Telegram subscribers, auto-chunking messages exceeding 4096 characters
+5. **Notify** — broadcasts Claude's response to all Telegram subscribers, auto-chunking messages exceeding 4096 runes
 
 Captures happen **only** when you press the hotkey. No continuous polling or background recording.
 

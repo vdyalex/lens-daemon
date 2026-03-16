@@ -66,37 +66,37 @@ func (poller *Poller) poll(ctx context.Context) error {
 	httpCtx, cancel := context.WithTimeout(ctx, poller.pollerTimeout)
 	defer cancel()
 
-	u := url.URL{
+	parsed := url.URL{
 		Scheme: "https",
 		Host:   "api.telegram.org",
 		Path:   fmt.Sprintf("/bot%s/getUpdates", poller.token),
 	}
-	q := u.Query()
+	q := parsed.Query()
 	q.Set("offset", fmt.Sprintf("%d", poller.offset))
 	q.Set("timeout", fmt.Sprintf("%.0f", poller.longPollTimeout.Seconds()))
-	u.RawQuery = q.Encode()
+	parsed.RawQuery = q.Encode()
 
-	req, err := http.NewRequestWithContext(httpCtx, "GET", u.String(), nil)
+	request, err := http.NewRequestWithContext(httpCtx, "GET", parsed.String(), nil)
 	if err != nil {
 		return err
 	}
 
-	resp, err := poller.client.Do(req)
+	response, err := poller.client.Do(request)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer response.Body.Close()
 
 	var result struct {
-		OK     bool                    `json:"ok"`
-		Result []types.MessengerUpdate `json:"result"`
-		Desc   string                  `json:"description"`
+		OK          bool                    `json:"ok"`
+		Result      []types.MessengerUpdate `json:"result"`
+		Description string                  `json:"description"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+	if err := json.NewDecoder(response.Body).Decode(&result); err != nil {
 		return err
 	}
 	if !result.OK {
-		return fmt.Errorf("%w: %s", exceptions.MessengerTelegramAPIException, result.Desc)
+		return fmt.Errorf("%w: %s", exceptions.MessengerTelegramAPIException, result.Description)
 	}
 
 	for _, update := range result.Result {
