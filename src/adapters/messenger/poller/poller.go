@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/vdyalex/lens-daemon/src/adapters/messenger/subscriber"
+	"github.com/vdyalex/lens-daemon/src/adapters/messenger/types"
 	"github.com/vdyalex/lens-daemon/src/utils/constants"
 )
 
@@ -19,7 +20,7 @@ import (
 type Poller struct {
 	token  string
 	store  *subscriber.Store
-	client *http.Client
+	client types.HTTPClient
 	logger *slog.Logger
 	offset int64
 }
@@ -80,9 +81,9 @@ func (p *Poller) poll(ctx context.Context) error {
 	defer resp.Body.Close()
 
 	var result struct {
-		OK     bool     `json:"ok"`
-		Result []Update `json:"result"`
-		Desc   string   `json:"description"`
+		OK     bool          `json:"ok"`
+		Result []types.Update `json:"result"`
+		Desc   string        `json:"description"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return err
@@ -103,7 +104,7 @@ func (p *Poller) poll(ctx context.Context) error {
 
 // handleUpdate processes a single Telegram update.
 // /start adds the chat to the store; /stop removes it.
-func (p *Poller) handleUpdate(u Update) error {
+func (p *Poller) handleUpdate(u types.Update) error {
 	if u.Message == nil || u.Message.Text == "" {
 		return nil
 	}
@@ -117,21 +118,4 @@ func (p *Poller) handleUpdate(u Update) error {
 		return p.store.Remove(chatID)
 	}
 	return nil
-}
-
-// Update represents a Telegram update from getUpdates.
-type Update struct {
-	UpdateID int64    `json:"update_id"`
-	Message  *Message `json:"message"`
-}
-
-// Message represents a Telegram message.
-type Message struct {
-	Chat Chat   `json:"chat"`
-	Text string `json:"text"`
-}
-
-// Chat represents a Telegram chat.
-type Chat struct {
-	ID int64 `json:"id"`
 }

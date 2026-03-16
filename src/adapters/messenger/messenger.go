@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/vdyalex/lens-daemon/src/adapters/messenger/subscriber"
+	"github.com/vdyalex/lens-daemon/src/adapters/messenger/types"
 	"github.com/vdyalex/lens-daemon/src/utils/constants"
 )
 
@@ -24,7 +25,7 @@ const (
 type Sender struct {
 	token  string
 	store  *subscriber.Store
-	client *http.Client
+	client types.HTTPClient
 	logger *slog.Logger
 }
 
@@ -36,17 +37,6 @@ func New(botToken string, store *subscriber.Store, logger *slog.Logger) *Sender 
 		client: &http.Client{Timeout: constants.TimeoutTelegramHTTPClient},
 		logger: logger,
 	}
-}
-
-type Request struct {
-	ChatID    int64  `json:"chat_id"`
-	Text      string `json:"text"`
-	ParseMode string `json:"parse_mode,omitempty"`
-}
-
-type Response struct {
-	OK          bool   `json:"ok"`
-	Description string `json:"description,omitempty"`
 }
 
 // Broadcast sends a text message to all subscribers.
@@ -116,7 +106,7 @@ func (sender *Sender) sendChunk(ctx context.Context, chatID int64, text string) 
 
 // doSendChunk performs the actual HTTP call to Telegram.
 func (sender *Sender) doSendChunk(ctx context.Context, chatID int64, text string) error {
-	payload := Request{
+	payload := types.Request{
 		ChatID:    chatID,
 		Text:      toTelegramMarkdown(text),
 		ParseMode: constants.TelegramParseMode,
@@ -140,7 +130,7 @@ func (sender *Sender) doSendChunk(ctx context.Context, chatID int64, text string
 	}
 	defer response.Body.Close()
 
-	var telegram Response
+	var telegram types.Response
 	if err := json.NewDecoder(response.Body).Decode(&telegram); err != nil {
 		return fmt.Errorf("Decode telegram response: %w", err)
 	}

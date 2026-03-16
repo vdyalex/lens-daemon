@@ -1,26 +1,34 @@
 # Technical Debt
 
-Comprehensive review of the `ccat-assistant` project against CLAUDE.md coding standards. Findings organized by area.
+Comprehensive review of the `lens-daemon` project against CLAUDE.md coding standards. Findings organized by area.
 
 ---
 
 ## Architecture
 
-### 1. Missing Telegram HTTP Client Adapter Interface
-**File:** [src/adapters/messenger/messenger.go](src/adapters/messenger/messenger.go), [src/adapters/messenger/poller/poller.go](src/adapters/messenger/poller/poller.go)
+### 1. ✅ Missing Telegram HTTP Client Adapter Interface (FIXED)
 
-**Issue:** HTTP calls to Telegram are embedded directly in `Sender.sendChunk()` and `Poller.handleUpdate()`. There is no interface abstraction, making unit testing require actual HTTP mocking and coupling the code to Telegram's HTTP API specifics.
+**Status:** Fixed (commit pending). Added shared `HTTPClient` interface and consolidated all Telegram types in a dedicated types module:
 
-**CLAUDE.md violation:** "Wrap third-party integrations in adapters. Maintain provider-agnosticism unless project constraints require coupling." No adapter exists.
+- Created `src/adapters/messenger/types/types.go` with:
+  - `HTTPClient` interface for HTTP interactions
+  - `Request`, `Response` types (formerly in messenger.go)
+  - `Update`, `Message`, `Chat` types (formerly in poller.go)
+- Changed `Sender.client` field type from `*http.Client` to `types.HTTPClient`
+- Changed `Poller.client` field type from `*http.Client` to `types.HTTPClient`
+- Updated imports: both `messenger` and `poller` import the shared `types` package
+- Removed duplicate type definitions from messenger.go and poller.go
+- Constructors remain unchanged — `*http.Client` satisfies the interface structurally
+- No external API changes; no caller modifications needed
 
-**Impact:** Difficult to test; tightly coupled to Telegram API; cannot swap implementations.
+This enables dependency injection for tests and consolidates all Telegram API types in a single location for maintainability.
 
 ---
 
 ### 2. Naming Inconsistency: Module vs Directory vs Binary
 **File:** [go.mod](go.mod), [Makefile](Makefile)
 
-**Issue:** Go module is `github.com/vdyalex/lens-daemon`, the project directory is `ccat-assistant`, and the binary name is `lensd`. These three names do not align, suggesting an incomplete rename or unrelated purposes.
+**Issue:** Go module is `github.com/vdyalex/lens-daemon`, the project directory is `lens-daemon`, and the binary name is `lensd`. These three names do not align, suggesting an incomplete rename or unrelated purposes.
 
 **CLAUDE.md violation:** "Names: full words; single word unless compound required. No abbreviations." The inconsistency signals unclear intent.
 
