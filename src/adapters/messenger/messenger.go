@@ -98,7 +98,7 @@ func (sender *Sender) sendChunk(ctx context.Context, chatID int64, text string) 
 
 		// Check for rate limit (429) and retry if applicable
 		if isRateLimit(err) && attempt < maxRetries {
-			retryAfter := parseRetryAfter(err.Error())
+			retryAfter := parseRetryAfter(sender.logger, err.Error())
 			select {
 			case <-time.After(retryAfter):
 				continue
@@ -159,7 +159,8 @@ func isRateLimit(err error) bool {
 
 // parseRetryAfter extracts the retry-after duration from a Telegram error message.
 // Expected format: "Too Many Requests: retry after 23" (where 23 is seconds).
-func parseRetryAfter(errMsg string) time.Duration {
+// If parsing fails, logs a warning and falls back to 1 second.
+func parseRetryAfter(logger *slog.Logger, errMsg string) time.Duration {
 	parts := strings.Fields(errMsg)
 	if len(parts) > 0 {
 		seconds, err := strconv.Atoi(parts[len(parts)-1])
@@ -167,5 +168,6 @@ func parseRetryAfter(errMsg string) time.Duration {
 			return time.Duration(seconds) * time.Second
 		}
 	}
+	logger.Warn("Failed to parse retry-after from Telegram error; using 1s default", "error_msg", errMsg)
 	return 1 * time.Second
 }
