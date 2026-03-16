@@ -109,7 +109,7 @@ func (pipeline *Pipeline) Run(ctx context.Context) error {
 			case queue <- struct{}{}:
 				// Queued
 			default:
-				pipeline.logger.Debug("Capture queue full, skipping trigger")
+				pipeline.logger.Warn("Capture trigger dropped; a capture is already in progress")
 			}
 		}
 	}
