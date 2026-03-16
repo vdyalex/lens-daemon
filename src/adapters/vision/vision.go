@@ -27,12 +27,12 @@ func New(language string) *Client {
 // RecognizeText recognizes text in PNG data using the Vision framework.
 // Input: PNG-encoded image bytes.
 // Output: Recognized text as a string.
-func (c *Client) RecognizeText(pngData []byte) (string, error) {
+func (client *Client) RecognizeText(pngData []byte) (string, error) {
 	if len(pngData) == 0 {
 		return "", fmt.Errorf("empty PNG data")
 	}
 
-	langC := C.CString(c.language)
+	langC := C.CString(client.language)
 	defer C.free(unsafe.Pointer(langC))
 
 	result := C.visionRecognizeText(

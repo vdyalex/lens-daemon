@@ -38,13 +38,13 @@ func New(token string, store *subscriber.Store, logger *slog.Logger) *Poller {
 
 // Run polls for updates indefinitely until ctx is cancelled.
 // It logs warnings on errors and retries with a 5-second backoff.
-func (p *Poller) Run(ctx context.Context) {
+func (poller *Poller) Run(ctx context.Context) {
 	for {
-		if err := p.poll(ctx); err != nil {
+		if err := poller.poll(ctx); err != nil {
 			if ctx.Err() != nil {
 				return
 			}
-			p.logger.Warn("Poller error", "error", err)
+			poller.logger.Warn("Poller error", "error", err)
 			select {
 			case <-time.After(constants.TimeoutTelegramRetryBackoff):
 			case <-ctx.Done():
@@ -55,17 +55,17 @@ func (p *Poller) Run(ctx context.Context) {
 }
 
 // poll fetches updates, processes them, and advances the offset.
-func (p *Poller) poll(ctx context.Context) error {
+func (poller *Poller) poll(ctx context.Context) error {
 	httpCtx, cancel := context.WithTimeout(ctx, constants.TimeoutTelegramPoller)
 	defer cancel()
 
 	u := url.URL{
 		Scheme: "https",
 		Host:   "api.telegram.org",
-		Path:   fmt.Sprintf("/bot%s/getUpdates", p.token),
+		Path:   fmt.Sprintf("/bot%s/getUpdates", poller.token),
 	}
 	q := u.Query()
-	q.Set("offset", fmt.Sprintf("%d", p.offset))
+	q.Set("offset", fmt.Sprintf("%d", poller.offset))
 	q.Set("timeout", fmt.Sprintf("%.0f", constants.TimeoutTelegramLongPoll.Seconds()))
 	u.RawQuery = q.Encode()
 
@@ -74,7 +74,7 @@ func (p *Poller) poll(ctx context.Context) error {
 		return err
 	}
 
-	resp, err := p.client.Do(req)
+	resp, err := poller.client.Do(req)
 	if err != nil {
 		return err
 	}
@@ -93,10 +93,10 @@ func (p *Poller) poll(ctx context.Context) error {
 	}
 
 	for _, update := range result.Result {
-		if err := p.handleUpdate(update); err != nil {
-			p.logger.Error("Handle update error", "update_id", update.UpdateID, "error", err)
+		if err := poller.handleUpdate(update); err != nil {
+			poller.logger.Error("Handle update error", "update_id", update.UpdateID, "error", err)
 		}
-		p.offset = update.UpdateID + 1
+		poller.offset = update.UpdateID + 1
 	}
 
 	return nil
@@ -104,7 +104,7 @@ func (p *Poller) poll(ctx context.Context) error {
 
 // handleUpdate processes a single Telegram update.
 // /start adds the chat to the store; /stop removes it.
-func (p *Poller) handleUpdate(u types.Update) error {
+func (poller *Poller) handleUpdate(u types.Update) error {
 	if u.Message == nil || u.Message.Text == "" {
 		return nil
 	}
@@ -113,9 +113,9 @@ func (p *Poller) handleUpdate(u types.Update) error {
 
 	switch text {
 	case "/start":
-		return p.store.Add(chatID)
+		return poller.store.Add(chatID)
 	case "/stop":
-		return p.store.Remove(chatID)
+		return poller.store.Remove(chatID)
 	}
 	return nil
 }

@@ -44,16 +44,16 @@ func New(language string) (Extractor, error) {
 
 // Extract recognizes text in the image.
 // No files are written to disk.
-func (e *VisionExtractor) Extract(file *image.RGBA) (string, error) {
+func (extractor *VisionExtractor) Extract(file *image.RGBA) (string, error) {
 	pngData, err := encodeImage(file)
 	if err != nil {
 		return "", err
 	}
 
-	return e.client.RecognizeText(pngData)
+	return extractor.client.RecognizeText(pngData)
 }
 
 // Close is a no-op (Vision framework has no persistent resources to release).
-func (e *VisionExtractor) Close() error {
+func (extractor *VisionExtractor) Close() error {
 	return nil
 }
