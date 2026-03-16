@@ -10,9 +10,18 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
-
-	"github.com/kbinani/screenshot"
+	"unsafe"
 )
+
+/*
+#cgo CFLAGS: -mmacosx-version-min=13.0
+#cgo LDFLAGS: -framework CoreGraphics -framework AppKit -framework Foundation
+#include <stdlib.h>
+unsigned char* captureScreenRect(int x, int y, int width, int height, int* outLength);
+int getMainDisplayWidth(void);
+int getMainDisplayHeight(void);
+*/
+import "C"
 
 // WindowInfo describes the currently focused window.
 type WindowInfo struct {
@@ -122,8 +131,12 @@ func (capture *Capture) ForegroundWindow(ctx context.Context) (*WindowInfo, erro
 }
 
 func (capture *Capture) ScreenSize() (int, int, error) {
-	bounds := screenshot.GetDisplayBounds(0)
-	return bounds.Dx(), bounds.Dy(), nil
+	width := int(C.getMainDisplayWidth())
+	height := int(C.getMainDisplayHeight())
+	if width <= 0 || height <= 0 {
+		return 0, 0, fmt.Errorf("invalid display dimensions: %dx%d", width, height)
+	}
+	return width, height, nil
 }
 
 func (capture *Capture) CaptureCenter(window *WindowInfo, bounds *image.Rectangle) (*image.RGBA, error) {
@@ -164,10 +177,32 @@ func (capture *Capture) CaptureCenter(window *WindowInfo, bounds *image.Rectangl
 		rect.Max.Y = screenH
 	}
 
-	img, err := screenshot.CaptureRect(rect)
-	if err != nil {
-		return nil, fmt.Errorf("Screenshot capture: rect=(%d,%d)-(%d,%d): %w", rect.Min.X, rect.Min.Y, rect.Max.X, rect.Max.Y, err)
+	width := rect.Max.X - rect.Min.X
+	height := rect.Max.Y - rect.Min.Y
+	if width <= 0 || height <= 0 {
+		return nil, fmt.Errorf("Invalid capture rectangle after clamping: width=%d height=%d", width, height)
 	}
+
+	// Call CoreGraphics to capture the screen region
+	var outLength C.int
+	pixelDataPtr := C.captureScreenRect(C.int(rect.Min.X), C.int(rect.Min.Y), C.int(width), C.int(height), &outLength)
+	if pixelDataPtr == nil {
+		return nil, fmt.Errorf("Screenshot capture failed: rect=(%d,%d)-(%d,%d)", rect.Min.X, rect.Min.Y, rect.Max.X, rect.Max.Y)
+	}
+	defer C.free(unsafe.Pointer(pixelDataPtr))
+
+	// Convert raw RGBA bytes to image.RGBA
+	expectedSize := width * height * 4
+	if outLength != C.int(expectedSize) {
+		return nil, fmt.Errorf("Screenshot capture returned unexpected size: got %d bytes, expected %d", outLength, expectedSize)
+	}
+
+	// Create a Go slice from the C buffer
+	pixelSlice := unsafe.Slice((*byte)(pixelDataPtr), outLength)
+
+	// Create image.RGBA and copy pixel data
+	img := image.NewRGBA(image.Rect(0, 0, width, height))
+	copy(img.Pix, pixelSlice)
 
 	return img, nil
 }

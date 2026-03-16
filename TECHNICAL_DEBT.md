@@ -149,14 +149,16 @@ Comprehensive review of the `ccat-assistant` project against CLAUDE.md coding st
 
 ---
 
-### 5. Unused Platform-Specific Dependencies
-**File:** [go.mod](go.mod)
+### 5. ✅ Unused Platform-Specific Dependencies (FIXED)
 
-**Issue:** The `kbinani/screenshot` dependency pulls in platform-specific screenshot libraries for Linux and Windows (`gen2brain/shm`, `godbus/dbus`, `jezek/xgb`, `lxn/win`) via indirect imports. These will never be used on macOS and pollute the dependency graph.
+**Status:** Fixed (commit pending). Replaced `kbinani/screenshot` with a CoreGraphics CGo bridge:
 
-**CLAUDE.md violation:** "Avoid unnecessary ... dependencies." Unused transitive deps should be cleaned.
-
-**Impact:** Larger binary; unnecessary vulnerabilities in unused code; dependency graph is unclear.
+- Created `src/modules/capturer/capturer_bridge.m` with Objective-C CoreGraphics implementation
+- Replaced `screenshot.GetDisplayBounds()` with `getMainDisplayWidth()`/`getMainDisplayHeight()` CGo calls
+- Replaced `screenshot.CaptureRect()` with `captureScreenRect()` CGo call that returns raw RGBA bytes
+- Removed `github.com/kbinani/screenshot` dependency entirely
+- `go mod tidy` removed all four transitive Linux/Windows deps: `gen2brain/shm`, `godbus/dbus`, `jezek/xgb`, `lxn/win`
+- Set macOS 13 as the deployment target to avoid "unavailable" marking of `CGDisplayCreateImageForRect` on macOS 15
 
 ---
 
@@ -409,13 +411,13 @@ These should be configurable, especially the language, to support multi-language
 |----------|-------|----------|
 | Architecture | 5 | High |
 | Performance | 5 | Medium |
-| Code Quality | 1 | Medium |
+| Code Quality | 0 | N/A |
 | Best Practices | 4 | High |
 | Application Settings | 7 | Medium |
 | Unit Tests | 7 test suites | High |
 | Functional Tests | 6 test suites | High |
 
-**Total: 35 items** (4 bugs fixed + 4 code quality fixed + 1 best practice fixed = 9 fixed, 26 remaining)
+**Total: 35 items** (4 bugs fixed + 5 code quality fixed + 1 best practice fixed = 10 fixed, 25 remaining)
 
 ---
 
@@ -423,13 +425,14 @@ These should be configurable, especially the language, to support multi-language
 
 All findings are violations of CLAUDE.md sections: Core rules, Code structure, Design principles, Docstrings, Workflow, Project setup (Tests and coverage, Static checks, Containers), Security, and Review process.
 
-Priority order:
-1. ✅ **Fix bugs** (4 items: hotkey description, capture mismatch, subscriber path, service install validation) — COMPLETED
-2. ✅ **Code quality improvements** (4 of 5 items: remove trivial centerRect, add parseRetryAfter logging, mark TELEGRAM_CHAT_ID complete, extract remaining magic numbers) — COMPLETED
-3. 🔄 **Code quality item #5** (Unused Platform-Specific Dependencies) — PENDING
-4. **Add tests** (13 test suites: unit + functional).
-5. **Extract settings to env vars** (7 items: timeouts, chunk size, poll interval, max tokens, OCR params).
-6. **Improve static analysis** (Makefile: add linter, vulnerability scanner, CI/CD).
-7. **Add structured error types** (all modules: replace bare `errors.New` with sentinel values).
-8. **Add GoDoc docstrings** (all exported symbols).
-9. **Add container setup** (optional: Dockerfile for build reproducibility).
+## Priority Order
+
+Next steps:
+1. ✅ **Fix bugs** (4 items) — COMPLETED
+2. ✅ **Code quality improvements** (5 items: remove trivial centerRect, add parseRetryAfter logging, mark TELEGRAM_CHAT_ID complete, extract remaining magic numbers, remove unused dependencies) — COMPLETED
+3. **Add tests** (13 test suites: unit + functional).
+4. **Extract settings to env vars** (7 items: timeouts, chunk size, poll interval, max tokens, OCR params).
+5. **Improve static analysis** (Makefile: add linter, vulnerability scanner, CI/CD).
+6. **Add structured error types** (all modules: replace bare `errors.New` with sentinel values).
+7. **Add GoDoc docstrings** (all exported symbols).
+8. **Add container setup** (optional: Dockerfile for build reproducibility).
