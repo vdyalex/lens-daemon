@@ -1,4 +1,4 @@
-.PHONY: build run clean vet fmt check service-install service-uninstall service-start service-stop service-logs
+.PHONY: build run clean vet fmt lint vuln check tools service-install service-uninstall service-start service-stop service-logs
 
 -include .env
 export
@@ -20,7 +20,18 @@ vet:
 fmt:
 	gofmt -w .
 
-check: fmt vet
+lint:
+	$(shell go env GOPATH)/bin/golangci-lint run
+
+vuln:
+	$(shell go env GOPATH)/bin/govulncheck ./...
+
+check: fmt vet lint vuln
+
+tools:
+	@echo "Installing analysis tools..."
+	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+	go install golang.org/x/vuln/cmd/govulncheck@latest
 
 # Service management targets
 SCRIPTS_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))scripts
