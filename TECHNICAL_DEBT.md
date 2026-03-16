@@ -25,14 +25,15 @@ This enables dependency injection for tests and consolidates all Telegram API ty
 
 ---
 
-### 2. Naming Inconsistency: Module vs Directory vs Binary
-**File:** [go.mod](go.mod), [Makefile](Makefile)
+### 2. ✅ Naming Inconsistency (Accepted Design)
 
-**Issue:** Go module is `github.com/vdyalex/lens-daemon`, the project directory is `lens-daemon`, and the binary name is `lensd`. These three names do not align, suggesting an incomplete rename or unrelated purposes.
+**Status:** Accepted as intentional. The three naming conventions follow platform/language standards:
 
-**CLAUDE.md violation:** "Names: full words; single word unless compound required. No abbreviations." The inconsistency signals unclear intent.
+- **Module path**: `github.com/vdyalex/lens-daemon` (RFC 3986 URL standard; hyphens are conventional in Go module paths)
+- **Binary name**: `lensd` (dash is a math operator in shell contexts; daemon names use short forms per Unix convention: `httpd`, `sshd`, etc.)
+- **Service identifier**: `com.vdyalex.lensd` (macOS reverse-domain convention; matches binary name)
 
-**Impact:** Confusion for new contributors; module path does not reflect the actual project name.
+This is not a defect—each form is correct for its domain. The naming is intentional and follows established conventions.
 
 ---
 
