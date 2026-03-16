@@ -216,14 +216,15 @@ These kernel-level APIs cannot run inside a container. Containerization is there
 
 ---
 
-### 5. Missing GoDoc Docstrings
-**File:** [src/](src/) (all modules)
+### 5. ✅ Missing GoDoc Docstrings (FIXED)
 
-**Issue:** Most exported functions and types lack GoDoc comments. Only a few (e.g., `Config` struct) have minimal docstrings. CLAUDE.md requires docstrings on every top-level function/type with purpose, constraints, edge cases, params, and return values.
+**Status:** Fixed. Added GoDoc comments to all 21 exported symbols across 3 files:
 
-**CLAUDE.md violation:** "Docstring every top-level function/method/class: purpose, constraints, edge cases, params, return. Use language-standard docstring syntax strictly (JSDoc, rustdoc, Sphinx)."
+- `src/modules/capturer/capturer.go`: `Capture`, `New`, `ForegroundWindow`, `ScreenSize`, `CaptureCenter` (5 symbols)
+- `src/utils/config/config.go`: `Load` (1 symbol)
+- `src/utils/exceptions/exceptions.go`: all 15 sentinel error vars with individual comments inside var blocks
 
-**Impact:** API contracts are undocumented; developers must read implementation to understand behavior.
+All exported symbols now have proper GoDoc comments following Go standards (comment text starting with symbol name).
 
 ---
 

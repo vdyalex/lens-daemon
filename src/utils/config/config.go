@@ -27,6 +27,11 @@ type Config struct {
 	SubscriberStorePath string // File path for subscriber list (default: "tmp/subscribers")
 }
 
+// Load reads application configuration from environment variables.
+// Required env vars: ANTHROPIC_API_KEY, TELEGRAM_BOT_TOKEN.
+// Optional env vars are loaded with sensible defaults (see Config struct field comments).
+// Returns ConfigMissingAPIKeyException if ANTHROPIC_API_KEY is not set.
+// Returns ConfigMissingBotTokenException if TELEGRAM_BOT_TOKEN is not set.
 func Load() (*Config, error) {
 	cfg := &Config{
 		LogLevel:            envLogLevel("LOG_LEVEL", slog.LevelInfo),

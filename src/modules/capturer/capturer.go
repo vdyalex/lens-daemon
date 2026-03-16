@@ -57,12 +57,20 @@ const (
 	osascriptOutputParts       = 5
 )
 
+// Capture is a macOS-specific implementation of the Capturer interface.
+// It uses AppleScript to detect the foreground window and CoreGraphics (via CGo) to capture screenshots.
 type Capture struct{}
 
+// New creates a new Capturer instance for macOS.
 func New() Capturer {
 	return &Capture{}
 }
 
+// ForegroundWindow returns information about the currently focused window using AppleScript.
+// It queries System Events for the frontmost application window's position and size.
+// Returns CapturerNoForegroundWindowException if no foreground window exists (e.g., on the desktop).
+// Returns CapturerAccessibilityDeniedException if Accessibility permission is not granted.
+// Returns CapturerAppleScriptFailedException for other AppleScript errors.
 func (capture *Capture) ForegroundWindow(ctx context.Context) (*WindowInfo, error) {
 	// Use AppleScript to get the frontmost application window info
 	script := `
@@ -127,6 +135,8 @@ func (capture *Capture) ForegroundWindow(ctx context.Context) (*WindowInfo, erro
 	}, nil
 }
 
+// ScreenSize returns the full screen dimensions of the main display using CoreGraphics.
+// Returns CapturerInvalidDisplayDimensionsException if the dimensions are invalid (zero or negative).
 func (capture *Capture) ScreenSize() (int, int, error) {
 	width := int(C.getMainDisplayWidth())
 	height := int(C.getMainDisplayHeight())
@@ -136,6 +146,12 @@ func (capture *Capture) ScreenSize() (int, int, error) {
 	return width, height, nil
 }
 
+// CaptureCenter captures a rectangular region of the screen and returns the pixel data as image.RGBA.
+// If bounds is non-nil, it is used as the capture rectangle (in screen coordinates).
+// If bounds is nil, the full window bounds are used.
+// The capture rectangle is clamped to screen bounds to avoid capturing offscreen areas.
+// Returns CapturerInvalidCaptureRectException if the rectangle is invalid or becomes empty after clamping.
+// Returns CapturerCaptureFailedException if the CoreGraphics capture call fails.
 func (capture *Capture) CaptureCenter(window *WindowInfo, bounds *image.Rectangle) (*image.RGBA, error) {
 	screenW, screenH, err := capture.ScreenSize()
 	if err != nil {
