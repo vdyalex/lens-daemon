@@ -38,10 +38,10 @@ main()
       |-- poller.Run(ctx)              Start Telegram subscriber poller (background)
       |-- bounds tracker               Listen for right-Shift bounds updates
       `-- worker loop:
-           |-- <-triggers             Wait for right Option key press
+           |-- <-triggers             Wait for right Shift key press
            `-- pipeline.process():\
                 |-- ForegroundWindow()   AppleScript -> window info (5s timeout)
-                |-- CaptureCenter()      Screenshot center 60% or custom bounds (30s timeout)
+                |-- CaptureCenter()      Screenshot entire window or custom bounds (30s timeout)
                 |-- extractor.Extract()  RGBA -> PNG -> Vision API -> text (30s timeout)
                 |-- agent.Process()      Text -> Claude API -> response (60s timeout)
                 `-- messenger.Broadcast() Response -> all Telegram subscribers (30s timeout)
@@ -63,14 +63,14 @@ The Telegram poller runs in the background, long-polling for updates with a 30-s
 
 ### Custom Capture Bounds
 
-By default, the daemon captures the center 60% of the active window (20% margin on each side). You can override this with custom screen-coordinate bounds:
+By default, the daemon captures the entire active window. You can override this with custom screen-coordinate bounds:
 
-1. **Hold the right Shift key** and move your mouse to define a rectangular region
+1. **Hold the right Option key** and move your mouse to define a rectangular region
 2. The daemon tracks the minimum and maximum coordinates of your mouse movement while the key is held
-3. **Release right Shift** to lock in the bounds
-4. All subsequent captures will use the custom bounds instead of the default center crop
+3. **Release right Option** to lock in the bounds
+4. All subsequent captures will use the custom bounds instead of capturing the full window
 
-For fullscreen windows (width and height >= screen dimensions), the daemon captures the center 60% of the entire display.
+For fullscreen windows (width and height >= screen dimensions), the daemon captures the entire display.
 
 ### Key Design Decisions
 
@@ -84,10 +84,10 @@ For fullscreen windows (width and height >= screen dimensions), the daemon captu
 
 ## Functional Requirements
 
-- **Global hotkey detection**: Listen for the right Option key system-wide using macOS `CGEventTap` in listen-only mode. The event tap runs on a dedicated OS thread with its own `CFRunLoop` and automatically re-enables itself if the system disables it due to timeout or user input.
-- **Custom bounds selection**: Track mouse movement while the right Shift key is held to define a custom capture rectangle. The bounds persist until the daemon is restarted or new bounds are set.
+- **Global hotkey detection**: Listen for the right Shift key system-wide using macOS `CGEventTap` in listen-only mode. The event tap runs on a dedicated OS thread with its own `CFRunLoop` and automatically re-enables itself if the system disables it due to timeout or user input.
+- **Custom bounds selection**: Track mouse movement while the right Option key is held to define a custom capture rectangle. The bounds persist until the daemon is restarted or new bounds are set.
 - **Active window detection**: Identify the frontmost application window (name, position, size) via AppleScript and `System Events`. Unparseable coordinates in the osascript output are treated as errors and surface through the pipeline's non-fatal error path (logged, hotkey listener continues).
-- **Screen capture**: Capture the center 60% of the active window (20% margin on each side), or use custom bounds if set. For fullscreen windows (width >= screen width AND height >= screen height), capture the center 60% of the entire display instead.
+- **Screen capture**: Capture the entire active window, or use custom bounds if set. For fullscreen windows (width >= screen width AND height >= screen height), capture the entire display instead.
 - **OCR text extraction**: Convert the captured image to text using Apple Vision framework. The image is PNG-encoded in memory and passed directly to the Vision API via byte buffer -- no intermediate files touch the disk.
 - **AI processing**: Send extracted text to Claude AI with a configurable system prompt. Empty OCR results are silently skipped (no API call made).
 - **Telegram delivery**: Broadcast Claude's response to all active subscribers. Messages exceeding Telegram's 4096-character limit are automatically split into sequential chunks. Empty AI responses are silently skipped. The HTTP client enforces a 30-second timeout per request; a non-responsive Telegram API will not stall the pipeline indefinitely.

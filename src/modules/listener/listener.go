@@ -126,8 +126,8 @@ func goRecordBounds(minX, minY, maxX, maxY float64) {
 }
 
 // Listen starts the global event tap on a dedicated OS thread and returns channels:
-// - triggers: receives a value each time the right Option key is pressed
-// - bounds: receives updated screen-coordinate bounds when right Shift is released
+// - triggers: receives a value each time the right Shift key is pressed
+// - bounds: receives updated screen-coordinate bounds when right Option is released
 // The caller must have Accessibility permission (System Settings → Privacy &
 // Security → Accessibility). The event tap runs until parentCtx is cancelled.
 func Listen(parentCtx context.Context, logger *slog.Logger) (<-chan struct{}, <-chan image.Rectangle, error) {

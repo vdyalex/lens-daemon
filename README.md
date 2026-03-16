@@ -5,11 +5,11 @@ A macOS daemon that captures your screen on demand via a global hotkey, extracts
 ## ⚡ How it works
 
 ```
-Right Option Key → Screen Capture → OCR → Claude AI → Telegram
+Right Shift Key → Screen Capture → OCR → Claude AI → Telegram
 ```
 
-1. **Hotkey** — right Option key (`kVK_RightOption`) triggers a capture via macOS `CGEventTap` global keyboard listener
-2. **Capture** — grabs the center 60% of the active window via AppleScript and the `kbinani/screenshot` library. Use right Shift key to define custom bounds
+1. **Hotkey** — right Shift key (`kVK_RightShift`) triggers a capture via macOS `CGEventTap` global keyboard listener
+2. **Capture** — grabs the entire active window via AppleScript and the `kbinani/screenshot` library. Use right Option key to define custom bounds
 3. **OCR** — extracts text from the image using Apple Vision framework, entirely in-memory
 4. **AI** — sends extracted text to Claude with a configurable system prompt (max 1024 response tokens)
 5. **Notify** — broadcasts Claude's response to all Telegram subscribers, auto-chunking messages exceeding 4096 characters
@@ -80,8 +80,8 @@ make run
 Once running:
 
 1. **Subscribe**: Send `/start` to your Telegram bot to begin receiving responses
-2. **Capture**: Press the **right Option key** at any time to trigger a capture
-3. **Custom bounds** (optional): Hold the **right Shift key**, move your mouse to define a region, then release
+2. **Capture**: Press the **right Shift key** at any time to trigger a capture
+3. **Custom bounds** (optional): Hold the **right Option key**, move your mouse to define a region, then release
 4. The daemon captures the screen, runs OCR, sends the text to Claude, and broadcasts the response to all subscribers
 
 Send `/stop` to the Telegram bot to unsubscribe. Press `Ctrl+C` to stop the daemon.

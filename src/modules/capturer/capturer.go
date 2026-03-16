@@ -35,14 +35,14 @@ type Capturer interface {
 	// CaptureCenter captures a region of the given window.
 	// If bounds is non-nil, it is used as the capture rectangle (in screen coordinates)
 	// instead of the default centerRect heuristic. Coordinates are clamped to screen bounds.
-	// If bounds is nil, the default centerRect heuristic is applied (skips top 200px).
+	// If bounds is nil, the entire active window is captured.
 	CaptureCenter(window *WindowInfo, bounds *image.Rectangle) (*image.RGBA, error)
 }
 
-// centerRect computes a sub-rectangle that skips the top 200px of the window.
-// It captures the full width and the height below the 200px top margin.
+// centerRect computes a sub-rectangle.
+// It captures the full width and the height.
 func centerRect(x, y, w, h int) image.Rectangle {
-	return image.Rect(x, y+200, x+w, y+h)
+	return image.Rect(x, y, x+w, y+h)
 }
 
 // ErrNoForegroundWindow is returned when the frontmost process has no
