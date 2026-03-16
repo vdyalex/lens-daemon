@@ -37,14 +37,9 @@ This is not a defect—each form is correct for its domain. The naming is intent
 
 ---
 
-### 3. Inline Type Definitions in Poller
-**File:** [src/adapters/messenger/poller/poller.go](src/adapters/messenger/poller/poller.go) (lines 36–54)
+### 3. ✅ Inline Type Definitions in Poller (FIXED)
 
-**Issue:** `Update`, `Message`, and `Chat` types are defined inline within the poller package. These types should be in a dedicated types file so they can be reused (e.g., in the adapter interface mentioned in issue #1) and kept separate from implementation.
-
-**CLAUDE.md violation:** "Split modules into granular files." Types should be in a separate types file.
-
-**Impact:** Type reuse is discouraged; types are hidden in implementation details.
+**Status:** Fixed as part of Architecture #1. The `Update`, `Message`, and `Chat` types are now in `src/adapters/messenger/types/types.go` and imported by `poller.go` via the shared `types` package.
 
 ---
 
@@ -428,7 +423,7 @@ These should be configurable, especially the language, to support multi-language
 
 | Category | Count | Severity |
 |----------|-------|----------|
-| Architecture | 3 | High |
+| Architecture | 0 | N/A |
 | Performance | 5 | Medium |
 | Code Quality | 0 | N/A |
 | Best Practices | 4 | High |
@@ -436,7 +431,7 @@ These should be configurable, especially the language, to support multi-language
 | Unit Tests | 7 test suites | High |
 | Functional Tests | 6 test suites | High |
 
-**Total: 33 items** (4 bugs fixed + 5 code quality fixed + 1 best practice fixed + 1 architecture accepted + 1 architecture fixed = 12 fixed/accepted, 21 remaining)
+**Total: 32 items** (4 bugs fixed + 5 code quality fixed + 1 best practice fixed + 2 architecture accepted + 3 architecture fixed = 15 fixed/accepted, 18 remaining)
 
 ---
 
@@ -449,9 +444,10 @@ All findings are violations of CLAUDE.md sections: Core rules, Code structure, D
 Next steps:
 1. ✅ **Fix bugs** (4 items) — COMPLETED
 2. ✅ **Code quality improvements** (5 items: remove trivial centerRect, add parseRetryAfter logging, mark TELEGRAM_CHAT_ID complete, extract remaining magic numbers, remove unused dependencies) — COMPLETED
-3. ✅ **Architecture #4 (No Structured Error Types)** — COMPLETED
-4. ✅ **Architecture #5 (No Container Setup)** — ACCEPTED BY DESIGN
-5. **Add tests** (13 test suites: unit + functional).
-6. **Extract settings to env vars** (7 items: timeouts, chunk size, poll interval, max tokens, OCR params).
-7. **Improve static analysis** (Makefile: add linter, vulnerability scanner, CI/CD).
-8. **Add GoDoc docstrings** (all exported symbols).
+3. ✅ **Architecture #3 (Inline Type Definitions in Poller)** — COMPLETED (fixed as part of Architecture #1)
+4. ✅ **Architecture #4 (No Structured Error Types)** — COMPLETED
+5. ✅ **Architecture #5 (No Container Setup)** — ACCEPTED BY DESIGN
+6. **Add tests** (13 test suites: unit + functional).
+7. **Extract settings to env vars** (7 items: timeouts, chunk size, poll interval, max tokens, OCR params).
+8. **Improve static analysis** (Makefile: add linter, vulnerability scanner, CI/CD).
+9. **Add GoDoc docstrings** (all exported symbols).
