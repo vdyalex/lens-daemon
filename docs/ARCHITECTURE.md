@@ -59,6 +59,86 @@ flowchart TD
 
 Each pipeline run has an overall timeout of 5 minutes. Individual step timeouts are enforced to prevent any single operation from stalling the daemon indefinitely.
 
+## Sequence Diagrams
+
+### Capture Pipeline
+
+The sequence below shows the capture flow triggered by a hotkey press through to message delivery, including error paths for empty results and queue overflow.
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant Listener
+    participant Pipeline
+    participant Capturer
+    participant Vision
+    participant Claude as Claude API
+    participant Telegram
+
+    User->>Listener: press trigger hotkey
+    Listener->>Pipeline: trigger (buffered channel)
+
+    alt queue full (capture in progress)
+        Pipeline->>Pipeline: drop trigger
+    else
+        Pipeline->>Capturer: ForegroundWindow
+        Capturer->>Capturer: AppleScript / System Events
+        Capturer-->>Pipeline: WindowInfo
+
+        Pipeline->>Capturer: CaptureCenter
+        Capturer->>Capturer: CoreGraphics screenshot
+        Capturer-->>Pipeline: image RGBA
+
+        Pipeline->>Vision: Extract text
+        Vision->>Vision: PNG encode and Vision API
+        Vision-->>Pipeline: text
+
+        alt empty OCR text
+            Pipeline->>Pipeline: skip
+        else
+            Pipeline->>Claude: Process text
+            Claude-->>Pipeline: response
+
+            alt empty response
+                Pipeline->>Pipeline: skip
+            else
+                Pipeline->>Telegram: Broadcast message
+                Note over Pipeline,Telegram: split if larger than 4096 chars
+                Telegram-->>User: message chunks
+            end
+        end
+    end
+```
+
+### Subscription Flow
+
+This sequence shows how Telegram subscribers are managed via `/start` and `/stop` commands, using long-polling to receive updates from the Telegram API.
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant Telegram
+    participant Poller
+    participant Store
+
+    loop polling
+        Poller->>Telegram: getUpdates
+
+        alt start command
+            Telegram-->>Poller: user subscribed
+            Poller->>Store: add subscriber
+            Store->>Store: persist to disk
+        else stop command
+            Telegram-->>Poller: user unsubscribed
+            Poller->>Store: remove subscriber
+            Store->>Store: persist to disk
+        else error
+            Telegram-->>Poller: error
+            Poller->>Poller: retry after delay
+        end
+    end
+```
+
 ## Subscriber Management
 
 The daemon supports multiple Telegram subscribers through a dynamic subscription system:

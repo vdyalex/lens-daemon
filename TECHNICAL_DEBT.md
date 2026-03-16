@@ -217,7 +217,7 @@ All exported symbols now have proper GoDoc comments following Go standards (comm
 - `TIMEOUT_TELEGRAM_BROADCAST=30s` → `config.TimeoutTelegramBroadcast`
 - `TIMEOUT_PIPELINE_OVERALL=5m` → `config.TimeoutPipelineOverall`
 
-Updated [src/utils/config/config.go](src/utils/config/config.go) to add `envDuration()` helper and new timeout fields. Updated [src/pipeline/pipeline.go](src/pipeline/pipeline.go) to use `pipeline.settings.Timeout*` instead of `constants.Timeout*`.
+Updated [src/utils/config/config.go](src/utils/config/config.go) to add `getDuration()` helper and new timeout fields. Updated [src/pipeline/pipeline.go](src/pipeline/pipeline.go) to use `pipeline.settings.Timeout*` instead of `constants.Timeout*`.
 
 ---
 

@@ -58,11 +58,11 @@ type Config struct {
 // Load reads application configuration from environment variables.
 //
 // Environment Variable Precedence and Loading:
-// 1. godotenv.Load() loads variables from .env file (safe variant: does NOT override already-set vars)
-// 2. os.Getenv() reads variables in this order (first match wins):
-//    a. Variables already set in the shell environment (highest priority)
-//    b. Variables loaded from .env by godotenv (only if not in shell env)
-//    c. Default fallback values defined in config struct
+//  1. godotenv.Load() loads variables from .env file (safe variant: does NOT override already-set vars)
+//  2. os.Getenv() reads variables in this order (first match wins):
+//     a. Variables already set in the shell environment (highest priority)
+//     b. Variables loaded from .env by godotenv (only if not in shell env)
+//     c. Default fallback values defined in config struct
 //
 // Typical usage patterns:
 // - Development: .env file contains config, loaded automatically on startup
@@ -78,28 +78,28 @@ func Load() (*Config, error) {
 	_ = godotenv.Load() // Load .env if present; no-op if absent or already-set vars are preserved
 
 	cfg := &Config{
-		LogLevel:                  envLogLevel("LOG_LEVEL", slog.LevelInfo),
-		VisionLanguage:            envStr("VISION_LANG", "en-US"),
-		VisionAccuracy:            envStr("VISION_ACCURACY", "accurate"),
-		AnthropicAPIKey:           envStr("ANTHROPIC_API_KEY", ""),
-		ClaudeModel:               envStr("CLAUDE_MODEL", "claude-sonnet-4-6"),
-		SystemPrompt:              envStr("SYSTEM_PROMPT", "You're a questionnaire assistant. Provide quick, accurate responses with maximum efficiency."),
-		ClaudeMaxResponseTokens:   envInt("CLAUDE_MAX_RESPONSE_TOKENS", constants.ClaudeMaxResponseTokens),
-		TelegramBotToken:          envStr("TELEGRAM_BOT_TOKEN", ""),
-		SubscriberStorePath:       envStr("SUBSCRIBER_STORE_PATH", "tmp/subscribers"),
-		TelegramMessageChunkSize:  envInt("TELEGRAM_MESSAGE_CHUNK_SIZE", constants.TelegramMessageChunkSize),
-		TelegramMaxRetries:        envInt("TELEGRAM_MAX_RETRIES", constants.TelegramMaxRetries),
-		TelegramLongPollTimeout:   envDuration("TELEGRAM_LONG_POLL_TIMEOUT", constants.TimeoutTelegramLongPoll),
-		TelegramPollerTimeout:     envDuration("TELEGRAM_POLLER_TIMEOUT", constants.TimeoutTelegramPoller),
-		TelegramHTTPClientTimeout: envDuration("TELEGRAM_HTTP_CLIENT_TIMEOUT", constants.TimeoutTelegramHTTPClient),
-		TimeoutPipelineOverall:    envDuration("TIMEOUT_PIPELINE_OVERALL", constants.TimeoutPipelineOverall),
-		TimeoutForegroundWindow:   envDuration("TIMEOUT_FOREGROUND_WINDOW", constants.TimeoutForegroundWindow),
-		TimeoutCapture:            envDuration("TIMEOUT_CAPTURE", constants.TimeoutCapture),
-		TimeoutOCRExtract:         envDuration("TIMEOUT_OCR_EXTRACT", constants.TimeoutOCRExtract),
-		TimeoutAgentProcess:       envDuration("TIMEOUT_AGENT_PROCESS", constants.TimeoutAgentProcess),
-		TimeoutTelegramBroadcast:  envDuration("TIMEOUT_TELEGRAM_BROADCAST", constants.TimeoutTelegramBroadcast),
-		EventTapPollInterval:      envDuration("EVENT_TAP_POLL_INTERVAL", constants.EventTapPollInterval),
-		WorkerQueueCapacity:       envInt("WORKER_QUEUE_CAPACITY", constants.WorkerQueueCapacity),
+		LogLevel:                  getLogLevel("LOG_LEVEL", slog.LevelInfo),
+		VisionLanguage:            getStr("VISION_LANG", "en-US"),
+		VisionAccuracy:            getStr("VISION_ACCURACY", "accurate"),
+		AnthropicAPIKey:           getStr("ANTHROPIC_API_KEY", ""),
+		ClaudeModel:               getStr("CLAUDE_MODEL", "claude-sonnet-4-6"),
+		SystemPrompt:              getStr("SYSTEM_PROMPT", "You're a questionnaire assistant. Provide quick, accurate responses with maximum efficiency."),
+		ClaudeMaxResponseTokens:   getInt("CLAUDE_MAX_RESPONSE_TOKENS", constants.ClaudeMaxResponseTokens),
+		TelegramBotToken:          getStr("TELEGRAM_BOT_TOKEN", ""),
+		SubscriberStorePath:       getStr("SUBSCRIBER_STORE_PATH", "tmp/subscribers"),
+		TelegramMessageChunkSize:  getInt("TELEGRAM_MESSAGE_CHUNK_SIZE", constants.TelegramMessageChunkSize),
+		TelegramMaxRetries:        getInt("TELEGRAM_MAX_RETRIES", constants.TelegramMaxRetries),
+		TelegramLongPollTimeout:   getDuration("TELEGRAM_LONG_POLL_TIMEOUT", constants.TimeoutTelegramLongPoll),
+		TelegramPollerTimeout:     getDuration("TELEGRAM_POLLER_TIMEOUT", constants.TimeoutTelegramPoller),
+		TelegramHTTPClientTimeout: getDuration("TELEGRAM_HTTP_CLIENT_TIMEOUT", constants.TimeoutTelegramHTTPClient),
+		TimeoutPipelineOverall:    getDuration("TIMEOUT_PIPELINE_OVERALL", constants.TimeoutPipelineOverall),
+		TimeoutForegroundWindow:   getDuration("TIMEOUT_FOREGROUND_WINDOW", constants.TimeoutForegroundWindow),
+		TimeoutCapture:            getDuration("TIMEOUT_CAPTURE", constants.TimeoutCapture),
+		TimeoutOCRExtract:         getDuration("TIMEOUT_OCR_EXTRACT", constants.TimeoutOCRExtract),
+		TimeoutAgentProcess:       getDuration("TIMEOUT_AGENT_PROCESS", constants.TimeoutAgentProcess),
+		TimeoutTelegramBroadcast:  getDuration("TIMEOUT_TELEGRAM_BROADCAST", constants.TimeoutTelegramBroadcast),
+		EventTapPollInterval:      getDuration("EVENT_TAP_POLL_INTERVAL", constants.EventTapPollInterval),
+		WorkerQueueCapacity:       getInt("WORKER_QUEUE_CAPACITY", constants.WorkerQueueCapacity),
 	}
 
 	if cfg.AnthropicAPIKey == "" {
@@ -110,8 +110,8 @@ func Load() (*Config, error) {
 	}
 
 	// Load and validate hotkey names
-	triggerKeyName := envStr("HOTKEY_TRIGGER_KEYNAME", constants.HotkeyTriggerKeyName)
-	boundsKeyName := envStr("HOTKEY_BOUNDS_KEYNAME", constants.HotkeyBoundsKeyName)
+	triggerKeyName := getStr("HOTKEY_TRIGGER_KEYNAME", constants.HotkeyTriggerKeyName)
+	boundsKeyName := getStr("HOTKEY_BOUNDS_KEYNAME", constants.HotkeyBoundsKeyName)
 
 	triggerKeycode, ok := constants.HotkeyKeycodes[triggerKeyName]
 	if !ok {
@@ -128,14 +128,14 @@ func Load() (*Config, error) {
 	return cfg, nil
 }
 
-func envStr(key, fallback string) string {
+func getStr(key, fallback string) string {
 	if v := os.Getenv(key); v != "" {
 		return v
 	}
 	return fallback
 }
 
-func envInt(key string, fallback int) int {
+func getInt(key string, fallback int) int {
 	if v := os.Getenv(key); v != "" {
 		if n, err := strconv.Atoi(v); err == nil {
 			return n
@@ -145,10 +145,10 @@ func envInt(key string, fallback int) int {
 	return fallback
 }
 
-// envLogLevel parses the named environment variable as a log level string.
+// getLogLevel parses the named environment variable as a log level string.
 // Accepted values (case-insensitive): "debug", "info", "warn", "error".
 // Returns fallback if the variable is absent or unrecognised.
-func envLogLevel(key string, fallback slog.Level) slog.Level {
+func getLogLevel(key string, fallback slog.Level) slog.Level {
 	value := os.Getenv(key)
 	if value == "" {
 		return fallback
@@ -161,10 +161,10 @@ func envLogLevel(key string, fallback slog.Level) slog.Level {
 	return level
 }
 
-// envDuration parses the named environment variable as a time.Duration.
+// getDuration parses the named environment variable as a time.Duration.
 // Accepted formats: "300ms", "1.5h", "2h45m", etc. (see time.ParseDuration).
 // Returns fallback if the variable is absent or invalid.
-func envDuration(key string, fallback time.Duration) time.Duration {
+func getDuration(key string, fallback time.Duration) time.Duration {
 	if v := os.Getenv(key); v != "" {
 		if d, err := time.ParseDuration(v); err == nil {
 			return d
