@@ -16,7 +16,11 @@ Hotkey (configurable) → Screen Capture → OCR → Claude AI → Telegram
 
 Captures happen **only** when you press the hotkey. No continuous polling or background recording.
 
-For detailed architecture, design decisions, and requirements, see [REQUIREMENTS.md](REQUIREMENTS.md).
+For detailed documentation, see:
+
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — architecture, design decisions, and pipeline flow
+- [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md) — application requirements
+- [docs/IMPLEMENTATION.md](docs/IMPLEMENTATION.md) — implementation details
 
 ## 📋 Pre-requisites
 
