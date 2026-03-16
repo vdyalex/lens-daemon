@@ -39,12 +39,6 @@ type Capturer interface {
 	CaptureCenter(window *WindowInfo, bounds *image.Rectangle) (*image.RGBA, error)
 }
 
-// centerRect computes a sub-rectangle.
-// It captures the full width and the height.
-func centerRect(x, y, w, h int) image.Rectangle {
-	return image.Rect(x, y, x+w, y+h)
-}
-
 // ErrNoForegroundWindow is returned when the frontmost process has no
 // visible window (e.g. Desktop, menu-bar-only app, minimized window),
 // or when System Events lacks permission to access the window.
@@ -140,7 +134,7 @@ func (capture *Capture) CaptureCenter(window *WindowInfo, bounds *image.Rectangl
 			captureX, captureY = 0, 0
 			captureW, captureH = screenW, screenH
 		}
-		rect = centerRect(captureX, captureY, captureW, captureH)
+		rect = image.Rect(captureX, captureY, captureX+captureW, captureY+captureH)
 	}
 
 	// Validate the rectangle before capture
