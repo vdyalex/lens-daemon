@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -42,7 +43,7 @@ func main() {
 		cancel()
 	}()
 
-	if err := process.Run(ctx); err != nil && err != context.Canceled {
+	if err := process.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
 		logger.Error("Pipeline error", "error", err)
 		os.Exit(1)
 	}

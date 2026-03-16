@@ -3,6 +3,7 @@ package subscriber
 import (
 	"bufio"
 	"bytes"
+	"log/slog"
 	"os"
 	"strconv"
 	"strings"
@@ -15,13 +16,15 @@ type Store struct {
 	mu          sync.RWMutex
 	subscribers map[int64]struct{}
 	path        string
+	logger      *slog.Logger
 }
 
 // NewStore loads existing subscribers from path (if it exists) and returns a ready-to-use Store.
-func NewStore(path string) (*Store, error) {
+func NewStore(path string, logger *slog.Logger) (*Store, error) {
 	s := &Store{
 		subscribers: make(map[int64]struct{}),
 		path:        path,
+		logger:      logger,
 	}
 	if err := s.load(); err != nil && !os.IsNotExist(err) {
 		return nil, err
@@ -94,7 +97,9 @@ func (store *Store) persist() error {
 		return err
 	}
 	if err := os.Rename(tmpPath, store.path); err != nil {
-		os.Remove(tmpPath)
+		if removeErr := os.Remove(tmpPath); removeErr != nil {
+			store.logger.Warn("Failed to remove temporary subscriber file", "path", tmpPath, "error", removeErr)
+		}
 		return err
 	}
 	return nil

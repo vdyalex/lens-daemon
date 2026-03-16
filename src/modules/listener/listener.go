@@ -107,46 +107,65 @@ import (
 	"github.com/vdyalex/lens-daemon/src/utils/exceptions"
 )
 
-var (
-	triggerCh = make(chan struct{}, 10)
-	boundsCh  = make(chan image.Rectangle, 1)
+// Listener manages global hotkey detection and bounds tracking.
+type Listener struct {
+	triggerCh chan struct{}
+	boundsCh  chan image.Rectangle
 	startOnce sync.Once
-)
+}
+
+// current holds the active listener instance for CGo callbacks.
+var current *Listener
 
 //export goHotkeyCallback
 func goHotkeyCallback() {
-	// Non-blocking send so the run-loop is never stalled.
-	select {
-	case triggerCh <- struct{}{}:
-	default:
+	if current != nil {
+		// Non-blocking send so the run-loop is never stalled.
+		select {
+		case current.triggerCh <- struct{}{}:
+		default:
+		}
 	}
 }
 
 //export goRecordBounds
 func goRecordBounds(minX, minY, maxX, maxY float64) {
-	// Drain and replace: always keep the latest bounds.
-	select {
-	case <-boundsCh:
-	default:
-	}
-	rect := image.Rect(int(minX), int(minY), int(maxX), int(maxY))
-	select {
-	case boundsCh <- rect:
-	default:
+	if current != nil {
+		// Drain and replace: always keep the latest bounds.
+		select {
+		case <-current.boundsCh:
+		default:
+		}
+		rect := image.Rect(int(minX), int(minY), int(maxX), int(maxY))
+		select {
+		case current.boundsCh <- rect:
+		default:
+		}
 	}
 }
 
-// Listen starts the global event tap on a dedicated OS thread and returns channels:
+// New creates a new listener instance.
+func New() *Listener {
+	return &Listener{
+		triggerCh: make(chan struct{}, 10),
+		boundsCh:  make(chan image.Rectangle, 1),
+	}
+}
+
+// Listen starts the event tap on a dedicated OS thread and returns channels:
 // - triggers: receives a value each time the trigger hotkey is pressed
 // - bounds: receives updated screen-coordinate bounds when the bounds hotkey is released
 // The caller must have Accessibility permission (System Settings → Privacy &
 // Security → Accessibility). The event tap runs until parentCtx is cancelled.
 // pollInterval is the CFRunLoop polling timeout; smaller values increase responsiveness but use more CPU.
 // triggerKeycode and boundsKeycode are the macOS virtual keycodes for the hotkeys.
-func Listen(parentCtx context.Context, logger *slog.Logger, pollInterval time.Duration, triggerKeycode, boundsKeycode int) (<-chan struct{}, <-chan image.Rectangle, error) {
+// Listen can only be called once per Listener instance; subsequent calls return the same channels.
+func (listener *Listener) Listen(parentCtx context.Context, logger *slog.Logger, pollInterval time.Duration, triggerKeycode, boundsKeycode int) (<-chan struct{}, <-chan image.Rectangle, error) {
 	var listenErr error
 
-	startOnce.Do(func() {
+	listener.startOnce.Do(func() {
+		current = listener // Register this listener as the active one for CGo callbacks
+
 		C.setKeycodes(C.int(triggerKeycode), C.int(boundsKeycode))
 
 		tap := C.createTap()
@@ -186,13 +205,13 @@ func Listen(parentCtx context.Context, logger *slog.Logger, pollInterval time.Du
 	// Drain residual triggers and bounds on shutdown so nothing leaks.
 	go func() {
 		<-parentCtx.Done()
-		for len(triggerCh) > 0 {
-			<-triggerCh
+		for len(listener.triggerCh) > 0 {
+			<-listener.triggerCh
 		}
-		for len(boundsCh) > 0 {
-			<-boundsCh
+		for len(listener.boundsCh) > 0 {
+			<-listener.boundsCh
 		}
 	}()
 
-	return triggerCh, boundsCh, nil
+	return listener.triggerCh, listener.boundsCh, nil
 }

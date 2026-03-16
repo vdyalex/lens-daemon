@@ -92,13 +92,13 @@ const (
 
 // Hotkey keycode mappings (macOS virtual keycodes).
 var HotkeyKeycodes = map[string]int{
-	"LeftShift":    0x38,  // 56
-	"RightShift":   0x3C,  // 60
-	"LeftControl":  0x3B,  // 59
-	"RightControl": 0x3E,  // 62
-	"LeftCommand":  0x37,  // 55
-	"RightCommand": 0x36,  // 54
-	"LeftOption":   0x3A,  // 58
-	"RightOption":  0x3D,  // 61
-	"Fn":           0x3F,  // 63
+	"LeftShift":    0x38, // 56
+	"RightShift":   0x3C, // 60
+	"LeftControl":  0x3B, // 59
+	"RightControl": 0x3E, // 62
+	"LeftCommand":  0x37, // 55
+	"RightCommand": 0x36, // 54
+	"LeftOption":   0x3A, // 58
+	"RightOption":  0x3D, // 61
+	"Fn":           0x3F, // 63
 }

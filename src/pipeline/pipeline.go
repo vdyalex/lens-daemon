@@ -16,6 +16,7 @@ import (
 	"github.com/vdyalex/lens-daemon/src/modules/capturer"
 	"github.com/vdyalex/lens-daemon/src/modules/extractor"
 	"github.com/vdyalex/lens-daemon/src/modules/listener"
+	"github.com/vdyalex/lens-daemon/src/types"
 	"github.com/vdyalex/lens-daemon/src/utils/config"
 	"github.com/vdyalex/lens-daemon/src/utils/exceptions"
 )
@@ -26,8 +27,8 @@ type Pipeline struct {
 	logger        *slog.Logger
 	capturer      capturer.Capturer
 	extractor     extractor.Extractor
-	agent         *agent.Agent
-	messenger     *messenger.Sender
+	agent         types.AgentProcessor
+	messenger     types.MessengerBroadcaster
 	poller        *poller.Poller
 	boundsMu      sync.RWMutex
 	captureBounds *image.Rectangle
@@ -41,7 +42,7 @@ func New(settings *config.Config, logger *slog.Logger) (*Pipeline, error) {
 		return nil, err
 	}
 
-	store, err := subscriber.NewStore(settings.SubscriberStorePath)
+	store, err := subscriber.NewStore(settings.SubscriberStorePath, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -52,7 +53,7 @@ func New(settings *config.Config, logger *slog.Logger) (*Pipeline, error) {
 		capturer:  capturer.New(),
 		extractor: ocr,
 		agent:     agent.New(settings.AnthropicAPIKey, settings.ClaudeModel, settings.SystemPrompt, settings.ClaudeMaxResponseTokens),
-		messenger: messenger.New(settings.TelegramBotToken, store, logger, settings.TelegramMessageChunkSize, settings.TelegramMaxRetries),
+		messenger: messenger.New(settings.TelegramBotToken, store, logger, settings.TelegramMessageChunkSize, settings.TelegramMaxRetries, settings.TelegramHTTPClientTimeout),
 		poller:    poller.New(settings.TelegramBotToken, store, logger, settings.TelegramLongPollTimeout, settings.TelegramPollerTimeout, settings.TelegramHTTPClientTimeout),
 	}, nil
 }
@@ -65,7 +66,8 @@ func New(settings *config.Config, logger *slog.Logger) (*Pipeline, error) {
 func (pipeline *Pipeline) Run(ctx context.Context) error {
 	defer pipeline.extractor.Close()
 
-	triggers, bounds, err := listener.Listen(ctx, pipeline.logger, pipeline.settings.EventTapPollInterval, pipeline.settings.HotkeyTriggerKeycode, pipeline.settings.HotkeyBoundsKeycode)
+	hotkeyListener := listener.New()
+	triggers, bounds, err := hotkeyListener.Listen(ctx, pipeline.logger, pipeline.settings.EventTapPollInterval, pipeline.settings.HotkeyTriggerKeycode, pipeline.settings.HotkeyBoundsKeycode)
 	if err != nil {
 		return err
 	}

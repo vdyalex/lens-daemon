@@ -6,9 +6,13 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/joho/godotenv"
+
 	"github.com/vdyalex/lens-daemon/src/utils/constants"
 	"github.com/vdyalex/lens-daemon/src/utils/exceptions"
 )
+
+var logger = slog.New(slog.NewTextHandler(os.Stderr, nil))
 
 // Config holds all application configuration loaded from environment variables.
 type Config struct {
@@ -52,11 +56,14 @@ type Config struct {
 }
 
 // Load reads application configuration from environment variables.
+// Loads .env file if present (via godotenv.Load), then reads env vars.
 // Required env vars: ANTHROPIC_API_KEY, TELEGRAM_BOT_TOKEN.
 // Optional env vars are loaded with sensible defaults (see Config struct field comments).
 // Returns ConfigMissingAPIKeyException if ANTHROPIC_API_KEY is not set.
 // Returns ConfigMissingBotTokenException if TELEGRAM_BOT_TOKEN is not set.
 func Load() (*Config, error) {
+	_ = godotenv.Load() // Load .env if present; no-op if absent
+
 	cfg := &Config{
 		LogLevel:                  envLogLevel("LOG_LEVEL", slog.LevelInfo),
 		VisionLanguage:            envStr("VISION_LANG", "en-US"),
@@ -120,6 +127,7 @@ func envInt(key string, fallback int) int {
 		if n, err := strconv.Atoi(v); err == nil {
 			return n
 		}
+		logger.Warn("Invalid environment variable value, using default", "key", key, "value", v, "fallback", fallback)
 	}
 	return fallback
 }
@@ -134,6 +142,7 @@ func envLogLevel(key string, fallback slog.Level) slog.Level {
 	}
 	var level slog.Level
 	if err := level.UnmarshalText([]byte(value)); err != nil {
+		logger.Warn("Invalid log level value, using default", "key", key, "value", value, "fallback", fallback.String())
 		return fallback
 	}
 	return level
@@ -147,6 +156,7 @@ func envDuration(key string, fallback time.Duration) time.Duration {
 		if d, err := time.ParseDuration(v); err == nil {
 			return d
 		}
+		logger.Warn("Invalid duration value, using default", "key", key, "value", v, "fallback", fallback.String())
 	}
 	return fallback
 }

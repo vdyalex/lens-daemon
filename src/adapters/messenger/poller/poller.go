@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/vdyalex/lens-daemon/src/adapters/messenger/subscriber"
-	"github.com/vdyalex/lens-daemon/src/adapters/messenger/types"
+	"github.com/vdyalex/lens-daemon/src/types"
 	"github.com/vdyalex/lens-daemon/src/utils/constants"
 	"github.com/vdyalex/lens-daemon/src/utils/exceptions"
 )
@@ -21,7 +21,7 @@ import (
 type Poller struct {
 	token             string
 	store             *subscriber.Store
-	client            types.HTTPClient
+	client            types.MessengerHTTPClient
 	logger            *slog.Logger
 	offset            int64
 	longPollTimeout   time.Duration
@@ -88,9 +88,9 @@ func (poller *Poller) poll(ctx context.Context) error {
 	defer resp.Body.Close()
 
 	var result struct {
-		OK     bool           `json:"ok"`
-		Result []types.Update `json:"result"`
-		Desc   string         `json:"description"`
+		OK     bool                    `json:"ok"`
+		Result []types.MessengerUpdate `json:"result"`
+		Desc   string                  `json:"description"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return err
@@ -111,7 +111,7 @@ func (poller *Poller) poll(ctx context.Context) error {
 
 // handleUpdate processes a single Telegram update.
 // /start adds the chat to the store; /stop removes it.
-func (poller *Poller) handleUpdate(u types.Update) error {
+func (poller *Poller) handleUpdate(u types.MessengerUpdate) error {
 	if u.Message == nil || u.Message.Text == "" {
 		return nil
 	}
