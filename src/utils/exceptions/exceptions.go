@@ -8,6 +8,8 @@ var (
 	ConfigMissingAPIKeyException = errors.New("ANTHROPIC_API_KEY environment variable is required")
 	// ConfigMissingBotTokenException is returned when TELEGRAM_BOT_TOKEN is not set.
 	ConfigMissingBotTokenException = errors.New("TELEGRAM_BOT_TOKEN environment variable is required")
+	// ConfigInvalidHotkeyException is returned when HOTKEY_TRIGGER_KEYNAME or HOTKEY_BOUNDS_KEYNAME is not a recognized key name.
+	ConfigInvalidHotkeyException = errors.New("Invalid hotkey name: supported values are LeftShift, RightShift, LeftControl, RightControl, LeftCommand, RightCommand, LeftOption, RightOption, Fn")
 )
 
 // Capturer domain: window detection and screenshot capture

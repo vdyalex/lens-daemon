@@ -45,6 +45,8 @@ type Config struct {
 
 	// Event listener settings
 	EventTapPollInterval time.Duration // EVENT_TAP_POLL_INTERVAL: CFRunLoop polling interval (default: 500ms)
+	HotkeyTriggerKeycode int           // Resolved from HOTKEY_TRIGGER_KEYNAME env var (default: RightShift)
+	HotkeyBoundsKeycode  int           // Resolved from HOTKEY_BOUNDS_KEYNAME env var (default: RightOption)
 
 	// Worker settings
 	WorkerQueueCapacity int // WORKER_QUEUE_CAPACITY: capture queue buffer size (default: 1)
@@ -88,6 +90,22 @@ func Load() (*Config, error) {
 	if cfg.TelegramBotToken == "" {
 		return nil, exceptions.ConfigMissingBotTokenException
 	}
+
+	// Load and validate hotkey names
+	triggerKeyName := envStr("HOTKEY_TRIGGER_KEYNAME", constants.HotkeyTriggerKeyName)
+	boundsKeyName := envStr("HOTKEY_BOUNDS_KEYNAME", constants.HotkeyBoundsKeyName)
+
+	triggerKeycode, ok := constants.HotkeyKeycodes[triggerKeyName]
+	if !ok {
+		return nil, exceptions.ConfigInvalidHotkeyException
+	}
+	boundsKeycode, ok := constants.HotkeyKeycodes[boundsKeyName]
+	if !ok {
+		return nil, exceptions.ConfigInvalidHotkeyException
+	}
+
+	cfg.HotkeyTriggerKeycode = triggerKeycode
+	cfg.HotkeyBoundsKeycode = boundsKeycode
 
 	return cfg, nil
 }

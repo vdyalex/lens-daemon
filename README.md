@@ -5,11 +5,11 @@ A macOS daemon that captures your screen on demand via a global hotkey, extracts
 ## ⚡ How it works
 
 ```
-Right Shift Key → Screen Capture → OCR → Claude AI → Telegram
+Hotkey (configurable) → Screen Capture → OCR → Claude AI → Telegram
 ```
 
-1. **Hotkey** — right Shift key (`kVK_RightShift`) triggers a capture via macOS `CGEventTap` global keyboard listener
-2. **Capture** — grabs the entire active window via AppleScript and the `kbinani/screenshot` library. Use right Option key to define custom bounds
+1. **Hotkey** — global keyboard listener via macOS `CGEventTap`. Default: `RightShift` key. Customizable via `HOTKEY_TRIGGER_KEYNAME` environment variable
+2. **Capture** — grabs the entire active window via AppleScript and the `kbinani/screenshot` library. Default: hold `RightOption` key to define custom bounds. Customizable via `HOTKEY_BOUNDS_KEYNAME`
 3. **OCR** — extracts text from the image using Apple Vision framework, entirely in-memory
 4. **AI** — sends extracted text to Claude with a configurable system prompt (max 1024 response tokens)
 5. **Notify** — broadcasts Claude's response to all Telegram subscribers, auto-chunking messages exceeding 4096 characters
@@ -56,10 +56,32 @@ All configuration is done through environment variables. Copy `.env.example` to 
 | `VISION_LANG` | `en-US` | OCR language (BCP 47 code, e.g., `en-US`, `fr-FR`, `de-DE`, `zh-Hans`, `ja`, `ko`) |
 | `CLAUDE_MODEL` | `claude-sonnet-4-6` | Claude model ID to use for AI processing |
 | `SYSTEM_PROMPT` | *(built-in)* | System prompt sent to Claude with each request |
+| `HOTKEY_TRIGGER_KEYNAME` | `RightShift` | Hotkey to trigger capture (see [Hotkey Configuration](#-hotkey-configuration) below) |
+| `HOTKEY_BOUNDS_KEYNAME` | `RightOption` | Hotkey to define custom capture bounds (see [Hotkey Configuration](#-hotkey-configuration) below) |
 
 The built-in default system prompt is:
 
 > You're a questionnaire assistant. Provide quick, accurate responses with maximum efficiency.
+
+### 🎛️ Hotkey Configuration
+
+Configure which keys trigger captures and bounds selection via `HOTKEY_TRIGGER_KEYNAME` and `HOTKEY_BOUNDS_KEYNAME`. Supported key names:
+
+- **Modifier keys**: `LeftShift`, `RightShift`, `LeftControl`, `RightControl`, `LeftCommand`, `RightCommand`, `LeftOption`, `RightOption`
+- **Function key**: `Fn`
+
+**Examples:**
+
+```bash
+# Use Left Command for capture, Right Control for bounds
+export HOTKEY_TRIGGER_KEYNAME="LeftCommand"
+export HOTKEY_BOUNDS_KEYNAME="RightControl"
+
+# Use Fn key for capture
+export HOTKEY_TRIGGER_KEYNAME="Fn"
+```
+
+Invalid key names will be rejected at startup with a clear error listing all supported options.
 
 ## ▶️ Running
 
@@ -80,8 +102,8 @@ make run
 Once running:
 
 1. **Subscribe**: Send `/start` to your Telegram bot to begin receiving responses
-2. **Capture**: Press the **right Shift key** at any time to trigger a capture
-3. **Custom bounds** (optional): Hold the **right Option key**, move your mouse to define a region, then release
+2. **Capture**: Press the configured trigger hotkey (default: `RightShift`) at any time to trigger a capture
+3. **Custom bounds** (optional): Hold the configured bounds hotkey (default: `RightOption`), move your mouse to define a region, then release
 4. The daemon captures the screen, runs OCR, sends the text to Claude, and broadcasts the response to all subscribers
 
 Send `/stop` to the Telegram bot to unsubscribe. Press `Ctrl+C` to stop the daemon.

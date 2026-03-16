@@ -65,7 +65,7 @@ func New(settings *config.Config, logger *slog.Logger) (*Pipeline, error) {
 func (pipeline *Pipeline) Run(ctx context.Context) error {
 	defer pipeline.extractor.Close()
 
-	triggers, bounds, err := listener.Listen(ctx, pipeline.logger, pipeline.settings.EventTapPollInterval)
+	triggers, bounds, err := listener.Listen(ctx, pipeline.logger, pipeline.settings.EventTapPollInterval, pipeline.settings.HotkeyTriggerKeycode, pipeline.settings.HotkeyBoundsKeycode)
 	if err != nil {
 		return err
 	}

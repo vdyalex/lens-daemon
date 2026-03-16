@@ -12,9 +12,19 @@ extern void goRecordBounds(CGFloat minX, CGFloat minY, CGFloat maxX, CGFloat max
 // Global tap reference so the callback can re-enable it on timeout.
 static CFMachPortRef gTap = NULL;
 
+// Configurable hotkey keycodes.
+static CGKeyCode gTriggerKeycode = 0x3C;  // Right Shift by default
+static CGKeyCode gBoundsKeycode = 0x3D;   // Right Option by default
+
 // Right Option bounds tracking state.
 static bool gOptionHeld = false;
 static CGFloat gMinX, gMinY, gMaxX, gMaxY;
+
+// setKeycodes sets the trigger and bounds hotkey keycodes.
+static inline void setKeycodes(int trigger, int bounds) {
+    gTriggerKeycode = (CGKeyCode)trigger;
+    gBoundsKeycode = (CGKeyCode)bounds;
+}
 
 // CGEventTap callback: fires on every flagsChanged event.
 static CGEventRef eventCallback(CGEventTapProxy proxy, CGEventType type,
@@ -30,30 +40,29 @@ static CGEventRef eventCallback(CGEventTapProxy proxy, CGEventType type,
         return event;
     }
 
-    // Handle Right Option (keycode 0x3D) bounds tracking.
+    // Handle bounds tracking hotkey.
     if (type == kCGEventFlagsChanged) {
         CGKeyCode keycode = (CGKeyCode)CGEventGetIntegerValueField(event, kCGKeyboardEventKeycode);
         CGEventFlags flags = CGEventGetFlags(event);
 
-        // Right Option: keycode 0x3D (61).
-        if (keycode == 0x3D) {
+        // Bounds tracking on configured keycode.
+        if (keycode == gBoundsKeycode) {
             bool optionNowHeld = (flags & kCGEventFlagMaskAlternate) != 0;
             if (optionNowHeld && !gOptionHeld) {
-                // Right Option pressed: start tracking.
+                // Bounds key pressed: start tracking.
                 gOptionHeld = true;
                 CGPoint loc = CGEventGetLocation(event);
                 gMinX = gMaxX = loc.x;
                 gMinY = gMaxY = loc.y;
             } else if (!optionNowHeld && gOptionHeld) {
-                // Right Option released: record bounds.
+                // Bounds key released: record bounds.
                 gOptionHeld = false;
                 goRecordBounds(gMinX, gMinY, gMaxX, gMaxY);
             }
         }
 
-        // kVK_RightShift == 0x3C (60)
-        // Detect right-Shift key press (flag set + matching keycode).
-        if (keycode == 0x3C && (flags & kCGEventFlagMaskShift)) {
+        // Detect capture trigger on configured keycode.
+        if (keycode == gTriggerKeycode && (flags & kCGEventFlagMaskShift)) {
             goHotkeyCallback();
         }
     }
@@ -128,15 +137,18 @@ func goRecordBounds(minX, minY, maxX, maxY float64) {
 }
 
 // Listen starts the global event tap on a dedicated OS thread and returns channels:
-// - triggers: receives a value each time the right Shift key is pressed
-// - bounds: receives updated screen-coordinate bounds when right Option is released
+// - triggers: receives a value each time the trigger hotkey is pressed
+// - bounds: receives updated screen-coordinate bounds when the bounds hotkey is released
 // The caller must have Accessibility permission (System Settings → Privacy &
 // Security → Accessibility). The event tap runs until parentCtx is cancelled.
 // pollInterval is the CFRunLoop polling timeout; smaller values increase responsiveness but use more CPU.
-func Listen(parentCtx context.Context, logger *slog.Logger, pollInterval time.Duration) (<-chan struct{}, <-chan image.Rectangle, error) {
+// triggerKeycode and boundsKeycode are the macOS virtual keycodes for the hotkeys.
+func Listen(parentCtx context.Context, logger *slog.Logger, pollInterval time.Duration, triggerKeycode, boundsKeycode int) (<-chan struct{}, <-chan image.Rectangle, error) {
 	var listenErr error
 
 	startOnce.Do(func() {
+		C.setKeycodes(C.int(triggerKeycode), C.int(boundsKeycode))
+
 		tap := C.createTap()
 		if tap == 0 {
 			listenErr = exceptions.ListenerEventTapCreateFailedException
@@ -151,7 +163,7 @@ func Listen(parentCtx context.Context, logger *slog.Logger, pollInterval time.Du
 			C.CFRunLoopAddSource(rl, source, C.kCFRunLoopCommonModes)
 			C.CGEventTapEnable(tap, C.bool(true))
 
-			logger.Info("Hotkey listener started (right Shift key, right Option for bounds)")
+			logger.Info("Hotkey listener started", "trigger_keycode", triggerKeycode, "bounds_keycode", boundsKeycode)
 
 			// Poll the run loop with a timeout so we can check context cancellation.
 			for parentCtx.Err() == nil {
