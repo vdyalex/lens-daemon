@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -14,11 +15,11 @@ import (
 	"github.com/vdyalex/lens-daemon/src/adapters/messenger/subscriber"
 	"github.com/vdyalex/lens-daemon/src/adapters/messenger/types"
 	"github.com/vdyalex/lens-daemon/src/utils/constants"
+	"github.com/vdyalex/lens-daemon/src/utils/exceptions"
 )
 
 const (
-	telegramAPI     = "https://api.telegram.org"
-	rateLimitPrefix = "rate_limit"
+	telegramAPI = "https://api.telegram.org"
 )
 
 // Sender broadcasts messages to all subscribers via the Telegram Bot API.
@@ -137,9 +138,9 @@ func (sender *Sender) doSendChunk(ctx context.Context, chatID int64, text string
 
 	if !telegram.OK {
 		if response.StatusCode == http.StatusTooManyRequests {
-			return fmt.Errorf("%s: %s", rateLimitPrefix, telegram.Description)
+			return fmt.Errorf("%w: %s", exceptions.MessengerRateLimitException, telegram.Description)
 		}
-		return fmt.Errorf("Telegram API error: %s", telegram.Description)
+		return fmt.Errorf("%w: %s", exceptions.MessengerTelegramAPIException, telegram.Description)
 	}
 
 	return nil
@@ -147,7 +148,7 @@ func (sender *Sender) doSendChunk(ctx context.Context, chatID int64, text string
 
 // isRateLimit checks if an error is a Telegram rate-limit error.
 func isRateLimit(err error) bool {
-	return strings.Contains(err.Error(), rateLimitPrefix)
+	return errors.Is(err, exceptions.MessengerRateLimitException)
 }
 
 // parseRetryAfter extracts the retry-after duration from a Telegram error message.

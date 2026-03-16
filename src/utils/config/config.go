@@ -1,10 +1,11 @@
 package config
 
 import (
-	"fmt"
 	"log/slog"
 	"os"
 	"strconv"
+
+	"github.com/vdyalex/lens-daemon/src/utils/exceptions"
 )
 
 // Config holds all application configuration loaded from environment variables.
@@ -39,10 +40,10 @@ func Load() (*Config, error) {
 	}
 
 	if cfg.AnthropicAPIKey == "" {
-		return nil, fmt.Errorf("ANTHROPIC_API_KEY environment variable is required")
+		return nil, exceptions.ConfigMissingAPIKeyException
 	}
 	if cfg.TelegramBotToken == "" {
-		return nil, fmt.Errorf("TELEGRAM_BOT_TOKEN environment variable is required")
+		return nil, exceptions.ConfigMissingBotTokenException
 	}
 
 	return cfg, nil

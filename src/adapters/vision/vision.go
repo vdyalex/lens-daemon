@@ -1,8 +1,9 @@
 package vision
 
 import (
-	"fmt"
 	"unsafe"
+
+	"github.com/vdyalex/lens-daemon/src/utils/exceptions"
 )
 
 /*
@@ -29,7 +30,7 @@ func New(language string) *Client {
 // Output: Recognized text as a string.
 func (client *Client) RecognizeText(pngData []byte) (string, error) {
 	if len(pngData) == 0 {
-		return "", fmt.Errorf("empty PNG data")
+		return "", exceptions.VisionEmptyInputException
 	}
 
 	langC := C.CString(client.language)
@@ -43,7 +44,7 @@ func (client *Client) RecognizeText(pngData []byte) (string, error) {
 	defer C.free(unsafe.Pointer(result))
 
 	if result == nil {
-		return "", fmt.Errorf("Vision OCR returned null")
+		return "", exceptions.VisionOCRFailedException
 	}
 
 	return C.GoString(result), nil

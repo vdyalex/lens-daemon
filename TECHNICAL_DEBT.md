@@ -48,14 +48,24 @@ This is not a defect—each form is correct for its domain. The naming is intent
 
 ---
 
-### 4. No Structured Error Types
-**File:** [src/](src/) (all modules)
+### 4. ✅ No Structured Error Types (FIXED)
 
-**Issue:** Errors are created via `errors.New()` and `fmt.Errorf()` with string messages. Only `ErrNoForegroundWindow` is a sentinel. Callers cannot programmatically distinguish error types (e.g., timeout vs. no window vs. network failure).
+**Status:** Fixed. Created `src/utils/exceptions/exceptions.go` with 15 sentinel error vars using structured naming `{Domain}{Issue}Exception`:
 
-**CLAUDE.md violation:** "No fragile workarounds, premature abstractions, or security vulnerabilities. Align with ... Agile principles." Lack of error types forces error handling via string matching.
+- Config: `ConfigMissingAPIKeyException`, `ConfigMissingBotTokenException`
+- Capturer: `CapturerNoForegroundWindowException`, `CapturerAccessibilityDeniedException`, `CapturerAppleScriptFailedException`, `CapturerInvalidDisplayDimensionsException`, `CapturerInvalidCaptureRectException`, `CapturerCaptureFailedException`
+- Listener: `ListenerEventTapCreateFailedException`
+- Vision: `VisionEmptyInputException`, `VisionOCRFailedException`
+- Messenger: `MessengerRateLimitException`, `MessengerTelegramAPIException`
+- Pipeline: `PipelineCaptureTimeoutException`, `PipelineOCRTimeoutException`
 
-**Impact:** Error handling is fragile; cannot distinguish error classes; makes retries and recovery logic brittle.
+Updated callers to use sentinels with `errors.Is()`:
+
+- `pipeline.go` checks `errors.Is(err, exceptions.CapturerNoForegroundWindowException)` instead of sentinel import
+- `messenger.go` changed `isRateLimit()` from string-based check to `errors.Is(err, exceptions.MessengerRateLimitException)`
+- All 28 `fmt.Errorf()` calls now wrap sentinels or use them directly, preserving caller context with `%w`
+
+This enables programmatic error handling without fragile string matching. Structured naming makes error origins clear at a glance.
 
 ---
 
@@ -418,7 +428,7 @@ These should be configurable, especially the language, to support multi-language
 
 | Category | Count | Severity |
 |----------|-------|----------|
-| Architecture | 4 | High |
+| Architecture | 3 | High |
 | Performance | 5 | Medium |
 | Code Quality | 0 | N/A |
 | Best Practices | 4 | High |
@@ -426,7 +436,7 @@ These should be configurable, especially the language, to support multi-language
 | Unit Tests | 7 test suites | High |
 | Functional Tests | 6 test suites | High |
 
-**Total: 34 items** (4 bugs fixed + 5 code quality fixed + 1 best practice fixed + 1 architecture accepted = 11 fixed/accepted, 23 remaining)
+**Total: 33 items** (4 bugs fixed + 5 code quality fixed + 1 best practice fixed + 1 architecture accepted + 1 architecture fixed = 12 fixed/accepted, 21 remaining)
 
 ---
 
@@ -439,9 +449,9 @@ All findings are violations of CLAUDE.md sections: Core rules, Code structure, D
 Next steps:
 1. ✅ **Fix bugs** (4 items) — COMPLETED
 2. ✅ **Code quality improvements** (5 items: remove trivial centerRect, add parseRetryAfter logging, mark TELEGRAM_CHAT_ID complete, extract remaining magic numbers, remove unused dependencies) — COMPLETED
-3. ✅ **Architecture #5 (No Container Setup)** — ACCEPTED BY DESIGN
-4. **Add tests** (13 test suites: unit + functional).
-5. **Extract settings to env vars** (7 items: timeouts, chunk size, poll interval, max tokens, OCR params).
-6. **Improve static analysis** (Makefile: add linter, vulnerability scanner, CI/CD).
-7. **Add structured error types** (all modules: replace bare `errors.New` with sentinel values).
+3. ✅ **Architecture #4 (No Structured Error Types)** — COMPLETED
+4. ✅ **Architecture #5 (No Container Setup)** — ACCEPTED BY DESIGN
+5. **Add tests** (13 test suites: unit + functional).
+6. **Extract settings to env vars** (7 items: timeouts, chunk size, poll interval, max tokens, OCR params).
+7. **Improve static analysis** (Makefile: add linter, vulnerability scanner, CI/CD).
 8. **Add GoDoc docstrings** (all exported symbols).

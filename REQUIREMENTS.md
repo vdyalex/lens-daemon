@@ -86,7 +86,7 @@ For fullscreen windows (width and height >= screen dimensions), the daemon captu
 
 - **Global hotkey detection**: Listen for the right Shift key system-wide using macOS `CGEventTap` in listen-only mode. The event tap runs on a dedicated OS thread with its own `CFRunLoop` and automatically re-enables itself if the system disables it due to timeout or user input.
 - **Custom bounds selection**: Track mouse movement while the right Option key is held to define a custom capture rectangle. The bounds persist until the daemon is restarted or new bounds are set.
-- **Active window detection**: Identify the frontmost application window (name, position, size) via AppleScript and `System Events`. Unparseable coordinates in the osascript output are treated as errors and surface through the pipeline's non-fatal error path (logged, hotkey listener continues).
+- **Active window detection**: Identify the frontmost application window (name, position, size) via AppleScript and `System Events`. Unparseable coordinates in the AppleScript output are treated as errors and surface through the pipeline's non-fatal error path (logged, hotkey listener continues).
 - **Screen capture**: Capture the entire active window, or use custom bounds if set. For fullscreen windows (width >= screen width AND height >= screen height), capture the entire display instead.
 - **OCR text extraction**: Convert the captured image to text using Apple Vision framework. The image is PNG-encoded in memory and passed directly to the Vision API via byte buffer -- no intermediate files touch the disk.
 - **AI processing**: Send extracted text to Claude AI with a configurable system prompt. Empty OCR results are silently skipped (no API call made).

@@ -89,13 +89,13 @@ import "C"
 
 import (
 	"context"
-	"fmt"
 	"image"
 	"log/slog"
 	"runtime"
 	"sync"
 
 	"github.com/vdyalex/lens-daemon/src/utils/constants"
+	"github.com/vdyalex/lens-daemon/src/utils/exceptions"
 )
 
 var (
@@ -138,7 +138,7 @@ func Listen(parentCtx context.Context, logger *slog.Logger) (<-chan struct{}, <-
 	startOnce.Do(func() {
 		tap := C.createTap()
 		if tap == 0 {
-			listenErr = fmt.Errorf("CGEventTapCreate failed — grant Accessibility permission to this app")
+			listenErr = exceptions.ListenerEventTapCreateFailedException
 			return
 		}
 

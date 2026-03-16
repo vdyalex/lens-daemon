@@ -13,6 +13,7 @@ import (
 	"github.com/vdyalex/lens-daemon/src/adapters/messenger/subscriber"
 	"github.com/vdyalex/lens-daemon/src/adapters/messenger/types"
 	"github.com/vdyalex/lens-daemon/src/utils/constants"
+	"github.com/vdyalex/lens-daemon/src/utils/exceptions"
 )
 
 // Poller long-polls Telegram's getUpdates API and dispatches /start and /stop commands
@@ -81,15 +82,15 @@ func (poller *Poller) poll(ctx context.Context) error {
 	defer resp.Body.Close()
 
 	var result struct {
-		OK     bool          `json:"ok"`
+		OK     bool           `json:"ok"`
 		Result []types.Update `json:"result"`
-		Desc   string        `json:"description"`
+		Desc   string         `json:"description"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return err
 	}
 	if !result.OK {
-		return fmt.Errorf("telegram error: %s", result.Desc)
+		return fmt.Errorf("%w: %s", exceptions.MessengerTelegramAPIException, result.Desc)
 	}
 
 	for _, update := range result.Result {

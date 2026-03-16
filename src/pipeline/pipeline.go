@@ -18,6 +18,7 @@ import (
 	"github.com/vdyalex/lens-daemon/src/modules/listener"
 	"github.com/vdyalex/lens-daemon/src/utils/config"
 	"github.com/vdyalex/lens-daemon/src/utils/constants"
+	"github.com/vdyalex/lens-daemon/src/utils/exceptions"
 )
 
 // Pipeline orchestrates the full screen-monitor workflow.
@@ -121,7 +122,7 @@ func (pipeline *Pipeline) process(ctx context.Context) error {
 	defer cancel()
 
 	window, err := pipeline.capturer.ForegroundWindow(ctxWithTimeout)
-	if errors.Is(err, capturer.ErrNoForegroundWindow) {
+	if errors.Is(err, exceptions.CapturerNoForegroundWindowException) {
 		pipeline.logger.Debug("No foreground window, skipping")
 		return nil
 	}
@@ -167,7 +168,7 @@ func (pipeline *Pipeline) process(ctx context.Context) error {
 		return err
 	case <-ctxCapture.Done():
 		pipeline.logger.Error("Screenshot capture timeout", slog.String("timeout", constants.TimeoutCapture.String()))
-		return fmt.Errorf("screenshot capture timeout (%s)", constants.TimeoutCapture)
+		return fmt.Errorf("%w (%s)", exceptions.PipelineCaptureTimeoutException, constants.TimeoutCapture)
 	}
 
 	// Step 3: Extract text via OCR
@@ -193,7 +194,7 @@ func (pipeline *Pipeline) process(ctx context.Context) error {
 	case err := <-ocrErrCh:
 		return err
 	case <-ocrCtx.Done():
-		return fmt.Errorf("OCR timeout (%s)", constants.TimeoutOCRExtract)
+		return fmt.Errorf("%w (%s)", exceptions.PipelineOCRTimeoutException, constants.TimeoutOCRExtract)
 	}
 
 	text = strings.TrimSpace(text)
