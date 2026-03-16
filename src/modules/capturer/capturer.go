@@ -41,11 +41,11 @@ const (
 	osascriptOutputParts       = 5
 )
 
-// Capturer detects the foreground window and captures screenshots on macOS.
+// Capturer detects the foreground window and captures screenshots on MacOS.
 // It uses AppleScript to detect the foreground window and CoreGraphics (via CGo) to capture screenshots.
 type Capturer struct{}
 
-// New creates a new Capturer instance for macOS.
+// New creates a new Capturer instance for MacOS.
 func New() *Capturer {
 	return &Capturer{}
 }

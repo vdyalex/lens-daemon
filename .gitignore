@@ -140,7 +140,7 @@ fabric.properties
 # https://plugins.jetbrains.com/plugin/8053-azure-toolkit-for-intellij
 .idea/**/azureSettings.xml
 
-### macOS ###
+### MacOS ###
 # General
 .DS_Store
 .AppleDouble
@@ -169,7 +169,7 @@ Network Trash Folder
 Temporary Items
 .apdisk
 
-### macOS Patch ###
+### MacOS Patch ###
 # iCloud generated files
 *.icloud
 

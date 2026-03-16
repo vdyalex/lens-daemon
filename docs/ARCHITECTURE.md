@@ -4,7 +4,7 @@
 
 The application follows a clean layered architecture with interface-based design, separating concerns into modules (platform-specific capabilities) and adapters (external service integrations), orchestrated by a central pipeline.
 
-**Modules** handle macOS-specific operations:
+**Modules** handle MacOS-specific operations:
 - **Listener** -- global hotkey detection and bounds tracking via `CGEventTap` (cgo)
 - **Capturer** -- foreground window detection (AppleScript) and screenshot capture
 - **Extractor** -- OCR text extraction interface consumed by the pipeline
@@ -30,7 +30,7 @@ flowchart TD
         C --> E[subscriber.NewStore<br/>Load subscriber list from JSON]
         C --> F[messenger.New<br/>Telegram broadcaster]
         C --> G[poller.New<br/>Telegram subscriber poller]
-        C --> H[capturer.New<br/>macOS capturer]
+        C --> H[capturer.New<br/>MacOS capturer]
         C --> I[agent.New<br/>Anthropic SDK client]
     end
 

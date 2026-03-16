@@ -1,6 +1,6 @@
 # Lens
 
-A macOS daemon that captures your screen on demand via a global hotkey, extracts text using OCR, processes it through Claude AI (Anthropic), and broadcasts the response to Telegram subscribers. All operations happen in-memory with zero disk writes for screenshots.
+A MacOS daemon that captures your screen on demand via a global hotkey, extracts text using OCR, processes it through Claude AI (Anthropic), and broadcasts the response to Telegram subscribers. All operations happen in-memory with zero disk writes for screenshots.
 
 ## ⚡ How it works
 
@@ -8,7 +8,7 @@ A macOS daemon that captures your screen on demand via a global hotkey, extracts
 Hotkey (configurable) → Screen Capture → OCR → Claude AI → Telegram
 ```
 
-1. **Hotkey** — global keyboard listener via macOS `CGEventTap`. Default: `RightShift` key. Customizable via `HOTKEY_TRIGGER_KEYNAME` environment variable
+1. **Hotkey** — global keyboard listener via MacOS `CGEventTap`. Default: `RightShift` key. Customizable via `HOTKEY_TRIGGER_KEYNAME` environment variable
 2. **Capture** — grabs the entire active window via AppleScript and CoreGraphics (direct CGo bridge, no external libraries). Default: hold `RightOption` key to define custom bounds. Customizable via `HOTKEY_BOUNDS_KEYNAME`
 3. **OCR** — extracts text from the image using Apple Vision framework, entirely in-memory
 4. **AI** — sends extracted text to Claude with a configurable system prompt (max 1024 response tokens)
@@ -24,7 +24,7 @@ For detailed documentation, see:
 
 ## 📋 Pre-requisites
 
-- **macOS** (uses CoreGraphics CGEventTap, Vision framework, and AppleScript)
+- **MacOS** (uses CoreGraphics CGEventTap, Vision framework, and AppleScript)
 - **Go 1.24+** (with cgo support)
 - **Anthropic API key** — get one at [console.anthropic.com](https://console.anthropic.com)
 - **Telegram bot** — create one via [@BotFather](https://t.me/BotFather)
@@ -85,10 +85,9 @@ The built-in default system prompt is:
 
 ### 🎛️ Hotkey Configuration
 
-Configure which keys trigger captures and bounds selection via `HOTKEY_TRIGGER_KEYNAME` and `HOTKEY_BOUNDS_KEYNAME`. Supported key names:
+Configure which keys trigger captures and bounds selection via `HOTKEY_TRIGGER_KEYNAME` and `HOTKEY_BOUNDS_KEYNAME`.
 
-- **Modifier keys**: `LeftShift`, `RightShift`, `LeftControl`, `RightControl`, `LeftCommand`, `RightCommand`, `LeftOption`, `RightOption`
-- **Function key**: `Fn`
+**Supported key names:** `LeftShift`, `RightShift`, `LeftControl`, `RightControl`, `LeftCommand`, `RightCommand`, `LeftOption`, `RightOption`, `Fn`
 
 **Examples:**
 
@@ -141,7 +140,7 @@ cp .env.example .env
 make service-install
 ```
 
-This builds the binary to `$GOBIN` (`${GOPATH:-$HOME/go}/bin/lensd`), not the project root, and installs it as a macOS LaunchAgent.
+This builds the binary to `$GOBIN` (`${GOPATH:-$HOME/go}/bin/lensd`), not the project root, and installs it as a MacOS LaunchAgent.
 
 The service will:
 
@@ -159,7 +158,7 @@ The service will:
 | `make service-logs` | View real-time service logs |
 | `make service-uninstall` | Uninstall and remove the service |
 
-The service is managed as a macOS LaunchAgent (`com.vdyalex.lensd`). The following environment variables from your `.env` file are embedded into the LaunchAgent plist at installation time: `ANTHROPIC_API_KEY`, `TELEGRAM_BOT_TOKEN`, `LOG_LEVEL`, `CLAUDE_MODEL`, `VISION_LANG`, `SYSTEM_PROMPT`, `SUBSCRIBER_STORE_PATH`. Other optional variables (timeouts, accuracy modes, etc.) will use their built-in defaults unless you modify the plist directly.
+The service is managed as a MacOS LaunchAgent (`com.vdyalex.lensd`). The following environment variables from your `.env` file are embedded into the LaunchAgent plist at installation time: `ANTHROPIC_API_KEY`, `TELEGRAM_BOT_TOKEN`, `LOG_LEVEL`, `CLAUDE_MODEL`, `VISION_LANG`, `SYSTEM_PROMPT`, `SUBSCRIBER_STORE_PATH`. Other optional variables (timeouts, accuracy modes, etc.) will use their built-in defaults unless you modify the plist directly.
 
 After installation, you may need to re-grant **Accessibility** and **Screen Recording** permissions in System Settings if they don't automatically persist. See [Permissions](#-permissions) below.
 
@@ -179,7 +178,7 @@ After installation, you may need to re-grant **Accessibility** and **Screen Reco
 
 ## 🔐 Permissions
 
-macOS will prompt for two permissions on first run. Both must be granted for the daemon to function:
+MacOS will prompt for two permissions on first run. Both must be granted for the daemon to function:
 
 | Permission | Required For | Where to Grant |
 |---|---|---|

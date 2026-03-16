@@ -158,7 +158,7 @@ func New() *Listener {
 // The caller must have Accessibility permission (System Settings → Privacy &
 // Security → Accessibility). The event tap runs until parentCtx is cancelled.
 // pollInterval is the CFRunLoop polling timeout; smaller values increase responsiveness but use more CPU.
-// triggerKeycode and boundsKeycode are the macOS virtual keycodes for the hotkeys.
+// triggerKeycode and boundsKeycode are the MacOS virtual keycodes for the hotkeys.
 // Listen can only be called once per Listener instance; subsequent calls return the same channels.
 func (listener *Listener) Listen(parentCtx context.Context, logger *slog.Logger, pollInterval time.Duration, triggerKeycode, boundsKeycode int) (<-chan struct{}, <-chan image.Rectangle, error) {
 	var listenErr error

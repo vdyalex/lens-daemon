@@ -1,6 +1,6 @@
 # Requirements
 
-- **Global hotkey detection**: Listen for a configurable trigger hotkey system-wide (default: `RightShift`, customizable via `HOTKEY_TRIGGER_KEYNAME`) using macOS `CGEventTap` in listen-only mode. The event tap runs on a dedicated OS thread with its own `CFRunLoop` and automatically re-enables itself if the system disables it due to timeout or user input.
+- **Global hotkey detection**: Listen for a configurable trigger hotkey system-wide (default: `RightShift`, customizable via `HOTKEY_TRIGGER_KEYNAME`) using MacOS `CGEventTap` in listen-only mode. The event tap runs on a dedicated OS thread with its own `CFRunLoop` and automatically re-enables itself if the system disables it due to timeout or user input.
 - **Custom bounds selection**: Track mouse movement while a configurable bounds hotkey is held (default: `RightOption`, customizable via `HOTKEY_BOUNDS_KEYNAME`) to define a custom capture rectangle. The bounds persist until the daemon is restarted or new bounds are set.
 - **Active window detection**: Identify the frontmost application window (name, position, size) via AppleScript and `System Events`. Unparseable coordinates in the AppleScript output are treated as errors and surface through the pipeline's non-fatal error path (logged, hotkey listener continues).
 - **Screen capture**: Capture the entire active window, or use custom bounds if set. For fullscreen windows (width >= screen width AND height >= screen height), capture the entire display instead.

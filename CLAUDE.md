@@ -48,9 +48,9 @@ Docstring every top-level function/method/class: purpose, constraints, edge case
 4. Await approval unless pre-authorized.
 5. Small, reviewable changesets.
 6. Include or update tests.
-7. Include or update documentation.
+7. Include or update documentation (docstrings, README.md).
 8. Maintain setup alignment (tests, checks, containers).
-9. Commit using signed conventional commits without co-authoring.
+9. Commit without adding co-author details. Use conventional commits. Always sign commits.
 
 ## Project setup
 

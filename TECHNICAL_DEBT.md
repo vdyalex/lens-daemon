@@ -31,7 +31,7 @@ This enables dependency injection for tests and consolidates all Telegram API ty
 
 - **Module path**: `github.com/vdyalex/lens-daemon` (RFC 3986 URL standard; hyphens are conventional in Go module paths)
 - **Binary name**: `lensd` (dash is a math operator in shell contexts; daemon names use short forms per Unix convention: `httpd`, `sshd`, etc.)
-- **Service identifier**: `com.vdyalex.lensd` (macOS reverse-domain convention; matches binary name)
+- **Service identifier**: `com.vdyalex.lensd` (MacOS reverse-domain convention; matches binary name)
 
 This is not a defect—each form is correct for its domain. The naming is intentional and follows established conventions.
 
@@ -66,12 +66,12 @@ This enables programmatic error handling without fragile string matching. Struct
 
 ### 5. ✅ No Container Setup (RESOLVED)
 
-**Status:** Accepted as incompatible with runtime model. The daemon relies on macOS host APIs:
+**Status:** Accepted as incompatible with runtime model. The daemon relies on MacOS host APIs:
 - CoreGraphics (`CGDisplayCreateImageForRect`, screen capture)
 - CGEventTap (global keyboard event listener)
 - AppleScript (`osascript`, window control via AppleEventManager)
 
-These kernel-level APIs cannot run inside a container. Containerization is therefore fundamentally incompatible with the runtime requirements. The daemon must execute on the host macOS system.
+These kernel-level APIs cannot run inside a container. Containerization is therefore fundamentally incompatible with the runtime requirements. The daemon must execute on the host MacOS system.
 
 ---
 
@@ -156,7 +156,7 @@ Transport timeout is now explicit and configurable.
 - Replaced `screenshot.CaptureRect()` with `captureScreenRect()` CGo call that returns raw RGBA bytes
 - Removed `github.com/kbinani/screenshot` dependency entirely
 - `go mod tidy` removed all four transitive Linux/Windows deps: `gen2brain/shm`, `godbus/dbus`, `jezek/xgb`, `lxn/win`
-- Set macOS 13 as the deployment target to avoid "unavailable" marking of `CGDisplayCreateImageForRect` on macOS 15
+- Set MacOS 13 as the deployment target to avoid "unavailable" marking of `CGDisplayCreateImageForRect` on MacOS 15
 
 ---
 

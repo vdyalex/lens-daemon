@@ -90,7 +90,7 @@ const (
 	HotkeyBoundsKeyName = "RightOption"
 )
 
-// Hotkey keycode mappings (macOS virtual keycodes).
+// Hotkey keycode mappings (MacOS virtual keycodes).
 var HotkeyKeycodes = map[string]int{
 	"LeftShift":    0x38, // 56
 	"RightShift":   0x3C, // 60

@@ -2,7 +2,7 @@
 
 ## Overview
 
-- **Platform**: macOS only. Uses macOS-specific APIs (`CGEventTap`, `CFRunLoop`, `CoreGraphics`, `CoreFoundation`, `Vision framework`) via cgo and AppleScript via `osascript`.
+- **Platform**: MacOS only. Uses MacOS-specific APIs (`CGEventTap`, `CFRunLoop`, `CoreGraphics`, `CoreFoundation`, `Vision framework`) via cgo and AppleScript via `osascript`.
 - **In-memory processing**: No screenshots, intermediate images, or temporary files are written to disk at any point in the pipeline.
 - **Daemon operation**: Runs as a background CLI daemon. Does not appear in the Dock or Cmd-Tab (pure CLI process with no GUI elements).
 - **Event-driven**: Idle until the hotkey is pressed. No polling, no timers, no periodic screen checks.
@@ -11,7 +11,7 @@
 - **Settings**: All settings via environment variables. No config files, no CLI flags.
 - **Logging**: Structured log output to stderr using Go's slog TextHandler (time, level, message, and key-value fields). Log verbosity is controlled by `LOG_LEVEL`.
 - **External dependencies**: No external OCR dependencies required (uses built-in Apple Vision framework).
-- **Security permissions**: Requires macOS Accessibility and Screen Recording permissions granted to the terminal or binary.
+- **Security permissions**: Requires MacOS Accessibility and Screen Recording permissions granted to the terminal or binary.
 
 ## Environment Variable Management
 
@@ -45,7 +45,7 @@ This design ensures that:
 **Service Installation (`make service-install`):**
 
 ```
-.env file → service-install.sh (reads and validates) → embedded into macOS LaunchAgent plist
+.env file → service-install.sh (reads and validates) → embedded into MacOS LaunchAgent plist
          → LaunchAgent startup → plist EnvironmentVariables (set in process environment)
          → godotenv.Load() (only supplements missing vars) → config.Load()
 ```

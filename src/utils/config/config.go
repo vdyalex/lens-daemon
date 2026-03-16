@@ -115,7 +115,7 @@ func getDuration(key string, fallback time.Duration) time.Duration {
 //
 // Typical usage patterns:
 // - Development: .env file contains config, loaded automatically on startup
-// - Service (macOS LaunchAgent): env vars embedded in plist take precedence, .env is supplementary
+// - Service (MacOS LaunchAgent): env vars embedded in plist take precedence, .env is supplementary
 // - CI/Container: env vars injected before process start, .env file optional
 //
 // Required env vars: ANTHROPIC_API_KEY, TELEGRAM_BOT_TOKEN.
