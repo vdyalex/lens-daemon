@@ -50,7 +50,6 @@ All configuration is done through environment variables. Copy `.env.example` to 
 
 | Variable | Default | Description |
 |---|---|---|
-| `TELEGRAM_CHAT_ID` | `0` (none) | Seed an initial subscriber chat ID (legacy single-chat mode). If set, this chat is added as the first subscriber on startup |
 | `SUBSCRIBER_STORE_PATH` | `tmp/subscribers`* | File path for the subscriber list (persists users who sent `/start`) |
 | `VISION_ACCURACY` | `accurate` | OCR accuracy level: `accurate` (slower, higher quality) or `fast` (faster, lower quality) |
 | `CLAUDE_MAX_RESPONSE_TOKENS` | `1024` | Maximum tokens per Claude API response |
@@ -156,7 +155,7 @@ The service will:
 | `make service-logs` | View real-time service logs |
 | `make service-uninstall` | Uninstall and remove the service |
 
-The service is managed as a macOS LaunchAgent (`com.vdyalex.lensd`). The following environment variables from your `.env` file are embedded into the LaunchAgent plist at installation time: `ANTHROPIC_API_KEY`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `LOG_LEVEL`, `CLAUDE_MODEL`, `VISION_LANG`, `SYSTEM_PROMPT`, `SUBSCRIBER_STORE_PATH`. Other optional variables (timeouts, accuracy modes, etc.) will use their built-in defaults unless you modify the plist directly.
+The service is managed as a macOS LaunchAgent (`com.vdyalex.lensd`). The following environment variables from your `.env` file are embedded into the LaunchAgent plist at installation time: `ANTHROPIC_API_KEY`, `TELEGRAM_BOT_TOKEN`, `LOG_LEVEL`, `CLAUDE_MODEL`, `VISION_LANG`, `SYSTEM_PROMPT`, `SUBSCRIBER_STORE_PATH`. Other optional variables (timeouts, accuracy modes, etc.) will use their built-in defaults unless you modify the plist directly.
 
 After installation, you may need to re-grant **Accessibility** and **Screen Recording** permissions in System Settings if they don't automatically persist. See [Permissions](#-permissions) below.
 

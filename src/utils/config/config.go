@@ -27,7 +27,6 @@ type Config struct {
 
 	// Telegram settings
 	TelegramBotToken          string
-	TelegramChatID            int64         // Optional: seed subscriber (legacy single-chat mode, default: 0)
 	SubscriberStorePath       string        // File path for subscriber list (default: "tmp/subscribers")
 	TelegramMessageChunkSize  int           // TELEGRAM_MESSAGE_CHUNK_SIZE: max runes per message (default: 4096)
 	TelegramMaxRetries        int           // TELEGRAM_MAX_RETRIES: retry attempts on rate limit (default: 1)
@@ -67,7 +66,6 @@ func Load() (*Config, error) {
 		SystemPrompt:              envStr("SYSTEM_PROMPT", "You're a questionnaire assistant. Provide quick, accurate responses with maximum efficiency."),
 		ClaudeMaxResponseTokens:   envInt("CLAUDE_MAX_RESPONSE_TOKENS", constants.ClaudeMaxResponseTokens),
 		TelegramBotToken:          envStr("TELEGRAM_BOT_TOKEN", ""),
-		TelegramChatID:            int64(envInt("TELEGRAM_CHAT_ID", 0)),
 		SubscriberStorePath:       envStr("SUBSCRIBER_STORE_PATH", "tmp/subscribers"),
 		TelegramMessageChunkSize:  envInt("TELEGRAM_MESSAGE_CHUNK_SIZE", constants.TelegramMessageChunkSize),
 		TelegramMaxRetries:        envInt("TELEGRAM_MAX_RETRIES", constants.TelegramMaxRetries),

@@ -13,7 +13,6 @@
   <dict>
     <key>ANTHROPIC_API_KEY</key><string>__ANTHROPIC_API_KEY__</string>
     <key>TELEGRAM_BOT_TOKEN</key><string>__TELEGRAM_BOT_TOKEN__</string>
-    <key>TELEGRAM_CHAT_ID</key><string>__TELEGRAM_CHAT_ID__</string>
     <key>LOG_LEVEL</key><string>__LOG_LEVEL__</string>
     <key>CLAUDE_MODEL</key><string>__CLAUDE_MODEL__</string>
     <key>VISION_LANG</key><string>__VISION_LANG__</string>

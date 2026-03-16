@@ -17,22 +17,14 @@ type Store struct {
 	path        string
 }
 
-// NewStore loads existing subscribers from path (if it exists),
-// optionally seeds with seed (if non-zero and not already present),
-// and returns a ready-to-use Store.
-func NewStore(path string, seed int64) (*Store, error) {
+// NewStore loads existing subscribers from path (if it exists) and returns a ready-to-use Store.
+func NewStore(path string) (*Store, error) {
 	s := &Store{
 		subscribers: make(map[int64]struct{}),
 		path:        path,
 	}
 	if err := s.load(); err != nil && !os.IsNotExist(err) {
 		return nil, err
-	}
-	if seed != 0 {
-		s.subscribers[seed] = struct{}{}
-		if err := s.persist(); err != nil {
-			return nil, err
-		}
 	}
 	return s, nil
 }

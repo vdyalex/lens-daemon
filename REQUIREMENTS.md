@@ -57,7 +57,6 @@ The daemon supports multiple Telegram subscribers through a dynamic subscription
 - Users send `/stop` to unsubscribe
 - The subscriber list is persisted to a plain-text file (default: `tmp/subscribers`), with one chat ID per line, and survives daemon restarts
 - All responses are broadcast to every active subscriber
-- The optional `TELEGRAM_CHAT_ID` environment variable can seed an initial subscriber (legacy single-chat mode)
 
 The Telegram poller runs in the background, long-polling for updates with a 30-second timeout and 5-second retry backoff on errors.
 

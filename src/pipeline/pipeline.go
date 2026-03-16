@@ -41,7 +41,7 @@ func New(settings *config.Config, logger *slog.Logger) (*Pipeline, error) {
 		return nil, err
 	}
 
-	store, err := subscriber.NewStore(settings.SubscriberStorePath, settings.TelegramChatID)
+	store, err := subscriber.NewStore(settings.SubscriberStorePath)
 	if err != nil {
 		return nil, err
 	}
