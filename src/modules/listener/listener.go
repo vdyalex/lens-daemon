@@ -93,8 +93,8 @@ import (
 	"log/slog"
 	"runtime"
 	"sync"
+	"time"
 
-	"github.com/vdyalex/lens-daemon/src/utils/constants"
 	"github.com/vdyalex/lens-daemon/src/utils/exceptions"
 )
 
@@ -132,7 +132,8 @@ func goRecordBounds(minX, minY, maxX, maxY float64) {
 // - bounds: receives updated screen-coordinate bounds when right Option is released
 // The caller must have Accessibility permission (System Settings → Privacy &
 // Security → Accessibility). The event tap runs until parentCtx is cancelled.
-func Listen(parentCtx context.Context, logger *slog.Logger) (<-chan struct{}, <-chan image.Rectangle, error) {
+// pollInterval is the CFRunLoop polling timeout; smaller values increase responsiveness but use more CPU.
+func Listen(parentCtx context.Context, logger *slog.Logger, pollInterval time.Duration) (<-chan struct{}, <-chan image.Rectangle, error) {
 	var listenErr error
 
 	startOnce.Do(func() {
@@ -154,7 +155,7 @@ func Listen(parentCtx context.Context, logger *slog.Logger) (<-chan struct{}, <-
 
 			// Poll the run loop with a timeout so we can check context cancellation.
 			for parentCtx.Err() == nil {
-				C.CFRunLoopRunInMode(C.kCFRunLoopDefaultMode, C.double(constants.EventTapPollInterval.Seconds()), 0)
+				C.CFRunLoopRunInMode(C.kCFRunLoopDefaultMode, C.double(pollInterval.Seconds()), 0)
 			}
 
 			// Cleanup on context cancellation.

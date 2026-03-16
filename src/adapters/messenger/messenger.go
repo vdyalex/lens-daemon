@@ -24,19 +24,23 @@ const (
 
 // Sender broadcasts messages to all subscribers via the Telegram Bot API.
 type Sender struct {
-	token  string
-	store  *subscriber.Store
-	client types.HTTPClient
-	logger *slog.Logger
+	token      string
+	store      *subscriber.Store
+	client     types.HTTPClient
+	logger     *slog.Logger
+	chunkSize  int
+	maxRetries int
 }
 
 // New creates a new Telegram message broadcaster.
-func New(botToken string, store *subscriber.Store, logger *slog.Logger) *Sender {
+func New(botToken string, store *subscriber.Store, logger *slog.Logger, chunkSize, maxRetries int) *Sender {
 	return &Sender{
-		token:  botToken,
-		store:  store,
-		client: &http.Client{Timeout: constants.TimeoutTelegramHTTPClient},
-		logger: logger,
+		token:      botToken,
+		store:      store,
+		client:     &http.Client{Timeout: constants.TimeoutTelegramHTTPClient},
+		logger:     logger,
+		chunkSize:  chunkSize,
+		maxRetries: maxRetries,
 	}
 }
 
@@ -65,7 +69,7 @@ func (sender *Sender) Broadcast(ctx context.Context, text string) error {
 
 // sendTo sends a message to a specific chat, handling chunking and rate limits.
 func (sender *Sender) sendTo(ctx context.Context, chatID int64, text string) error {
-	max := constants.TelegramMessageChunkSize
+	max := sender.chunkSize
 	runes := []rune(text)
 	for len(runes) > 0 {
 		end := max
@@ -84,14 +88,14 @@ func (sender *Sender) sendTo(ctx context.Context, chatID int64, text string) err
 
 // sendChunk sends a single chunk to a chat ID with rate-limit retry support.
 func (sender *Sender) sendChunk(ctx context.Context, chatID int64, text string) error {
-	for attempt := 0; attempt <= constants.TelegramMaxRetries; attempt++ {
+	for attempt := 0; attempt <= sender.maxRetries; attempt++ {
 		err := sender.doSendChunk(ctx, chatID, text)
 		if err == nil {
 			return nil
 		}
 
 		// Check for rate limit (429) and retry if applicable
-		if isRateLimit(err) && attempt < constants.TelegramMaxRetries {
+		if isRateLimit(err) && attempt < sender.maxRetries {
 			retryAfter := parseRetryAfter(sender.logger, err.Error())
 			select {
 			case <-time.After(retryAfter):

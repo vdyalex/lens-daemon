@@ -6,25 +6,26 @@ import (
 
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/anthropics/anthropic-sdk-go/option"
-	"github.com/vdyalex/lens-daemon/src/utils/constants"
 )
 
 const textBlockType = "text"
 
 // Agent communicates with Claude AI to process extracted screen text.
 type Agent struct {
-	client anthropic.Client
-	model  string
-	prompt string
+	client            anthropic.Client
+	model             string
+	prompt            string
+	maxResponseTokens int
 }
 
 // New creates a new Claude AI agent.
-func New(apiKey, model, prompt string) *Agent {
+func New(apiKey, model, prompt string, maxResponseTokens int) *Agent {
 	client := anthropic.NewClient(option.WithAPIKey(apiKey))
 	return &Agent{
-		client: client,
-		model:  model,
-		prompt: prompt,
+		client:            client,
+		model:             model,
+		prompt:            prompt,
+		maxResponseTokens: maxResponseTokens,
 	}
 }
 
@@ -36,7 +37,7 @@ func (agent *Agent) Process(ctx context.Context, text string) (string, error) {
 
 	response, err := agent.client.Messages.New(ctx, anthropic.MessageNewParams{
 		Model:     anthropic.Model(agent.model),
-		MaxTokens: int64(constants.ClaudeMaxResponseTokens),
+		MaxTokens: int64(agent.maxResponseTokens),
 		System: []anthropic.TextBlockParam{
 			{Text: agent.prompt},
 		},

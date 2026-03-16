@@ -17,7 +17,6 @@ import (
 	"github.com/vdyalex/lens-daemon/src/modules/extractor"
 	"github.com/vdyalex/lens-daemon/src/modules/listener"
 	"github.com/vdyalex/lens-daemon/src/utils/config"
-	"github.com/vdyalex/lens-daemon/src/utils/constants"
 	"github.com/vdyalex/lens-daemon/src/utils/exceptions"
 )
 
@@ -37,7 +36,7 @@ type Pipeline struct {
 // New creates a fully wired pipeline from settings.
 // logger must not be nil; pass slog.Default() if no custom logger is required.
 func New(settings *config.Config, logger *slog.Logger) (*Pipeline, error) {
-	ocr, err := extractor.New(settings.VisionLanguage)
+	ocr, err := extractor.New(settings.VisionLanguage, settings.VisionAccuracy)
 	if err != nil {
 		return nil, err
 	}
@@ -52,9 +51,9 @@ func New(settings *config.Config, logger *slog.Logger) (*Pipeline, error) {
 		logger:    logger,
 		capturer:  capturer.New(),
 		extractor: ocr,
-		agent:     agent.New(settings.AnthropicAPIKey, settings.ClaudeModel, settings.SystemPrompt),
-		messenger: messenger.New(settings.TelegramBotToken, store, logger),
-		poller:    poller.New(settings.TelegramBotToken, store, logger),
+		agent:     agent.New(settings.AnthropicAPIKey, settings.ClaudeModel, settings.SystemPrompt, settings.ClaudeMaxResponseTokens),
+		messenger: messenger.New(settings.TelegramBotToken, store, logger, settings.TelegramMessageChunkSize, settings.TelegramMaxRetries),
+		poller:    poller.New(settings.TelegramBotToken, store, logger, settings.TelegramLongPollTimeout, settings.TelegramPollerTimeout, settings.TelegramHTTPClientTimeout),
 	}, nil
 }
 
@@ -66,7 +65,7 @@ func New(settings *config.Config, logger *slog.Logger) (*Pipeline, error) {
 func (pipeline *Pipeline) Run(ctx context.Context) error {
 	defer pipeline.extractor.Close()
 
-	triggers, bounds, err := listener.Listen(ctx, pipeline.logger)
+	triggers, bounds, err := listener.Listen(ctx, pipeline.logger, pipeline.settings.EventTapPollInterval)
 	if err != nil {
 		return err
 	}
@@ -87,11 +86,11 @@ func (pipeline *Pipeline) Run(ctx context.Context) error {
 	pipeline.logger.Info("Pipeline ready — press right Shift key to capture (right Option to set bounds)")
 
 	// Worker goroutine processes captures sequentially while main loop stays responsive.
-	queue := make(chan struct{}, constants.WorkerQueueCapacity)
+	queue := make(chan struct{}, pipeline.settings.WorkerQueueCapacity)
 	go func() {
 		for range queue {
 			// Create a context for this run (allows long OCR+API calls)
-			runCtx, cancel := context.WithTimeout(ctx, constants.TimeoutPipelineOverall)
+			runCtx, cancel := context.WithTimeout(ctx, pipeline.settings.TimeoutPipelineOverall)
 			if err := pipeline.process(runCtx); err != nil && !errors.Is(err, context.Canceled) {
 				pipeline.logger.Error("Pipeline error", "error", err)
 			}
@@ -118,7 +117,7 @@ func (pipeline *Pipeline) Run(ctx context.Context) error {
 
 func (pipeline *Pipeline) process(ctx context.Context) error {
 	// Step 1: Detect the foreground window
-	ctxWithTimeout, cancel := context.WithTimeout(ctx, constants.TimeoutForegroundWindow)
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, pipeline.settings.TimeoutForegroundWindow)
 	defer cancel()
 
 	window, err := pipeline.capturer.ForegroundWindow(ctxWithTimeout)
@@ -141,7 +140,7 @@ func (pipeline *Pipeline) process(ctx context.Context) error {
 	} else {
 		pipeline.logger.Debug("Capturing center of window (no custom bounds)")
 	}
-	ctxCapture, cancelCapture := context.WithTimeout(ctx, constants.TimeoutCapture)
+	ctxCapture, cancelCapture := context.WithTimeout(ctx, pipeline.settings.TimeoutCapture)
 	defer cancelCapture()
 
 	imageCh := make(chan *image.RGBA, 1)
@@ -167,13 +166,13 @@ func (pipeline *Pipeline) process(ctx context.Context) error {
 		pipeline.logger.Debug("Screenshot error received from goroutine")
 		return err
 	case <-ctxCapture.Done():
-		pipeline.logger.Error("Screenshot capture timeout", slog.String("timeout", constants.TimeoutCapture.String()))
-		return fmt.Errorf("%w (%s)", exceptions.PipelineCaptureTimeoutException, constants.TimeoutCapture)
+		pipeline.logger.Error("Screenshot capture timeout", slog.String("timeout", pipeline.settings.TimeoutCapture.String()))
+		return fmt.Errorf("%w (%s)", exceptions.PipelineCaptureTimeoutException, pipeline.settings.TimeoutCapture)
 	}
 
 	// Step 3: Extract text via OCR
 	pipeline.logger.Debug("Running OCR on captured image", slog.Int("width", img.Bounds().Dx()), slog.Int("height", img.Bounds().Dy()))
-	ocrCtx, ocrCancel := context.WithTimeout(ctx, constants.TimeoutOCRExtract)
+	ocrCtx, ocrCancel := context.WithTimeout(ctx, pipeline.settings.TimeoutOCRExtract)
 	defer ocrCancel()
 
 	textCh := make(chan string, 1)
@@ -194,7 +193,7 @@ func (pipeline *Pipeline) process(ctx context.Context) error {
 	case err := <-ocrErrCh:
 		return err
 	case <-ocrCtx.Done():
-		return fmt.Errorf("%w (%s)", exceptions.PipelineOCRTimeoutException, constants.TimeoutOCRExtract)
+		return fmt.Errorf("%w (%s)", exceptions.PipelineOCRTimeoutException, pipeline.settings.TimeoutOCRExtract)
 	}
 
 	text = strings.TrimSpace(text)
@@ -206,7 +205,7 @@ func (pipeline *Pipeline) process(ctx context.Context) error {
 	pipeline.logger.Debug("OCR text content", slog.String("text", text))
 
 	// Step 4: Process with Anthropic
-	agentCtx, agentCancel := context.WithTimeout(ctx, constants.TimeoutAgentProcess)
+	agentCtx, agentCancel := context.WithTimeout(ctx, pipeline.settings.TimeoutAgentProcess)
 	defer agentCancel()
 	response, err := pipeline.agent.Process(agentCtx, text)
 	if err != nil {
@@ -222,7 +221,7 @@ func (pipeline *Pipeline) process(ctx context.Context) error {
 	pipeline.logger.Debug("Anthropic response content", slog.String("response", response))
 
 	// Step 5: Broadcast to Telegram subscribers
-	telegramCtx, telegramCancel := context.WithTimeout(ctx, constants.TimeoutTelegramBroadcast)
+	telegramCtx, telegramCancel := context.WithTimeout(ctx, pipeline.settings.TimeoutTelegramBroadcast)
 	defer telegramCancel()
 	if err := pipeline.messenger.Broadcast(telegramCtx, response); err != nil {
 		return err

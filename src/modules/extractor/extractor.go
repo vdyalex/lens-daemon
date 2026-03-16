@@ -36,9 +36,10 @@ type VisionExtractor struct {
 
 // New creates an extractor using the Vision framework adapter.
 // language should be a BCP 47 code (e.g., "en-US", "zh-Hans", "ja", "ko").
-func New(language string) (Extractor, error) {
+// accuracy should be "accurate" or "fast"; any other value defaults to "accurate".
+func New(language, accuracy string) (Extractor, error) {
 	return &VisionExtractor{
-		client: vision.New(language),
+		client: vision.New(language, accuracy),
 	}, nil
 }
 

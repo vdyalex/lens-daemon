@@ -5,10 +5,11 @@
 #include <string.h>
 
 // visionRecognizeText performs OCR on PNG data using Apple's Vision framework.
-// Input: PNG-encoded image bytes and a BCP 47 language code (e.g., "en-US", "zh-Hans").
+// Input: PNG-encoded image bytes, a BCP 47 language code (e.g., "en-US", "zh-Hans"), and accuracy level.
 // Output: A malloc'd UTF-8 C string containing recognized text lines joined by newlines.
 // Caller must free the returned pointer.
-char* visionRecognizeText(const unsigned char* pngData, size_t length, const char* language) {
+// accurate: 1 for VNRequestTextRecognitionLevelAccurate, 0 for VNRequestTextRecognitionLevelFast
+char* visionRecognizeText(const unsigned char* pngData, size_t length, const char* language, int accurate) {
 	@autoreleasepool {
 		// Decode PNG bytes to an NSImage
 		NSData* imageData = [NSData dataWithBytes:pngData length:length];
@@ -25,7 +26,7 @@ char* visionRecognizeText(const unsigned char* pngData, size_t length, const cha
 
 		// Create the text recognition request
 		VNRecognizeTextRequest* request = [[VNRecognizeTextRequest alloc] init];
-		request.recognitionLevel = VNRequestTextRecognitionLevelAccurate;
+		request.recognitionLevel = accurate ? VNRequestTextRecognitionLevelAccurate : VNRequestTextRecognitionLevelFast;
 
 		// Set language if provided
 		if (language && strlen(language) > 0) {

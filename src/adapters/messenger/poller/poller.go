@@ -19,21 +19,27 @@ import (
 // Poller long-polls Telegram's getUpdates API and dispatches /start and /stop commands
 // to the subscriber store. It runs in a background goroutine.
 type Poller struct {
-	token  string
-	store  *subscriber.Store
-	client types.HTTPClient
-	logger *slog.Logger
-	offset int64
+	token             string
+	store             *subscriber.Store
+	client            types.HTTPClient
+	logger            *slog.Logger
+	offset            int64
+	longPollTimeout   time.Duration
+	pollerTimeout     time.Duration
+	httpClientTimeout time.Duration
 }
 
 // New creates a Poller. The offset starts at 0 and is advanced as updates are processed.
-func New(token string, store *subscriber.Store, logger *slog.Logger) *Poller {
+func New(token string, store *subscriber.Store, logger *slog.Logger, longPollTimeout, pollerTimeout, httpClientTimeout time.Duration) *Poller {
 	return &Poller{
-		token:  token,
-		store:  store,
-		client: &http.Client{},
-		logger: logger,
-		offset: 0,
+		token:             token,
+		store:             store,
+		client:            &http.Client{Timeout: httpClientTimeout},
+		logger:            logger,
+		offset:            0,
+		longPollTimeout:   longPollTimeout,
+		pollerTimeout:     pollerTimeout,
+		httpClientTimeout: httpClientTimeout,
 	}
 }
 
@@ -57,7 +63,7 @@ func (poller *Poller) Run(ctx context.Context) {
 
 // poll fetches updates, processes them, and advances the offset.
 func (poller *Poller) poll(ctx context.Context) error {
-	httpCtx, cancel := context.WithTimeout(ctx, constants.TimeoutTelegramPoller)
+	httpCtx, cancel := context.WithTimeout(ctx, poller.pollerTimeout)
 	defer cancel()
 
 	u := url.URL{
@@ -67,7 +73,7 @@ func (poller *Poller) poll(ctx context.Context) error {
 	}
 	q := u.Query()
 	q.Set("offset", fmt.Sprintf("%d", poller.offset))
-	q.Set("timeout", fmt.Sprintf("%.0f", constants.TimeoutTelegramLongPoll.Seconds()))
+	q.Set("timeout", fmt.Sprintf("%.0f", poller.longPollTimeout.Seconds()))
 	u.RawQuery = q.Encode()
 
 	req, err := http.NewRequestWithContext(httpCtx, "GET", u.String(), nil)

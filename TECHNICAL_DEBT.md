@@ -223,96 +223,74 @@ All exported symbols now have proper GoDoc comments following Go standards (comm
 
 ## Application Settings
 
-### 1. Pipeline Step Timeouts Hardcoded
-**File:** [src/pipeline/pipeline.go](src/pipeline/pipeline.go) (lines 39–45)
+### 1. ✅ Pipeline Step Timeouts Hardcoded (FIXED)
 
-**Issue:** Step timeouts are hardcoded:
-- ForegroundWindow: 5s
-- CaptureCenter: 30s
-- OCR Extract: 30s
-- Agent Process: 60s
-- Broadcast: 30s
-- Overall: 5 minutes
+**Status:** Fixed. All step timeouts are now configurable via env vars with defaults from `constants.go`:
+- `TIMEOUT_FOREGROUND_WINDOW=5s` → `config.TimeoutForegroundWindow`
+- `TIMEOUT_CAPTURE=30s` → `config.TimeoutCapture`
+- `TIMEOUT_OCR_EXTRACT=30s` → `config.TimeoutOCRExtract`
+- `TIMEOUT_AGENT_PROCESS=60s` → `config.TimeoutAgentProcess`
+- `TIMEOUT_TELEGRAM_BROADCAST=30s` → `config.TimeoutTelegramBroadcast`
+- `TIMEOUT_PIPELINE_OVERALL=5m` → `config.TimeoutPipelineOverall`
 
-These should be exposed as env vars with sensible defaults to allow tuning without code changes.
-
-**CLAUDE.md violation:** "Extract hardcoded settings to environment variables; group by prefix or domain."
-
-**Impact:** Cannot adjust timeouts for different network conditions or hardware without recompiling.
+Updated [src/utils/config/config.go](src/utils/config/config.go) to add `envDuration()` helper and new timeout fields. Updated [src/pipeline/pipeline.go](src/pipeline/pipeline.go) to use `pipeline.settings.Timeout*` instead of `constants.Timeout*`.
 
 ---
 
-### 2. Chunk Size Hardcoded
-**File:** [src/adapters/messenger/messenger.go](src/adapters/messenger/messenger.go) (line 55)
+### 2. ✅ Chunk Size Hardcoded (FIXED)
 
-**Issue:** Message chunk size is hardcoded to `4096` runes. If Telegram's limits change or the user wants to send shorter messages for readability, they must modify the code.
+**Status:** Fixed. Message chunk size is now configurable:
+- `TELEGRAM_MESSAGE_CHUNK_SIZE=4096` → `config.TelegramMessageChunkSize` (default: 4096)
 
-**CLAUDE.md violation:** "Extract hardcoded settings to environment variables; group by prefix or domain."
-
-**Impact:** Not configurable; brittle to API changes.
+Updated [src/adapters/messenger/messenger.go](src/adapters/messenger/messenger.go) to accept `chunkSize` param in `New()` and use `sender.chunkSize` in message splitting logic.
 
 ---
 
-### 3. Worker Queue Capacity Hardcoded
-**File:** [src/pipeline/pipeline.go](src/pipeline/pipeline.go) (line 63)
+### 3. ✅ Worker Queue Capacity Hardcoded (FIXED)
 
-**Issue:** The worker queue buffer size is hardcoded to `1`. Increasing it requires code changes. An env var would allow tuning without recompilation.
+**Status:** Fixed. Worker queue capacity is now configurable:
+- `WORKER_QUEUE_CAPACITY=1` → `config.WorkerQueueCapacity` (default: 1)
 
-**CLAUDE.md violation:** "Extract hardcoded settings to environment variables; group by prefix or domain."
-
-**Impact:** Not configurable; cannot increase concurrency without code changes.
+Updated [src/pipeline/pipeline.go](src/pipeline/pipeline.go) to use `pipeline.settings.WorkerQueueCapacity` in queue creation.
 
 ---
 
-### 4. CGEventTap Poll Interval Hardcoded
-**File:** [src/modules/listener/listener.go](src/modules/listener/listener.go) (line 43)
+### 4. ✅ CGEventTap Poll Interval Hardcoded (FIXED)
 
-**Issue:** The `CFRunLoop` polls every 0.5 seconds. This hardcoded interval affects responsiveness and power consumption; it should be configurable.
+**Status:** Fixed. Poll interval is now configurable:
+- `EVENT_TAP_POLL_INTERVAL=500ms` → `config.EventTapPollInterval` (default: 500ms)
 
-**CLAUDE.md violation:** "Extract hardcoded settings to environment variables; group by prefix or domain."
-
-**Impact:** Cannot tune responsiveness vs. power usage without code changes.
+Updated [src/modules/listener/listener.go](src/modules/listener/listener.go) to accept `pollInterval` param in `Listen()` and pass it to `CFRunLoopRunInMode()`.
 
 ---
 
-### 5. Telegram Poller Timeouts Hardcoded
-**File:** [src/adapters/messenger/poller/poller.go](src/adapters/messenger/poller/poller.go) (lines 24–25)
+### 5. ✅ Telegram Poller Timeouts Hardcoded (FIXED)
 
-**Issue:** Poller uses hardcoded timeouts:
-- `telegramTimeout = 30 * time.Second` (server-side long-poll timeout)
-- Context timeout implied as 35s
+**Status:** Fixed. All poller timeouts are now configurable:
+- `TELEGRAM_LONG_POLL_TIMEOUT=30s` → `config.TelegramLongPollTimeout` (default: 30s)
+- `TELEGRAM_POLLER_TIMEOUT=35s` → `config.TelegramPollerTimeout` (default: 35s)
+- `TELEGRAM_HTTP_CLIENT_TIMEOUT=30s` → `config.TelegramHTTPClientTimeout` (default: 30s)
 
-These should be env vars to allow adjustment for different network conditions.
-
-**CLAUDE.md violation:** "Extract hardcoded settings to environment variables; group by prefix or domain."
-
-**Impact:** Cannot tune for slow networks or adjust polling frequency without code changes.
+Updated [src/adapters/messenger/poller/poller.go](src/adapters/messenger/poller/poller.go) to accept these params in `New()`, build HTTP client with `httpClientTimeout`, and use `poller.pollerTimeout` and `poller.longPollTimeout` in `poll()`. Also fixes **Performance #5** by setting explicit HTTP client transport timeout.
 
 ---
 
-### 6. Claude Max Tokens Hardcoded
-**File:** [src/adapters/agent/agent.go](src/adapters/agent/agent.go) (line 24)
+### 6. ✅ Claude Max Tokens Hardcoded (FIXED)
 
-**Issue:** The Claude API request is hardcoded to request `MaxTokens: 1024`. This should be configurable to allow shorter or longer responses.
+**Status:** Fixed. Max response tokens is now configurable:
+- `CLAUDE_MAX_RESPONSE_TOKENS=1024` → `config.ClaudeMaxResponseTokens` (default: 1024)
 
-**CLAUDE.md violation:** "Extract hardcoded settings to environment variables; group by prefix or domain."
-
-**Impact:** Cannot adjust response length without code changes; wastes tokens if shorter responses suffice.
+Updated [src/adapters/agent/agent.go](src/adapters/agent/agent.go) to accept `maxResponseTokens` param in `New()` and use `agent.maxResponseTokens` in API calls.
 
 ---
 
-### 7. Vision OCR Parameters Hardcoded
-**File:** [src/adapters/vision/vision_bridge.m](src/adapters/vision/vision_bridge.m) (lines 21, 26)
+### 7. ✅ Vision OCR Parameters Hardcoded (FIXED)
 
-**Issue:** The Vision framework is initialized with hardcoded:
-- Accuracy level: `accurate`
-- Recognition language: `en-US`
+**Status:** Fixed. OCR accuracy is now configurable; language was already configurable:
+- `VISION_LANG=en-US` (existing, already configurable)
+- `VISION_ACCURACY=accurate` → `config.VisionAccuracy` (new, default: "accurate", valid: "accurate" or "fast")
 
-These should be configurable, especially the language, to support multi-language users.
-
-**CLAUDE.md violation:** "Extract hardcoded settings to environment variables; group by prefix or domain."
-
-**Impact:** Cannot adjust OCR accuracy or language without recompiling; limits usability for non-English users.
+Updated [src/adapters/vision/vision_bridge.m](src/adapters/vision/vision_bridge.m) to accept `int accurate` param (1=accurate, 0=fast) and map to `VNRequestTextRecognitionLevel{Accurate,Fast}`. Updated [src/adapters/vision/vision.go](src/adapters/vision/vision.go) to accept `accuracy` param and pass to C function. Updated [src/modules/extractor/extractor.go](src/modules/extractor/extractor.go) to thread accuracy through. Updated [src/pipeline/pipeline.go](src/pipeline/pipeline.go) to pass `settings.VisionAccuracy` to `extractor.New()`.
 
 ---
 
@@ -421,11 +399,11 @@ These should be configurable, especially the language, to support multi-language
 | Performance | 5 | Medium |
 | Code Quality | 0 | N/A |
 | Best Practices | 0 | N/A |
-| Application Settings | 7 | Medium |
+| Application Settings | 0 | N/A |
 | Unit Tests | 7 test suites | High |
 | Functional Tests | 6 test suites | High |
 
-**Total: 25 items** (4 bugs fixed + 5 code quality fixed + 2 best practices fixed + 2 best practices resolved + 2 architecture resolved + 3 architecture fixed = 18 fixed/resolved, 13 remaining)
+**Total: 25 items** (4 bugs fixed + 5 code quality fixed + 2 best practices fixed + 2 best practices resolved + 2 architecture resolved + 3 architecture fixed + 7 application settings fixed = 25 fixed/resolved, 0 in this category remaining)
 
 ---
 
@@ -447,8 +425,9 @@ Completed items:
 9. ✅ **Best Practices #3 (Missing SUBSCRIBER_STORE_PATH)** — COMPLETED
 10. ✅ **Best Practices #4 (No CHANGELOG or Versioning)** — RESOLVED
 11. ✅ **Best Practices #5 (Missing GoDoc docstrings)** — COMPLETED
+12. ✅ **Application Settings** (7 items: extract hardcoded timeouts and params to env vars) — COMPLETED
 
 Remaining:
+
 - **Performance improvements** (5 items: retry strategy, message chunking, PNG caching, worker queue, HTTP timeouts)
-- **Application Settings** (7 items: extract hardcoded timeouts and params to env vars)
 - **Tests** (13 test suites: unit + functional)
