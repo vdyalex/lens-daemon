@@ -517,4 +517,3 @@ func TestPoller_malformedJSONResponse(t *testing.T) {
 		t.Fatal("poller hung on malformed JSON")
 	}
 }
-

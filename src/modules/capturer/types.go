@@ -1,3 +1,5 @@
+//go:generate mockgen -destination ../../tests/mocks/mock_capturer_service.go -package mocks . Service
+
 package capturer
 
 import (

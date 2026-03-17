@@ -1,3 +1,5 @@
+//go:generate mockgen -destination ../../../tests/mocks/mock_poller_service.go -package mocks . Service
+
 package poller
 
 import (

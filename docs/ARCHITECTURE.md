@@ -5,11 +5,13 @@
 The application follows a clean layered architecture with interface-based design, separating concerns into modules (platform-specific capabilities) and adapters (external service integrations), orchestrated by a central pipeline.
 
 **Modules** handle MacOS-specific operations:
+
 - **Listener** -- global hotkey detection and bounds tracking via `CGEventTap` (cgo)
 - **Capturer** -- foreground window detection (AppleScript) and screenshot capture, using `src/bridges/core_graphics` for CoreGraphics calls
 - **Extractor** -- OCR text extraction interface consumed by the pipeline
 
 **Adapters** integrate with external services:
+
 - **AI** -- Claude AI client using the official Anthropic Go SDK (package `ai`)
 - **IM** -- Telegram Bot API sender with message chunking and MarkdownV2 formatting (package `im`)
   - **Poller** -- Telegram long-polling for subscriber management (`/start`, `/stop` commands) (package `im/poller`)
@@ -17,10 +19,15 @@ The application follows a clean layered architecture with interface-based design
 - **OCR** -- Apple Vision framework adapter wrapping `src/bridges/vision` (package `ocr`)
 
 **Bridges** separate CGo boundaries into dedicated packages:
+
 - **`src/bridges/vision`** -- Objective-C wrapper for Apple Vision framework OCR (`visionRecognizeText`)
 - **`src/bridges/core_graphics`** -- Objective-C wrappers for CoreGraphics screen capture and display queries (`captureScreenRect`, `getMainDisplayWidth`, `getMainDisplayHeight`)
 
-**Pipeline** orchestrates the full workflow, wiring all components together at startup and processing each hotkey trigger through the sequential capture-OCR-AI-Telegram flow.
+**Pipeline** orchestrates the full workflow, wiring all components together at startup and processing each hotkey trigger through the sequential capture-OCR-AI-Telegram flow. The pipeline is organized into focused modules:
+
+- **`pipeline.go`** -- constructors and public interface (`New`, `NewWithDependencies`, `Process`)
+- **`process.go`** -- implementation of the five sequential process steps (fetch window, capture, extract, process with AI, broadcast)
+- **`run.go`** -- event loop and goroutine orchestration (`Run` method)
 
 ## Pipeline Flow
 

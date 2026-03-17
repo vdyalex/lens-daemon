@@ -1,3 +1,5 @@
+//go:generate mockgen -destination ../../tests/mocks/mock_ai_processor.go -package mocks . Processor
+
 package ai
 
 import (
