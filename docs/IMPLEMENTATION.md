@@ -26,7 +26,7 @@ The application uses `godotenv` (safe variant) to load environment variables fro
 
 This design ensures that:
 
-- Variables injected externally (shell, CI, LaunchAgent plist) always take precedence
+- Variables injected externally (shell, CI) always take precedence
 - The `.env` file supplements but never overrides externally-set variables
 - The application works in all environments: development, service mode, and CI/CD
 
@@ -43,15 +43,7 @@ This design ensures that:
 .env file → Makefile (sources and exports) → godotenv.Load() → config.Load()
 ```
 
-**Service Installation (`make service-install`):**
-
-```
-.env file → service-install.sh (reads and validates) → embedded into MacOS LaunchAgent plist
-         → LaunchAgent startup → plist EnvironmentVariables (set in process environment)
-         → godotenv.Load() (only supplements missing vars) → config.Load()
-```
-
-**CI/Container:**
+**CI:**
 
 ```
 Environment variables injected before process start → godotenv.Load() (no-op if .env absent)

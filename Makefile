@@ -1,4 +1,4 @@
-.PHONY: build run clean generate validate format lint vulnerabilities test coverage check tools service-install service-uninstall service-start service-stop service-logs start stop status restart logs test-integration
+.PHONY: build run clean generate validate format lint vulnerabilities test coverage check tools start stop status restart logs test-integration
 
 -include .env
 export
@@ -59,23 +59,3 @@ tools:
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 	go install golang.org/x/vuln/cmd/govulncheck@latest
 	go install go.uber.org/mock/mockgen@latest
-
-# Service management targets
-SCRIPTS_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))scripts
-SERVICE_PLIST := $(HOME)/Library/LaunchAgents/com.vdyalex.lensd.plist
-SERVICE_LOG_DIR := $(HOME)/Library/Logs/lens
-
-service-install:
-	@bash $(SCRIPTS_DIR)/service-install.sh
-
-service-uninstall:
-	@bash $(SCRIPTS_DIR)/service-uninstall.sh
-
-service-start:
-	launchctl load -w "$(SERVICE_PLIST)"
-
-service-stop:
-	launchctl unload "$(SERVICE_PLIST)"
-
-service-logs:
-	tail -f "$(SERVICE_LOG_DIR)/stdout.log" "$(SERVICE_LOG_DIR)/stderr.log"

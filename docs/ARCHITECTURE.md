@@ -6,7 +6,7 @@ The application uses a **single binary, multiple subcommands** architecture:
 
 **CLI Layer** (`src/cmd/`) provides user-facing commands via Cobra:
 
-- **`daemon`** -- runs the full pipeline with IPC server (called by LaunchAgent or `start` command)
+- **`daemon`** -- runs the full pipeline with IPC server (called by `start` command)
 - **`start`** -- daemonizes the process by re-execing `lensd daemon` in a new session (uses `syscall.SysProcAttr{Setsid: true}`)
 - **`stop`** -- sends SIGTERM to the daemon via PID file
 - **`status`** -- queries daemon status (PID, uptime, last window) via IPC, one-shot output

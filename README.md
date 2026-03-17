@@ -77,8 +77,6 @@ All configuration is done through environment variables. Copy `.env.example` to 
 | `HOTKEY_TRIGGER_KEYNAME` | `RightShift` | Hotkey to trigger capture (see [Hotkey Configuration](#-hotkey-configuration) below) |
 | `HOTKEY_BOUNDS_KEYNAME` | `RightOption` | Hotkey to define custom capture bounds (see [Hotkey Configuration](#-hotkey-configuration) below) |
 
-**Note:** `*` When using `make service-install`, the `SUBSCRIBER_STORE_PATH` defaults to `$HOME/Library/Application Support/lensd/subscribers` instead of `tmp/subscribers`.
-
 The built-in default system prompt is:
 
 > You're a questionnaire assistant. Provide quick, accurate responses with maximum efficiency.
@@ -110,7 +108,7 @@ The `lensd` binary provides a set of subcommands for starting, stopping, and man
 
 | Command | Purpose |
 |---------|---------|
-| `lensd daemon` | Run the pipeline with IPC server (used by LaunchAgent or `start` command); accepts config flags |
+| `lensd daemon` | Run the pipeline with IPC server (called by `start` command); accepts config flags |
 | `lensd start` | Start daemon in background (re-execs `lensd daemon` detached); accepts config flags |
 | `lensd stop` | Stop the running daemon |
 | `lensd status` | Check daemon status (PID, uptime, last window) |
@@ -160,41 +158,6 @@ Once running:
 
 Send `/stop` to the Telegram bot to unsubscribe. Run `./bin/lensd stop` to stop the daemon.
 
-### As a Background Service
-
-To run the daemon continuously as a background service that starts on login:
-
-```bash
-# Set up .env with your credentials
-cp .env.example .env
-# Edit .env and fill in your API keys
-
-# Install and start the service
-make service-install
-```
-
-This builds the binary to `$GOBIN` (`${GOPATH:-$HOME/go}/bin/lensd`), not the project root, and installs it as a MacOS LaunchAgent.
-
-The service will:
-
-- Start automatically on login
-- Restart automatically if it crashes
-- Run in the background with all hotkey functionality
-- Log output to `~/Library/Logs/lens/stdout.log` and `~/Library/Logs/lens/stderr.log`
-
-**Service management:**
-
-| Command | Purpose |
-|---|---|
-| `make service-start` | Start the service (if already installed) |
-| `make service-stop` | Stop the running service |
-| `make service-logs` | View real-time service logs |
-| `make service-uninstall` | Uninstall and remove the service |
-
-The service is managed as a MacOS LaunchAgent (`com.vdyalex.lensd`). The following environment variables from your `.env` file are embedded into the LaunchAgent plist at installation time: `ANTHROPIC_API_KEY`, `TELEGRAM_BOT_TOKEN`, `LOG_LEVEL`, `ANTHROPIC_MODEL`, `VISION_LANG`, `ANTHROPIC_SYSTEM_PROMPT`, `SUBSCRIBER_STORE_PATH`. Other optional variables (timeouts, accuracy modes, etc.) will use their built-in defaults unless you modify the plist directly.
-
-After installation, you may need to re-grant **Accessibility** and **Screen Recording** permissions in System Settings if they don't automatically persist. See [Permissions](#-permissions) below.
-
 ### Build and Test Commands
 
 | Command | Purpose |
@@ -205,7 +168,6 @@ After installation, you may need to re-grant **Accessibility** and **Screen Reco
 | `make test-integration` | Run integration tests (daemon + IPC tests) |
 | `make check` | Run all static checks (fmt, vet, lint, vuln) and tests |
 | `make clean` | Remove build artifacts from `bin/` (preserves `.gitignore`) |
-| `make clean-daemon` | Stop any running daemon and remove PID file |
 | `make fmt` | Format source files with gofmt |
 | `make vet` | Run go vet static analysis |
 | `make lint` | Run golangci-lint static analysis |
