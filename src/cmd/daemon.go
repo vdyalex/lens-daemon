@@ -19,8 +19,8 @@ import (
 
 var daemonCmd = &cobra.Command{
 	Use:   "daemon",
-	Short: "Run the pipeline (used by LaunchAgent or start command)",
-	Long:  `Runs the pipeline with IPC server. Intended to be called by LaunchAgent or 'lensd start' via re-exec.`,
+	Short: "Run the pipeline (used by start command)",
+	Long:  `Runs the pipeline with IPC server. Intended to be called by 'lensd start' via re-exec.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		runDaemon()
 	},
