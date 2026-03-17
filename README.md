@@ -61,7 +61,7 @@ All configuration is done through environment variables. Copy `.env.example` to 
 | `TELEGRAM_MAX_RETRIES` | `1` | Retry attempts on Telegram rate limit (HTTP 429) |
 | `TELEGRAM_LONG_POLL_TIMEOUT` | `30s` | Server-side long-poll timeout for Telegram updates |
 | `TELEGRAM_POLLER_TIMEOUT` | `35s` | Client-side timeout for Telegram poller (5s longer than server timeout for network jitter) |
-| `TELEGRAM_HTTP_CLIENT_TIMEOUT` | `30s` | Per-request HTTP timeout for Telegram API calls |
+| `TELEGRAM_HTTP_CLIENT_TIMEOUT` | `0` (disabled) | Per-request HTTP timeout (disabled to avoid racing with long-poll; `TELEGRAM_POLLER_TIMEOUT` is the correct bound) |
 | `TIMEOUT_PIPELINE_OVERALL` | `5m` | Total deadline for a complete capture-to-broadcast cycle |
 | `TIMEOUT_FOREGROUND_WINDOW` | `5s` | Deadline for detecting the active window via AppleScript |
 | `TIMEOUT_CAPTURE` | `30s` | Deadline for taking a screenshot |

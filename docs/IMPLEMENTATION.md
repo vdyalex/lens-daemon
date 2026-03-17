@@ -68,7 +68,7 @@ See `.env.example` for the complete list with descriptions and defaults. Common 
 
 - `LOG_LEVEL` — Minimum log level: "debug", "info", "warn", "error" (default: "info")
 - `ANTHROPIC_MODEL` — Anthropic model to use (default: "claude-sonnet-4-6")
-- `SYSTEM_PROMPT` — Custom system prompt for Claude (default: generic questionnaire assistant)
+- `ANTHROPIC_SYSTEM_PROMPT` — Custom system prompt for Claude (default: generic questionnaire assistant)
 - `HOTKEY_TRIGGER_KEYNAME` — Trigger hotkey name (default: "RightShift")
 - `HOTKEY_BOUNDS_KEYNAME` — Bounds hotkey name (default: "RightOption")
 - Various timeout settings for pipeline stages and Telegram communication
