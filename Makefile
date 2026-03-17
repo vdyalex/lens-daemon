@@ -1,4 +1,4 @@
-.PHONY: build run clean validate format lint vulnerabilities test coverage check tools service-install service-uninstall service-start service-stop service-logs
+.PHONY: build run clean generate validate format lint vulnerabilities test coverage check tools service-install service-uninstall service-start service-stop service-logs
 
 -include .env
 export
@@ -15,6 +15,9 @@ run: build
 clean:
 	find bin -type f ! -name '.gitignore' -delete 2>/dev/null || true
 
+generate:
+	export PATH=$$PATH:$$(go env GOPATH)/bin && go generate ./...
+
 validate:
 	go vet ./...
 
@@ -28,17 +31,18 @@ vulnerabilities:
 	$(shell go env GOPATH)/bin/govulncheck ./...
 
 test:
-	unset ANTHROPIC_API_KEY TELEGRAM_BOT_TOKEN; go test -count=1 -p 1 ./src/adapters/ai ./src/adapters/ocr ./src/adapters/im ./src/adapters/im/poller ./src/adapters/im/helpers ./src/adapters/im/store ./src/modules/extractor ./src/modules/capturer ./src/utils/config ./src/pipeline
+	unset ANTHROPIC_API_KEY TELEGRAM_BOT_TOKEN; go test -count=1 -p 1 ./...
 
 coverage:
-	unset ANTHROPIC_API_KEY TELEGRAM_BOT_TOKEN; go test -count=1 -p 1 -coverprofile=coverage.out ./src/adapters/ai ./src/adapters/ocr ./src/adapters/im ./src/adapters/im/poller ./src/adapters/im/helpers ./src/adapters/im/store ./src/modules/extractor ./src/modules/capturer ./src/utils/config ./src/pipeline && go tool cover -html=coverage.out -o coverage.html && echo "Coverage report generated: coverage.html"
+	unset ANTHROPIC_API_KEY TELEGRAM_BOT_TOKEN; go test -count=1 -p 1 -coverprofile=coverage.out ./... && go tool cover -html=coverage.out -o coverage.html && echo "Coverage report generated: coverage.html"
 
 check: format validate lint vulnerabilities test
 
 tools:
-	@echo "Installing analysis tools..."
+	@echo "Installing analysis and code generation tools..."
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 	go install golang.org/x/vuln/cmd/govulncheck@latest
+	go install go.uber.org/mock/mockgen@latest
 
 # Service management targets
 SCRIPTS_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))scripts

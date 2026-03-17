@@ -9,7 +9,7 @@ type MockIMBroadcaster struct {
 }
 
 // Broadcast implements im.Broadcaster.
-func (mock *MockIMBroadcaster) Broadcast(ctx context.Context, text string) error {
-	mock.Calls = append(mock.Calls, text)
-	return mock.BroadcastFunc(ctx, text)
+func (m *MockIMBroadcaster) Broadcast(ctx context.Context, text string) error {
+	m.Calls = append(m.Calls, text)
+	return m.BroadcastFunc(ctx, text)
 }

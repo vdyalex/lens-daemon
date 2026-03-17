@@ -75,6 +75,10 @@ const (
 	// EventTapPollInterval is the CFRunLoop polling interval for detecting keyboard events.
 	// Smaller values increase responsiveness but consume more CPU; 500ms is a reasonable balance.
 	EventTapPollInterval = 500 * time.Millisecond
+
+	// EventTapRunLoopTimeout is the timeout for each CFRunLoopRunInMode call.
+	// Kept short (50ms) to ensure responsive context cancellation on shutdown.
+	EventTapRunLoopTimeout = 50 * time.Millisecond
 )
 
 // Worker queue constants.

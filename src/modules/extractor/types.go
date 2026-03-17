@@ -1,3 +1,5 @@
+//go:generate mockgen -destination ../../tests/mocks/mock_extractor_service.go -package mocks . Service
+
 package extractor
 
 import "image"

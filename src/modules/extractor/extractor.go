@@ -10,9 +10,9 @@ import (
 )
 
 // encodeImage encodes an RGBA image to PNG bytes.
-func encodeImage(image *image.RGBA) ([]byte, error) {
+func encodeImage(img *image.RGBA) ([]byte, error) {
 	var buffer bytes.Buffer
-	if err := png.Encode(&buffer, image); err != nil {
+	if err := png.Encode(&buffer, img); err != nil {
 		return nil, fmt.Errorf("encode image to PNG: %w", err)
 	}
 	return buffer.Bytes(), nil
@@ -35,16 +35,16 @@ func NewWithClient(client OCRClient) *Extractor {
 
 // Extract recognizes text in the image.
 // No files are written to disk.
-func (extractor *Extractor) Extract(file *image.RGBA) (string, error) {
+func (e *Extractor) Extract(file *image.RGBA) (string, error) {
 	pngData, err := encodeImage(file)
 	if err != nil {
 		return "", err
 	}
 
-	return extractor.client.RecognizeText(pngData)
+	return e.client.RecognizeText(pngData)
 }
 
 // Close is a no-op (Vision framework has no persistent resources to release).
-func (extractor *Extractor) Close() error {
+func (e *Extractor) Close() error {
 	return nil
 }

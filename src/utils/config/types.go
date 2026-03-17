@@ -22,7 +22,7 @@ type Config struct {
 
 	// Telegram settings
 	TelegramBotToken          string
-	SubscriberStorePath       string        // File path for subscriber list (default: "tmp/subscribers")
+	StorePath                 string        // File path for subscriber list (default: "tmp/subscribers")
 	TelegramMessageChunkSize  int           // TELEGRAM_MESSAGE_CHUNK_SIZE: max runes per message (default: 4096)
 	TelegramMaxRetries        int           // TELEGRAM_MAX_RETRIES: retry attempts on rate limit (default: 1)
 	TelegramLongPollTimeout   time.Duration // TELEGRAM_LONG_POLL_TIMEOUT: server-side long-poll timeout (default: 30s)

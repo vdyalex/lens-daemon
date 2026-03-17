@@ -1,3 +1,6 @@
+//go:generate mockgen -destination ../../tests/mocks/mock_ai_processor.go -package mocks . Processor
+
+// Package ai provides integration with the Anthropic Claude API for text processing.
 package ai
 
 import (

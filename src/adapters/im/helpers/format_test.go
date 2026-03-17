@@ -6,7 +6,7 @@ import (
 	"github.com/vdyalex/lens-daemon/src/adapters/im/helpers"
 )
 
-func TestToTelegramMarkdown(test *testing.T) {
+func TestToTelegramMarkdown(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    string
@@ -139,11 +139,11 @@ func TestToTelegramMarkdown(test *testing.T) {
 		},
 	}
 
-	for _, condition := range tests {
-		test.Run(condition.name, func(test *testing.T) {
-			got := helpers.ToTelegramMarkdown(condition.input)
-			if got != condition.expected {
-				test.Errorf("got %q, expected %q", got, condition.expected)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := helpers.ToTelegramMarkdown(tt.input)
+			if got != tt.expected {
+				t.Errorf("got %q, expected %q", got, tt.expected)
 			}
 		})
 	}

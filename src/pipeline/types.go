@@ -1,3 +1,4 @@
+// Package pipeline orchestrates the screenshot capture, OCR, AI processing, and Telegram broadcast workflow.
 package pipeline
 
 import (

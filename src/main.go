@@ -13,11 +13,10 @@ import (
 )
 
 func main() {
-
 	settings, err := config.Load()
 	if err != nil {
 		logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
-		logger.Error("Settings error", "error", err)
+		logger.Error("settings error", "error", err)
 		os.Exit(1)
 	}
 
@@ -27,7 +26,7 @@ func main() {
 
 	process, err := pipeline.New(settings, logger)
 	if err != nil {
-		logger.Error("Pipeline initialization error", "error", err)
+		logger.Error("pipeline initialization error", "error", err)
 		os.Exit(1)
 	}
 
@@ -39,12 +38,12 @@ func main() {
 	signal.Notify(channel, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		sig := <-channel
-		logger.Info("Received signal, shutting down", slog.String("signal", sig.String()))
+		logger.Info("received signal, shutting down", slog.String("signal", sig.String()))
 		cancel()
 	}()
 
 	if err := process.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
-		logger.Error("Pipeline error", "error", err)
+		logger.Error("pipeline error", "error", err)
 		os.Exit(1)
 	}
 }

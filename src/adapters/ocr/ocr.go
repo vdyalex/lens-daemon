@@ -6,7 +6,7 @@ import (
 )
 
 // RecognizeText calls the real Vision framework bridge.
-func (realVisionBridge) RecognizeText(pngData []byte, language string, accurate int) string {
+func (RealVisionBridge) RecognizeText(pngData []byte, language string, accurate int) string {
 	return vision.RecognizeText(pngData, language, accurate)
 }
 
@@ -14,7 +14,7 @@ func (realVisionBridge) RecognizeText(pngData []byte, language string, accurate 
 // language should be a BCP 47 code (e.g., "en-US", "zh-Hans", "ja", "ko").
 // accuracy should be "accurate" or "fast"; any other value defaults to "accurate".
 func New(language, accuracy string) *Client {
-	return NewWithBridge(language, accuracy, realVisionBridge{})
+	return NewWithBridge(language, accuracy, RealVisionBridge{})
 }
 
 // NewWithBridge creates a Vision framework OCR client with an injectable bridge.
@@ -30,19 +30,19 @@ func NewWithBridge(language, accuracy string, bridge VisionBridge) *Client {
 // RecognizeText recognizes text in PNG data using the Vision framework.
 // Input: PNG-encoded image bytes.
 // Output: Recognized text as a string.
-func (client *Client) RecognizeText(pngData []byte) (string, error) {
+func (c *Client) RecognizeText(pngData []byte) (string, error) {
 	if len(pngData) == 0 {
-		return "", exceptions.OCREmptyInputException
+		return "", exceptions.ErrOCREmptyInput
 	}
 
 	accurateC := 0
-	if client.accuracy {
+	if c.accuracy {
 		accurateC = 1
 	}
 
-	result := client.bridge.RecognizeText(pngData, client.language, accurateC)
+	result := c.bridge.RecognizeText(pngData, c.language, accurateC)
 	if result == "" {
-		return "", exceptions.OCRFailedException
+		return "", exceptions.ErrOCRFailed
 	}
 
 	return result, nil

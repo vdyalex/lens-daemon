@@ -1,3 +1,6 @@
+//go:generate mockgen -destination ../../../tests/mocks/mock_poller_service.go -package mocks . Service
+
+// Package poller provides long-polling functionality for receiving Telegram messages.
 package poller
 
 import (
@@ -6,7 +9,6 @@ import (
 	"time"
 
 	"github.com/vdyalex/lens-daemon/src/adapters/im"
-	"github.com/vdyalex/lens-daemon/src/adapters/im/store"
 )
 
 // Service abstracts Telegram update polling.
@@ -18,7 +20,7 @@ type Service interface {
 // to the subscriber store. It runs in a background goroutine.
 type Poller struct {
 	token           string
-	store           *store.Store
+	store           im.Store
 	client          im.HTTPClient
 	logger          *slog.Logger
 	offset          int64
