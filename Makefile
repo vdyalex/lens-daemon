@@ -1,4 +1,4 @@
-.PHONY: build run clean vet fmt lint vuln test coverage check tools service-install service-uninstall service-start service-stop service-logs
+.PHONY: build run clean validate format lint vulnerabilities test coverage check tools service-install service-uninstall service-start service-stop service-logs
 
 -include .env
 export
@@ -15,16 +15,16 @@ run: build
 clean:
 	find bin -type f ! -name '.gitignore' -delete 2>/dev/null || true
 
-vet:
+validate:
 	go vet ./...
 
-fmt:
+format:
 	gofmt -w .
 
 lint:
 	$(shell go env GOPATH)/bin/golangci-lint run
 
-vuln:
+vulnerabilities:
 	$(shell go env GOPATH)/bin/govulncheck ./...
 
 test:
@@ -33,7 +33,7 @@ test:
 coverage:
 	unset ANTHROPIC_API_KEY TELEGRAM_BOT_TOKEN; go test -count=1 -p 1 -coverprofile=coverage.out ./src/adapters/ai ./src/adapters/ocr ./src/adapters/im ./src/adapters/im/poller ./src/adapters/im/helpers ./src/adapters/im/store ./src/modules/extractor ./src/modules/capturer ./src/utils/config ./src/pipeline && go tool cover -html=coverage.out -o coverage.html && echo "Coverage report generated: coverage.html"
 
-check: fmt vet lint vuln test
+check: format validate lint vulnerabilities test
 
 tools:
 	@echo "Installing analysis tools..."
