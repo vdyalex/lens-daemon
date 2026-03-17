@@ -1,6 +1,6 @@
 module github.com/vdyalex/lens-daemon
 
-go 1.25.7
+go 1.25.8
 
 require (
 	github.com/anthropics/anthropic-sdk-go v1.26.0
