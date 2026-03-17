@@ -3,10 +3,7 @@ package pipeline
 import (
 	"context"
 	"errors"
-	"fmt"
-	"image"
 	"log/slog"
-	"strings"
 
 	"github.com/vdyalex/lens-daemon/src/adapters/ai"
 	"github.com/vdyalex/lens-daemon/src/adapters/im"
@@ -16,7 +13,6 @@ import (
 	"github.com/vdyalex/lens-daemon/src/modules/extractor"
 	"github.com/vdyalex/lens-daemon/src/modules/listener"
 	"github.com/vdyalex/lens-daemon/src/utils/config"
-	"github.com/vdyalex/lens-daemon/src/utils/exceptions"
 )
 
 // NewWithDependencies creates a pipeline with injectable dependencies.
@@ -67,119 +63,22 @@ func New(settings *config.Config, logger *slog.Logger) (*Pipeline, error) {
 // extract text via OCR, send to Claude AI, and broadcast response to Telegram subscribers.
 // Returns nil on success; logs warnings for non-fatal conditions (empty OCR/response).
 func (pipeline *Pipeline) Process(ctx context.Context) error {
-	// Step 1: Detect the foreground window
-	ctxWithTimeout, cancel := context.WithTimeout(ctx, pipeline.settings.TimeoutForegroundWindow)
-	defer cancel()
-
-	window, err := pipeline.capturer.ForegroundWindow(ctxWithTimeout)
-	if errors.Is(err, exceptions.CapturerNoForegroundWindowException) {
-		pipeline.logger.Debug("No foreground window, skipping")
-		return nil
-	}
-	if err != nil {
+	window, err := pipeline.fetchWindow(ctx)
+	if window == nil || err != nil {
 		return err
 	}
-	pipeline.logger.Debug("Foreground window", slog.String("title", window.Title), slog.Int("width", window.Width), slog.Int("height", window.Height), slog.Int("x", window.X), slog.Int("y", window.Y))
 
-	// Step 2: Capture the center of the window
-	pipeline.boundsMu.RLock()
-	bounds := pipeline.captureBounds
-	pipeline.boundsMu.RUnlock()
-
-	if bounds != nil {
-		pipeline.logger.Debug("Capturing with custom bounds", slog.Int("minX", bounds.Min.X), slog.Int("minY", bounds.Min.Y), slog.Int("maxX", bounds.Max.X), slog.Int("maxY", bounds.Max.Y))
-	} else {
-		pipeline.logger.Debug("Capturing center of window (no custom bounds)")
-	}
-	ctxCapture, cancelCapture := context.WithTimeout(ctx, pipeline.settings.TimeoutCapture)
-	defer cancelCapture()
-
-	imageCh := make(chan *image.RGBA, 1)
-	errCh := make(chan error, 1)
-	go func() {
-		pipeline.logger.Debug("Screenshot goroutine started")
-		img, err := pipeline.capturer.CaptureCenter(window, bounds)
-		if err != nil {
-			pipeline.logger.Error("Screenshot capture failed", "error", err)
-			errCh <- err
-		} else {
-			pipeline.logger.Debug("Screenshot captured successfully", "width", img.Bounds().Dx(), "height", img.Bounds().Dy())
-			imageCh <- img
-		}
-	}()
-
-	var img *image.RGBA
-	select {
-	case img = <-imageCh:
-		pipeline.logger.Debug("Screenshot received from goroutine")
-		// Capture succeeded
-	case err := <-errCh:
-		pipeline.logger.Debug("Screenshot error received from goroutine")
-		return err
-	case <-ctxCapture.Done():
-		pipeline.logger.Error("Screenshot capture timeout", slog.String("timeout", pipeline.settings.TimeoutCapture.String()))
-		return fmt.Errorf("%w (%s)", exceptions.PipelineCaptureTimeoutException, pipeline.settings.TimeoutCapture)
-	}
-
-	// Step 3: Extract text via OCR
-	pipeline.logger.Debug("Running OCR on captured image", slog.Int("width", img.Bounds().Dx()), slog.Int("height", img.Bounds().Dy()))
-	ocrCtx, ocrCancel := context.WithTimeout(ctx, pipeline.settings.TimeoutOCRExtract)
-	defer ocrCancel()
-
-	textCh := make(chan string, 1)
-	ocrErrCh := make(chan error, 1)
-	go func() {
-		text, err := pipeline.extractor.Extract(img)
-		if err != nil {
-			ocrErrCh <- err
-		} else {
-			textCh <- text
-		}
-	}()
-
-	var text string
-	select {
-	case text = <-textCh:
-		// OCR succeeded
-	case err := <-ocrErrCh:
-		return err
-	case <-ocrCtx.Done():
-		return fmt.Errorf("%w (%s)", exceptions.PipelineOCRTimeoutException, pipeline.settings.TimeoutOCRExtract)
-	}
-
-	text = strings.TrimSpace(text)
-	if text == "" {
-		pipeline.logger.Warn("OCR returned empty text, skipping")
-		return nil
-	}
-	pipeline.logger.Info("OCR extracted text", slog.Int("character_count", len(text)))
-	pipeline.logger.Debug("OCR text content", slog.String("text", text))
-
-	// Step 4: Process with Anthropic
-	agentCtx, agentCancel := context.WithTimeout(ctx, pipeline.settings.TimeoutAIProcess)
-	defer agentCancel()
-	response, err := pipeline.agent.Process(agentCtx, text)
+	img, err := pipeline.captureScreenshot(ctx, window)
 	if err != nil {
 		return err
 	}
 
-	response = strings.TrimSpace(response)
-	if response == "" {
-		pipeline.logger.Warn("Anthropic returned empty response, skipping")
-		return nil
-	}
-	pipeline.logger.Info("Anthropic response received", slog.Int("character_count", len(response)))
-	pipeline.logger.Debug("Anthropic response content", slog.String("response", response))
-
-	// Step 5: Broadcast to Telegram subscribers
-	broadcastCtx, broadcastCancel := context.WithTimeout(ctx, pipeline.settings.TelegramBroadcastTimeout)
-	defer broadcastCancel()
-	if err := pipeline.messenger.Broadcast(broadcastCtx, response); err != nil {
+	text, err := pipeline.extractAndProcessText(ctx, img)
+	if text == "" || err != nil {
 		return err
 	}
-	pipeline.logger.Info("Broadcast to Telegram subscribers successfully")
 
-	return nil
+	return pipeline.processWithAIAndBroadcast(ctx, text)
 }
 
 // Run starts listening for the hotkey and processes on each trigger.
@@ -202,9 +101,9 @@ func (pipeline *Pipeline) Run(ctx context.Context) error {
 	// Start the bounds tracker goroutine
 	go func() {
 		for rect := range bounds {
-			pipeline.boundsMu.Lock()
+			pipeline.boundsMutex.Lock()
 			pipeline.captureBounds = &rect
-			pipeline.boundsMu.Unlock()
+			pipeline.boundsMutex.Unlock()
 			pipeline.logger.Info("Capture bounds updated", slog.Int("minX", rect.Min.X), slog.Int("minY", rect.Min.Y), slog.Int("maxX", rect.Max.X), slog.Int("maxY", rect.Max.Y))
 		}
 	}()

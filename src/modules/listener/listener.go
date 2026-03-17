@@ -114,7 +114,7 @@ func goHotkeyCallback() {
 	if current != nil {
 		// Non-blocking send so the run-loop is never stalled.
 		select {
-		case current.triggerCh <- struct{}{}:
+		case current.triggerChannel <- struct{}{}:
 		default:
 		}
 	}
@@ -125,12 +125,12 @@ func goRecordBounds(minX, minY, maxX, maxY float64) {
 	if current != nil {
 		// Drain and replace: always keep the latest bounds.
 		select {
-		case <-current.boundsCh:
+		case <-current.boundsChannel:
 		default:
 		}
 		rect := image.Rect(int(minX), int(minY), int(maxX), int(maxY))
 		select {
-		case current.boundsCh <- rect:
+		case current.boundsChannel <- rect:
 		default:
 		}
 	}
@@ -139,8 +139,8 @@ func goRecordBounds(minX, minY, maxX, maxY float64) {
 // New creates a new listener instance.
 func New() *Listener {
 	return &Listener{
-		triggerCh: make(chan struct{}, 10),
-		boundsCh:  make(chan image.Rectangle, 1),
+		triggerChannel: make(chan struct{}, 10),
+		boundsChannel:  make(chan image.Rectangle, 1),
 	}
 }
 
@@ -197,13 +197,13 @@ func (listener *Listener) Listen(parentCtx context.Context, logger *slog.Logger,
 	// Drain residual triggers and bounds on shutdown so nothing leaks.
 	go func() {
 		<-parentCtx.Done()
-		for len(listener.triggerCh) > 0 {
-			<-listener.triggerCh
+		for len(listener.triggerChannel) > 0 {
+			<-listener.triggerChannel
 		}
-		for len(listener.boundsCh) > 0 {
-			<-listener.boundsCh
+		for len(listener.boundsChannel) > 0 {
+			<-listener.boundsChannel
 		}
 	}()
 
-	return listener.triggerCh, listener.boundsCh, nil
+	return listener.triggerChannel, listener.boundsChannel, nil
 }

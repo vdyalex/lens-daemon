@@ -7,7 +7,7 @@ import (
 
 // Listener manages global hotkey detection and bounds tracking.
 type Listener struct {
-	triggerCh chan struct{}
-	boundsCh  chan image.Rectangle
-	startOnce sync.Once
+	triggerChannel chan struct{}
+	boundsChannel  chan image.Rectangle
+	startOnce      sync.Once
 }

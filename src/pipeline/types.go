@@ -22,6 +22,6 @@ type Pipeline struct {
 	agent         ai.Processor
 	messenger     im.Broadcaster
 	poller        poller.Service
-	boundsMu      sync.RWMutex
+	boundsMutex   sync.RWMutex
 	captureBounds *image.Rectangle
 }

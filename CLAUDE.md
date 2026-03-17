@@ -45,12 +45,13 @@ Docstring every top-level function/method/class: purpose, constraints, edge case
 1. Read code, tests, docs before proposing.
 2. Clarify only when ambiguity risks incorrect output.
 3. Propose plan and tradeoffs before editing.
-4. Await approval unless pre-authorized.
-5. Small, reviewable changesets.
-6. Include or update tests.
-7. Include or update documentation (docstrings, README.md).
-8. Maintain setup alignment (tests, checks, containers).
-9. Commit without adding co-author details. Use conventional commits. Always sign commits.
+4. Create a new branch using conventional branch spec.
+5. Await approval unless pre-authorized.
+6. Small, reviewable changesets.
+7. Include or update tests.
+8. Include or update documentation (docstrings, README.md).
+9. Maintain setup alignment (tests, checks, containers).
+10. Commit without adding co-author details. Use conventional commits. Always sign commits.
 
 ## Project setup
 

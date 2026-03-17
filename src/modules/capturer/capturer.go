@@ -17,9 +17,9 @@ import (
 
 // AppleScript error codes returned by System Events.
 const (
-	errNoForegroundWindowCode  = "(-1728)"
-	errAccessibilityDeniedCode = "(-10003)"
-	osascriptOutputParts       = 5
+	appleScriptErrorNoForegroundWindow  = "(-1728)"
+	appleScriptErrorAccessibilityDenied = "(-10003)"
+	osascriptOutputParts                = 5
 )
 
 // New creates a new Capturer instance for MacOS.
@@ -132,11 +132,11 @@ func (capture *Capturer) ForegroundWindow(ctx context.Context) (*WindowInfo, err
 		if errors.As(err, &exitErr) && len(exitErr.Stderr) > 0 {
 			stderrStr := string(exitErr.Stderr)
 			// Check for "no foreground window" error (-1728)
-			if strings.Contains(stderrStr, errNoForegroundWindowCode) {
+			if strings.Contains(stderrStr, appleScriptErrorNoForegroundWindow) {
 				return nil, exceptions.CapturerNoForegroundWindowException
 			}
 			// Permission denied (-10003) indicates Accessibility access not granted
-			if strings.Contains(stderrStr, errAccessibilityDeniedCode) {
+			if strings.Contains(stderrStr, appleScriptErrorAccessibilityDenied) {
 				return nil, exceptions.CapturerAccessibilityDeniedException
 			}
 			return nil, fmt.Errorf("AppleScript: %s: %w", strings.TrimSpace(stderrStr), exceptions.CapturerAppleScriptFailedException)

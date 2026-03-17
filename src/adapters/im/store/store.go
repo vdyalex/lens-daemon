@@ -24,24 +24,24 @@ func NewStore(path string, logger *slog.Logger) (*Store, error) {
 
 // Add registers a subscriber. Idempotent. Persists to disk.
 func (store *Store) Add(chatID int64) error {
-	store.mu.Lock()
-	defer store.mu.Unlock()
+	store.mutex.Lock()
+	defer store.mutex.Unlock()
 	store.subscribers[chatID] = struct{}{}
 	return store.persist()
 }
 
 // Remove unregisters a subscriber. Idempotent. Persists to disk.
 func (store *Store) Remove(chatID int64) error {
-	store.mu.Lock()
-	defer store.mu.Unlock()
+	store.mutex.Lock()
+	defer store.mutex.Unlock()
 	delete(store.subscribers, chatID)
 	return store.persist()
 }
 
 // All returns a snapshot of all current subscriber chat IDs.
 func (store *Store) All() []int64 {
-	store.mu.RLock()
-	defer store.mu.RUnlock()
+	store.mutex.RLock()
+	defer store.mutex.RUnlock()
 	result := make([]int64, 0, len(store.subscribers))
 	for id := range store.subscribers {
 		result = append(result, id)

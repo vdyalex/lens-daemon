@@ -28,10 +28,10 @@ vuln:
 	$(shell go env GOPATH)/bin/govulncheck ./...
 
 test:
-	unset ANTHROPIC_API_KEY TELEGRAM_BOT_TOKEN; go test -count=1 -p 1 ./src/adapters/ai ./src/adapters/ocr ./src/adapters/im ./src/adapters/im/poller ./src/adapters/im/helpers ./src/adapters/im/store ./src/modules/extractor ./src/modules/capturer ./src/utils/config ./src/pipeline
+	unset ANTHROPIC_API_KEY TELEGRAM_BOT_TOKEN; go test -count=1 -p 1 ./...
 
 coverage:
-	unset ANTHROPIC_API_KEY TELEGRAM_BOT_TOKEN; go test -count=1 -p 1 -coverprofile=coverage.out ./src/adapters/ai ./src/adapters/ocr ./src/adapters/im ./src/adapters/im/poller ./src/adapters/im/helpers ./src/adapters/im/store ./src/modules/extractor ./src/modules/capturer ./src/utils/config ./src/pipeline && go tool cover -html=coverage.out -o coverage.html && echo "Coverage report generated: coverage.html"
+	unset ANTHROPIC_API_KEY TELEGRAM_BOT_TOKEN; go test -count=1 -p 1 -coverprofile=coverage.out ./... && go tool cover -html=coverage.out -o coverage.html && echo "Coverage report generated: coverage.html"
 
 check: fmt vet lint vuln test
 
