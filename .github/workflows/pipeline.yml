@@ -1,0 +1,55 @@
+name: Continuous Integration
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pull_request:
+    name: Pull Request
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Install
+        run: make tools
+
+      - name: Build
+        run: make build
+
+      - name: Check
+        run: |
+          UNFORMATTED=$(gofmt -l .)
+          if [ -n "$UNFORMATTED" ]; then
+            echo "Files with format issues:"
+            echo "$UNFORMATTED"
+            exit 1
+          fi
+
+      - name: Validate
+        run: make validate
+
+      - name: Lint
+        run: make lint
+
+      - name: Scan
+        run: make vulnerabilities
+
+      - name: Test
+        run: make test
