@@ -1,8 +1,34 @@
 # Architecture
 
+## CLI and Daemon Architecture
+
+The application uses a **single binary, multiple subcommands** architecture:
+
+**CLI Layer** (`src/cmd/`) provides user-facing commands via Cobra:
+
+- **`daemon`** -- runs the full pipeline with IPC server (called by LaunchAgent or `start` command)
+- **`start`** -- daemonizes the process by re-execing `lensd daemon` in a new session (uses `syscall.SysProcAttr{Setsid: true}`)
+- **`stop`** -- sends SIGTERM to the daemon via PID file
+- **`status`** -- queries daemon status (PID, uptime, last window) via IPC, one-shot output
+- **`logs`** -- subscribes to IPC log stream and streams colorized log output to stdout
+- **`restart`** -- stops and starts the daemon with config flags
+
+**Daemon Lifecycle** (`src/daemon/`) handles process management:
+
+- **PID file** -- stores daemon PID for status checks and shutdown signals (path: `$TMPDIR/lensd-<uid>.pid`)
+- **Daemonize** -- re-execs current binary with `Setsid: true` for full detachment from terminal
+- Config flags are forwarded as environment variables to the re-exec'd child process
+
+**IPC Layer** (`src/ipc/`) enables inter-process communication:
+
+- **Unix domain socket** at `$TMPDIR/lensd-<uid>.sock` with `0600` permissions
+- **Length-prefixed JSON** wire format (4-byte big-endian length + UTF-8 JSON body)
+- **Log broker** -- fan-out io.Writer that distributes slog text lines to subscribed IPC clients
+- **Handler** -- dispatches IPC commands: `status`, `shutdown`, `log.subscribe`
+
 ## Pipeline Design
 
-The application follows a clean layered architecture with interface-based design, separating concerns into modules (platform-specific capabilities) and adapters (external service integrations), orchestrated by a central pipeline.
+The pipeline orchestrates the full workflow, wiring all components together at startup and processing each hotkey trigger through the sequential capture-OCR-AI-Telegram flow.
 
 **Modules** handle MacOS-specific operations:
 
@@ -23,49 +49,59 @@ The application follows a clean layered architecture with interface-based design
 - **`src/bridges/vision`** -- Objective-C wrapper for Apple Vision framework OCR (`visionRecognizeText`)
 - **`src/bridges/core_graphics`** -- Objective-C wrappers for CoreGraphics screen capture and display queries (`captureScreenRect`, `getMainDisplayWidth`, `getMainDisplayHeight`)
 
-**Pipeline** orchestrates the full workflow, wiring all components together at startup and processing each hotkey trigger through the sequential capture-OCR-AI-Telegram flow. The pipeline is organized into focused modules:
+**Pipeline Components** (`src/pipeline/`) orchestrate the workflow:
 
-- **`pipeline.go`** -- constructors and public interface (`New`, `NewWithDependencies`, `Process`)
+- **`pipeline.go`** -- constructors and public interface (`New`, `NewWithDependencies`, `Status`, `Run`)
 - **`process.go`** -- implementation of the five sequential process steps (fetch window, capture, extract, process with AI, broadcast)
 - **`run.go`** -- event loop and goroutine orchestration (`Run` method)
 
-## Pipeline Flow
+## Startup and Daemon Flow
 
 ```mermaid
 flowchart TD
-    A([main]) --> B[config.Load<br/>Load and validate env vars]
-    B --> C[pipeline.New<br/>Wire all components]
+    A([lensd start<br/>user command]) --> B[daemon.Daemonize<br/>re-exec with Setsid]
+    B --> C[child: lensd daemon<br/>new session]
+    A --> D[poll for PID file<br/>startup confirmation]
+
+    C --> E[config.Load<br/>Load and validate env vars]
+    E --> F[daemon.WritePID<br/>Write PID file]
+    F --> G[pipeline.New<br/>Wire all components]
+    G --> H[ipc.NewServer<br/>Listen on Unix socket]
 
     subgraph Init[Initialization]
-        C --> D[extractor.New<br/>Vision OCR extractor]
-        C --> E[store.NewStore<br/>Load subscriber list from file]
-        C --> F[im.New<br/>Telegram broadcaster]
-        C --> G[poller.New<br/>Telegram subscriber poller]
-        C --> H[capturer.New<br/>MacOS capturer]
-        C --> I[ai.New<br/>Anthropic SDK client]
+        G --> I[extractor.New<br/>Vision OCR extractor]
+        G --> J[store.NewStore<br/>Load subscriber list]
+        G --> K[im.New<br/>Telegram broadcaster]
+        G --> L[poller.New<br/>Telegram subscriber poller]
+        G --> M[capturer.New<br/>MacOS capturer]
+        G --> N[ai.New<br/>Anthropic SDK client]
     end
 
-    Init --> J[signal.Notify<br/>SIGINT / SIGTERM]
-    J --> K([pipeline.Run])
+    H --> O[ipc.NewLogBroker<br/>Create log fan-out]
+    O --> P[Start IPC server<br/>background goroutine]
+    P --> Q[signal.Notify<br/>SIGINT / SIGTERM]
+    Q --> R([pipeline.Run])
 
     subgraph Runtime[Runtime - concurrent goroutines]
-        K --> L[listener.Listen<br/>CGEventTap on dedicated OS thread]
-        K --> M[poller.Run<br/>Telegram subscriber poller - background]
-        K --> N[bounds tracker<br/>Bounds hotkey updates]
-        K --> O{Wait for<br/>trigger hotkey}
+        R --> S[listener.Listen<br/>CGEventTap on OS thread]
+        R --> T[poller.Run<br/>Telegram subscriber poller]
+        R --> U[bounds tracker<br/>Bounds hotkey updates]
+        R --> V{Wait for<br/>trigger hotkey or<br/>IPC commands}
     end
 
-    O -->|hotkey pressed| P([pipeline.process<br/>5 min overall timeout])
+    V -->|status/logs request| W[ipc.Handler<br/>Query pipeline or stream logs]
+    V -->|hotkey pressed| X([pipeline.process<br/>5 min overall timeout])
 
     subgraph Process[Sequential process pipeline]
-        P --> Q[ForegroundWindow<br/>AppleScript - window info<br/>5 s timeout]
-        Q --> R[CaptureCenter<br/>Full window or custom bounds<br/>30 s timeout]
-        R --> S[extractor.Extract<br/>RGBA - PNG - Vision API - text<br/>30 s timeout]
-        S --> T[agent.Process<br/>Text - Claude API - response<br/>60 s timeout]
-        T --> U[messenger.Broadcast<br/>Response - all Telegram subscribers<br/>30 s timeout]
+        X --> Y[ForegroundWindow<br/>AppleScript - window info<br/>5 s timeout]
+        Y --> Z[CaptureCenter<br/>Full window or custom bounds<br/>30 s timeout]
+        Z --> AA[extractor.Extract<br/>RGBA - PNG - Vision API - text<br/>30 s timeout]
+        AA --> AB[agent.Process<br/>Text - Claude API - response<br/>60 s timeout]
+        AB --> AC[messenger.Broadcast<br/>Response - all Telegram subscribers<br/>30 s timeout]
     end
 
-    U --> O
+    AC --> V
+    W --> V
 ```
 
 Each pipeline run has an overall timeout of 5 minutes. Individual step timeouts are enforced to prevent any single operation from stalling the daemon indefinitely.

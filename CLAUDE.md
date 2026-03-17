@@ -30,6 +30,8 @@ Extract hardcoded settings to environment variables; group by prefix or domain.
 
 Wrap third-party integrations in adapters. Maintain provider-agnosticism unless project constraints require coupling.
 
+Design code based on directives from Uber go style guide. For conflicting guidelines should prevail the style guide.
+
 ## Schemas and types
 
 - Schemas: Validate all user input with schemas.
@@ -38,7 +40,7 @@ Wrap third-party integrations in adapters. Maintain provider-agnosticism unless 
 
 ## Docstrings
 
-Docstring every top-level function/method/class: purpose, constraints, edge cases, params, return. Update on behavior change. Use language-standard docstring syntax strictly (GoDoc) — no ad-hoc substitutes. Annotate every parameter and return value with the standard's designated tags. Inline comments suffice for predicates/callbacks.
+Docstring every top-level function/method/class: purpose, constraints, edge cases, params, return. Update on behavior change. Use GoDoc docstring syntax strictly — no ad-hoc substitutes. Annotate every parameter and return value with the standard's designated tags. Inline comments suffice for predicates/callbacks.
 
 ## Workflow
 
@@ -50,8 +52,8 @@ Docstring every top-level function/method/class: purpose, constraints, edge case
 6. Small, reviewable changesets.
 7. Include or update tests.
 8. Include or update documentation (docstrings, README.md).
-9. Maintain setup alignment (tests, checks, containers).
-10. Commit without adding co-author details. Use conventional commits. Always sign commits.
+9. Maintain setup alignment (tests, checks).
+10. Commit without Claude footer. Use conventional commits. Always sign commits.
 
 ## Project setup
 
@@ -124,4 +126,3 @@ Before finishing:
 - Duplication did not increase without reason.
 - Error paths and edge cases are explicit.
 - Documentation matches reality (commands and examples).
-- If containers exist, primary workflow runs inside containers.

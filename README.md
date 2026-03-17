@@ -104,6 +104,30 @@ Invalid key names will be rejected at startup with a clear error listing all sup
 
 ## ▶️ Running
 
+### CLI Commands
+
+The `lensd` binary provides a set of subcommands for starting, stopping, and managing the daemon:
+
+| Command | Purpose |
+|---------|---------|
+| `lensd daemon` | Run the pipeline with IPC server (used by LaunchAgent or `start` command); accepts config flags |
+| `lensd start` | Start daemon in background (re-execs `lensd daemon` detached); accepts config flags |
+| `lensd stop` | Stop the running daemon |
+| `lensd status` | Check daemon status (PID, uptime, last window) |
+| `lensd logs` | Stream daemon logs to stdout (with level-based colorization) |
+| `lensd restart` | Stop and start the daemon; accepts config flags |
+
+All start/daemon/restart commands accept optional flags to override configuration:
+
+```bash
+--api-key              Anthropic API key
+--bot-token            Telegram bot token
+--model                Anthropic model name
+--system-prompt        AI system prompt
+--max-tokens           Max response tokens
+--log-level            Log level (debug/info/warn/error)
+```
+
 ### Manually
 
 ```bash
@@ -111,11 +135,20 @@ Invalid key names will be rejected at startup with a clear error listing all sup
 export ANTHROPIC_API_KEY="sk-ant-..."
 export TELEGRAM_BOT_TOKEN="123456:ABC..."
 
-# Run in foreground
-./bin/lensd
+# Start daemon in background
+./bin/lensd start
 
-# Or build and run
-make run
+# Check status
+./bin/lensd status
+
+# Stream logs
+./bin/lensd logs
+
+# Stop daemon
+./bin/lensd stop
+
+# Or build and run in foreground
+make run daemon
 ```
 
 Once running:
@@ -125,7 +158,7 @@ Once running:
 3. **Custom bounds** (optional): Hold the configured bounds hotkey (default: `RightOption`), move your mouse to define a region, then release
 4. The daemon captures the screen, runs OCR, sends the text to Claude, and broadcasts the response to all subscribers
 
-Send `/stop` to the Telegram bot to unsubscribe. Press `Ctrl+C` to stop the daemon.
+Send `/stop` to the Telegram bot to unsubscribe. Run `./bin/lensd stop` to stop the daemon.
 
 ### As a Background Service
 
@@ -162,14 +195,17 @@ The service is managed as a MacOS LaunchAgent (`com.vdyalex.lensd`). The followi
 
 After installation, you may need to re-grant **Accessibility** and **Screen Recording** permissions in System Settings if they don't automatically persist. See [Permissions](#-permissions) below.
 
-### Build Commands
+### Build and Test Commands
 
 | Command | Purpose |
 |---|---|
 | `make build` | Compile the binary to `bin/` |
-| `make run` | Build and run in foreground |
+| `make run [ARGS]` | Build and run the binary with optional arguments (e.g., `make run daemon`, `make run start`) |
+| `make test` | Run all unit tests |
+| `make test-integration` | Run integration tests (daemon + IPC tests) |
+| `make check` | Run all static checks (fmt, vet, lint, vuln) and tests |
 | `make clean` | Remove build artifacts from `bin/` (preserves `.gitignore`) |
-| `make check` | Run all static checks (fmt, vet, lint, vuln) |
+| `make clean-daemon` | Stop any running daemon and remove PID file |
 | `make fmt` | Format source files with gofmt |
 | `make vet` | Run go vet static analysis |
 | `make lint` | Run golangci-lint static analysis |

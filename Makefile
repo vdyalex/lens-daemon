@@ -1,4 +1,4 @@
-.PHONY: build run clean generate validate format lint vulnerabilities test coverage check tools service-install service-uninstall service-start service-stop service-logs
+.PHONY: build run clean generate validate format lint vulnerabilities test coverage check tools service-install service-uninstall service-start service-stop service-logs start stop status restart logs test-integration
 
 -include .env
 export
@@ -8,9 +8,6 @@ BINARY_PATH ?= ./bin/$(BINARY_NAME)
 
 build:
 	CGO_LDFLAGS=-Wl,-no_warn_duplicate_libraries go build -o $(BINARY_PATH) ./src
-
-run: build
-	./$(BINARY_PATH)
 
 clean:
 	find bin -type f ! -name '.gitignore' -delete 2>/dev/null || true
@@ -36,7 +33,26 @@ test:
 coverage:
 	unset ANTHROPIC_API_KEY TELEGRAM_BOT_TOKEN; go test -count=1 -p 1 -coverprofile=coverage.out ./... && go tool cover -html=coverage.out -o coverage.html && echo "Coverage report generated: coverage.html"
 
-check: format validate lint vulnerabilities test
+test-integration:
+	unset ANTHROPIC_API_KEY TELEGRAM_BOT_TOKEN; go test -count=1 -p 1 -run Integration ./src/ipc/... ./src/daemon/...
+
+check: format validate lint vulnerabilities test test-integration
+
+# Daemon management convenience targets
+start: build
+	$(BINARY_PATH) start
+
+stop:
+	$(BINARY_PATH) stop
+
+status:
+	$(BINARY_PATH) status
+
+restart: build
+	$(BINARY_PATH) restart
+
+logs:
+	$(BINARY_PATH) logs
 
 tools:
 	@echo "Installing analysis and code generation tools..."
