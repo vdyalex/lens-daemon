@@ -6,7 +6,7 @@ export
 BINARY_NAME ?= lensd
 
 build:
-	go build -o $(BINARY_NAME) ./src
+	CGO_LDFLAGS=-Wl,-no_warn_duplicate_libraries go build -o $(BINARY_NAME) ./src
 
 run: build
 	./$(BINARY_NAME)

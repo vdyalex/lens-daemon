@@ -18,9 +18,10 @@ int getMainDisplayHeight(void) {
 // captureScreenRect captures a region of the main display and returns raw RGBA bytes.
 // Output format: RGBA, 4 bytes per pixel, pixels in row-major order (top to bottom, left to right).
 // outLength is filled with the total byte count (width * height * 4).
+// outWidth and outHeight are filled with the actual physical image dimensions (accounting for display scaling on HiDPI displays).
 // The caller must free() the returned pointer.
-unsigned char* captureScreenRect(int x, int y, int width, int height, int* outLength) {
-	if (width <= 0 || height <= 0 || !outLength) {
+unsigned char* captureScreenRect(int x, int y, int width, int height, int* outLength, int* outWidth, int* outHeight) {
+	if (width <= 0 || height <= 0 || !outLength || !outWidth || !outHeight) {
 		return NULL;
 	}
 
@@ -83,5 +84,7 @@ unsigned char* captureScreenRect(int x, int y, int width, int height, int* outLe
 	CFRelease(cgImage);
 
 	*outLength = (int)bufferSize;
+	*outWidth = (int)imgWidth;
+	*outHeight = (int)imgHeight;
 	return pixelBuffer;
 }

@@ -162,6 +162,8 @@ func (capture *Capturer) ScreenSize() (int, int, error) {
 // If bounds is non-nil, it is used as the capture rectangle (in screen coordinates).
 // If bounds is nil, the full window bounds are used.
 // The capture rectangle is clamped to screen bounds to avoid capturing offscreen areas.
+// On HiDPI/Retina displays, the returned image may have higher physical pixel dimensions
+// than the logical coordinate dimensions used for the capture rectangle.
 // Returns CapturerInvalidCaptureRectException if the rectangle is invalid or becomes empty after clamping.
 // Returns CapturerCaptureFailedException if the CoreGraphics capture call fails.
 func (capture *Capturer) CaptureCenter(window *WindowInfo, bounds *image.Rectangle) (*image.RGBA, error) {
@@ -179,19 +181,19 @@ func (capture *Capturer) CaptureCenter(window *WindowInfo, bounds *image.Rectang
 	height := rect.Max.Y - rect.Min.Y
 
 	// Call CoreGraphics to capture the screen region
-	pixelData, ok := core_graphics.CaptureScreenRect(rect.Min.X, rect.Min.Y, width, height)
+	pixelData, actualWidth, actualHeight, ok := core_graphics.CaptureScreenRect(rect.Min.X, rect.Min.Y, width, height)
 	if !ok {
 		return nil, fmt.Errorf("Screenshot capture failed: rect=(%d,%d)-(%d,%d): %w", rect.Min.X, rect.Min.Y, rect.Max.X, rect.Max.Y, exceptions.CapturerCaptureFailedException)
 	}
 
-	// Validate returned buffer size
-	expectedSize := width * height * 4
+	// Validate returned buffer size using actual physical pixel dimensions
+	expectedSize := actualWidth * actualHeight * 4
 	if len(pixelData) != expectedSize {
 		return nil, fmt.Errorf("Screenshot capture returned unexpected size: got %d bytes, expected %d: %w", len(pixelData), expectedSize, exceptions.CapturerCaptureFailedException)
 	}
 
-	// Create image.RGBA and copy pixel data
-	img := image.NewRGBA(image.Rect(0, 0, width, height))
+	// Create image.RGBA with actual physical pixel dimensions and copy pixel data
+	img := image.NewRGBA(image.Rect(0, 0, actualWidth, actualHeight))
 	copy(img.Pix, pixelData)
 
 	return img, nil
