@@ -14,8 +14,8 @@ import (
 	"github.com/vdyalex/lens-daemon/tests/mocks"
 )
 
-func TestPoller_startCommand(test *testing.T) {
-	store := mocks.MockStore(test)
+func TestPoller_startCommand(t *testing.T) {
+	store := mocks.MockStore(t)
 
 	update := im.Update{
 		UpdateID: 1,
@@ -56,17 +56,17 @@ func TestPoller_startCommand(test *testing.T) {
 		// First poll completed; store.Add has been called synchronously
 		time.Sleep(10 * time.Millisecond) // Allow poller to finish processing
 	case <-ctx.Done():
-		test.Fatal("timed out waiting for poller to process the update")
+		t.Fatal("timed out waiting for poller to process the update")
 	}
 
 	all := store.All()
 	if len(all) != 1 || (len(all) > 0 && all[0] != 12345) {
-		test.Errorf("expected chatID 12345 in store, got %v", all)
+		t.Errorf("expected chatID 12345 in store, got %v", all)
 	}
 }
 
-func TestPoller_stopCommand(test *testing.T) {
-	store := mocks.MockStore(test)
+func TestPoller_stopCommand(t *testing.T) {
+	store := mocks.MockStore(t)
 	store.Add(12345)
 
 	update := im.Update{
@@ -121,17 +121,17 @@ func TestPoller_stopCommand(test *testing.T) {
 	case <-done:
 		// First poll completed; store.Remove has been called
 	case <-ctx.Done():
-		test.Fatal("timed out waiting for poller to process the update")
+		t.Fatal("timed out waiting for poller to process the update")
 	}
 
 	all := store.All()
 	if len(all) != 0 {
-		test.Errorf("expected empty store after /stop, got %v", all)
+		t.Errorf("expected empty store after /stop, got %v", all)
 	}
 }
 
-func TestPoller_unknownCommand(test *testing.T) {
-	store := mocks.MockStore(test)
+func TestPoller_unknownCommand(t *testing.T) {
+	store := mocks.MockStore(t)
 
 	update := im.Update{
 		UpdateID: 1,
@@ -171,17 +171,17 @@ func TestPoller_unknownCommand(test *testing.T) {
 	case <-done:
 		// First poll completed
 	case <-ctx.Done():
-		test.Fatal("timed out waiting for poller to process the update")
+		t.Fatal("timed out waiting for poller to process the update")
 	}
 
 	all := store.All()
 	if len(all) != 0 {
-		test.Errorf("expected store to remain empty for unknown command, got %v", all)
+		t.Errorf("expected store to remain empty for unknown command, got %v", all)
 	}
 }
 
-func TestPoller_nilMessage(test *testing.T) {
-	store := mocks.MockStore(test)
+func TestPoller_nilMessage(t *testing.T) {
+	store := mocks.MockStore(t)
 
 	update := im.Update{
 		UpdateID: 1,
@@ -219,12 +219,12 @@ func TestPoller_nilMessage(test *testing.T) {
 	case <-done:
 		// First poll completed without panic
 	case <-ctx.Done():
-		test.Fatal("timed out waiting for poller to process the update")
+		t.Fatal("timed out waiting for poller to process the update")
 	}
 }
 
-func TestPoller_emptyResult(test *testing.T) {
-	store := mocks.MockStore(test)
+func TestPoller_emptyResult(t *testing.T) {
+	store := mocks.MockStore(t)
 
 	done := make(chan struct{})
 	once := &sync.Once{}
@@ -262,18 +262,18 @@ func TestPoller_emptyResult(test *testing.T) {
 	case <-done:
 		// First poll completed
 	case <-ctx.Done():
-		test.Fatal("timed out waiting for poller to process the update")
+		t.Fatal("timed out waiting for poller to process the update")
 	}
 
 	// Should handle empty result without error
 	all := store.All()
 	if len(all) != 0 {
-		test.Errorf("expected empty store, got %v", all)
+		t.Errorf("expected empty store, got %v", all)
 	}
 }
 
-func TestPoller_apiError(test *testing.T) {
-	store := mocks.MockStore(test)
+func TestPoller_apiError(t *testing.T) {
+	store := mocks.MockStore(t)
 
 	done := make(chan struct{})
 	once := &sync.Once{}
@@ -311,15 +311,15 @@ func TestPoller_apiError(test *testing.T) {
 	case <-done:
 		// First poll completed with error handled
 	case <-ctx.Done():
-		test.Fatal("timed out waiting for poller to process the update")
+		t.Fatal("timed out waiting for poller to process the update")
 	}
 
 	// Poller should handle API errors and continue (with backoff)
 	// Just verify it doesn't crash
 }
 
-func TestPoller_requestURL(test *testing.T) {
-	store := mocks.MockStore(test)
+func TestPoller_requestURL(t *testing.T) {
+	store := mocks.MockStore(t)
 
 	var capturedRequest *http.Request
 	done := make(chan struct{})
@@ -359,21 +359,21 @@ func TestPoller_requestURL(test *testing.T) {
 	case <-done:
 		// First poll completed
 	case <-ctx.Done():
-		test.Fatal("timed out waiting for poller to process the update")
+		t.Fatal("timed out waiting for poller to process the update")
 	}
 
 	if capturedRequest == nil {
-		test.Fatal("expected captured request, got nil")
+		t.Fatal("expected captured request, got nil")
 	}
 
 	url := capturedRequest.URL.String()
 	if url == "" {
-		test.Errorf("expected non-empty URL, got %q", url)
+		t.Errorf("expected non-empty URL, got %q", url)
 	}
 }
 
-func TestPoller_whitespaceCommand(test *testing.T) {
-	store := mocks.MockStore(test)
+func TestPoller_whitespaceCommand(t *testing.T) {
+	store := mocks.MockStore(t)
 
 	update := im.Update{
 		UpdateID: 1,
@@ -424,17 +424,17 @@ func TestPoller_whitespaceCommand(test *testing.T) {
 	case <-done:
 		// First poll completed; store.Add has been called
 	case <-ctx.Done():
-		test.Fatal("timed out waiting for poller to process the update")
+		t.Fatal("timed out waiting for poller to process the update")
 	}
 
 	all := store.All()
 	if len(all) != 1 || (len(all) > 0 && all[0] != 12345) {
-		test.Errorf("expected chatID 12345 in store (whitespace trimmed), got %v", all)
+		t.Errorf("expected chatID 12345 in store (whitespace trimmed), got %v", all)
 	}
 }
 
-func TestPoller_deadlineExceeded(test *testing.T) {
-	store := mocks.MockStore(test)
+func TestPoller_deadlineExceeded(t *testing.T) {
+	store := mocks.MockStore(t)
 
 	callCount := 0
 	done := make(chan struct{})
@@ -474,11 +474,47 @@ func TestPoller_deadlineExceeded(test *testing.T) {
 	case <-done:
 		// Second poll succeeded after deadline exceeded
 	case <-ctx.Done():
-		test.Fatal("timed out waiting for poller to resume after deadline exceeded")
+		t.Fatal("timed out waiting for poller to resume after deadline exceeded")
 	}
 
 	// Poller should have made at least 2 calls (first deadline exceeded, then success)
 	if callCount < 2 {
-		test.Errorf("expected at least 2 calls, got %d", callCount)
+		t.Errorf("expected at least 2 calls, got %d", callCount)
 	}
 }
+
+func TestPoller_malformedJSONResponse(t *testing.T) {
+	store := mocks.MockStore(t)
+
+	done := make(chan struct{})
+	once := &sync.Once{}
+	mockClient := &mocks.MockIMHTTPClient{
+		DoFunc: func(req *http.Request) (*http.Response, error) {
+			// Return invalid JSON - this will cause a decode error
+			// The poller should wrap this error and continue retrying
+			return mocks.NewJSONResponse(200, "{invalid json"), nil
+		},
+	}
+
+	client := poller.NewWithClient("token", store, mockClient, mocks.NopLogger(), 30*time.Second, 35*time.Second)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	defer cancel()
+
+	// Just verify that the poller doesn't panic on malformed JSON
+	// The error will be logged and the poller will retry
+	go func() {
+		client.Run(ctx)
+		once.Do(func() {
+			close(done)
+		})
+	}()
+
+	select {
+	case <-done:
+		// Poller completed without panicking - test passes
+	case <-time.After(1 * time.Second):
+		t.Fatal("poller hung on malformed JSON")
+	}
+}
+

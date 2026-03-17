@@ -10,7 +10,7 @@ type MockIMHTTPClient struct {
 }
 
 // Do implements im.HTTPClient.
-func (mock *MockIMHTTPClient) Do(req *http.Request) (*http.Response, error) {
-	mock.Calls = append(mock.Calls, req)
-	return mock.DoFunc(req)
+func (m *MockIMHTTPClient) Do(req *http.Request) (*http.Response, error) {
+	m.Calls = append(m.Calls, req)
+	return m.DoFunc(req)
 }

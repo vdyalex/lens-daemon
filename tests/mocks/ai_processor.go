@@ -9,7 +9,7 @@ type MockAIProcessor struct {
 }
 
 // Process implements ai.Processor.
-func (mock *MockAIProcessor) Process(ctx context.Context, text string) (string, error) {
-	mock.Calls = append(mock.Calls, text)
-	return mock.ProcessFunc(ctx, text)
+func (m *MockAIProcessor) Process(ctx context.Context, text string) (string, error) {
+	m.Calls = append(m.Calls, text)
+	return m.ProcessFunc(ctx, text)
 }

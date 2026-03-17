@@ -8,9 +8,9 @@ type MockPollerService struct {
 }
 
 // Run implements poller.Service.
-func (mock *MockPollerService) Run(ctx context.Context) {
-	if mock.RunFunc != nil {
-		mock.RunFunc(ctx)
+func (m *MockPollerService) Run(ctx context.Context) {
+	if m.RunFunc != nil {
+		m.RunFunc(ctx)
 	} else {
 		// Default: just return, letting context handle cancellation
 		<-ctx.Done()

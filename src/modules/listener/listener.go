@@ -103,6 +103,7 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/vdyalex/lens-daemon/src/utils/constants"
 	"github.com/vdyalex/lens-daemon/src/utils/exceptions"
 )
 
@@ -152,17 +153,17 @@ func New() *Listener {
 // pollInterval is the CFRunLoop polling timeout; smaller values increase responsiveness but use more CPU.
 // triggerKeycode and boundsKeycode are the MacOS virtual keycodes for the hotkeys.
 // Listen can only be called once per Listener instance; subsequent calls return the same channels.
-func (listener *Listener) Listen(parentCtx context.Context, logger *slog.Logger, pollInterval time.Duration, triggerKeycode, boundsKeycode int) (<-chan struct{}, <-chan image.Rectangle, error) {
+func (l *Listener) Listen(parentCtx context.Context, logger *slog.Logger, pollInterval time.Duration, triggerKeycode, boundsKeycode int) (<-chan struct{}, <-chan image.Rectangle, error) {
 	var listenErr error
 
-	listener.startOnce.Do(func() {
-		current = listener // Register this listener as the active one for CGo callbacks
+	l.startOnce.Do(func() {
+		current = l // Register this listener as the active one for CGo callbacks
 
 		C.setKeycodes(C.int(triggerKeycode), C.int(boundsKeycode))
 
 		tap := C.createTap()
 		if tap == 0 {
-			listenErr = exceptions.ListenerEventTapCreateFailedException
+			listenErr = exceptions.ErrListenerEventTapCreateFailed
 			return
 		}
 
@@ -174,11 +175,12 @@ func (listener *Listener) Listen(parentCtx context.Context, logger *slog.Logger,
 			C.CFRunLoopAddSource(rl, source, C.kCFRunLoopCommonModes)
 			C.CGEventTapEnable(tap, C.bool(true))
 
-			logger.Info("Hotkey listener started", "trigger_keycode", triggerKeycode, "bounds_keycode", boundsKeycode)
+			logger.Info("hotkey listener started", "trigger_keycode", triggerKeycode, "bounds_keycode", boundsKeycode)
 
-			// Poll the run loop with a timeout so we can check context cancellation.
+			// Poll the run loop with a short timeout to check context cancellation responsively.
+			// EventTapRunLoopTimeout ensures graceful shutdown within ~50ms of context cancellation.
 			for parentCtx.Err() == nil {
-				C.CFRunLoopRunInMode(C.kCFRunLoopDefaultMode, C.double(pollInterval.Seconds()), 0)
+				C.CFRunLoopRunInMode(C.kCFRunLoopDefaultMode, C.double(constants.EventTapRunLoopTimeout.Seconds()), 0)
 			}
 
 			// Cleanup on context cancellation.
@@ -186,7 +188,7 @@ func (listener *Listener) Listen(parentCtx context.Context, logger *slog.Logger,
 			C.CFRunLoopRemoveSource(rl, source, C.kCFRunLoopCommonModes)
 			C.CFRelease(C.CFTypeRef(source))
 			C.CFRelease(C.CFTypeRef(tap))
-			logger.Info("Hotkey listener stopped")
+			logger.Info("hotkey listener stopped")
 		}()
 	})
 
@@ -197,13 +199,13 @@ func (listener *Listener) Listen(parentCtx context.Context, logger *slog.Logger,
 	// Drain residual triggers and bounds on shutdown so nothing leaks.
 	go func() {
 		<-parentCtx.Done()
-		for len(listener.triggerCh) > 0 {
-			<-listener.triggerCh
+		for len(l.triggerCh) > 0 {
+			<-l.triggerCh
 		}
-		for len(listener.boundsCh) > 0 {
-			<-listener.boundsCh
+		for len(l.boundsCh) > 0 {
+			<-l.boundsCh
 		}
 	}()
 
-	return listener.triggerCh, listener.boundsCh, nil
+	return l.triggerCh, l.boundsCh, nil
 }

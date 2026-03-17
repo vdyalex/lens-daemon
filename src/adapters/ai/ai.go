@@ -28,16 +28,16 @@ func NewWithMessages(messages MessagesService, model, prompt string, maxResponse
 }
 
 // Process sends the extracted text to Claude and returns the response.
-func (ai *AI) Process(ctx context.Context, text string) (string, error) {
+func (a *AI) Process(ctx context.Context, text string) (string, error) {
 	if text == "" {
 		return "", nil
 	}
 
-	response, err := ai.messages.New(ctx, anthropic.MessageNewParams{
-		Model:     anthropic.Model(ai.model),
-		MaxTokens: int64(ai.maxResponseTokens),
+	response, err := a.messages.New(ctx, anthropic.MessageNewParams{
+		Model:     anthropic.Model(a.model),
+		MaxTokens: int64(a.maxResponseTokens),
 		System: []anthropic.TextBlockParam{
-			{Text: ai.prompt},
+			{Text: a.prompt},
 		},
 		Messages: []anthropic.MessageParam{
 			anthropic.NewUserMessage(
@@ -46,7 +46,7 @@ func (ai *AI) Process(ctx context.Context, text string) (string, error) {
 		},
 	})
 	if err != nil {
-		return "", fmt.Errorf("Anthropic API: %w", err)
+		return "", fmt.Errorf("anthropic api: %w", err)
 	}
 
 	var result string

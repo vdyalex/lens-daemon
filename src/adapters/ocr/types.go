@@ -5,8 +5,8 @@ type VisionBridge interface {
 	RecognizeText(pngData []byte, language string, accurate int) string
 }
 
-// realVisionBridge wraps the actual Vision framework calls.
-type realVisionBridge struct{}
+// RealVisionBridge wraps the actual Vision framework calls.
+type RealVisionBridge struct{}
 
 // Client wraps the Vision framework OCR adapter.
 // It delegates to src/bridges/vision for CGo boundary and Vision framework calls.

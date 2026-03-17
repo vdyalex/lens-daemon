@@ -4,8 +4,6 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
-
-	"github.com/vdyalex/lens-daemon/src/adapters/im/store"
 )
 
 // Broadcaster is the interface for message broadcasting adapters.
@@ -18,6 +16,17 @@ type Broadcaster interface {
 // enabling dependency injection for testing.
 type HTTPClient interface {
 	Do(req *http.Request) (*http.Response, error)
+}
+
+// Store is the interface for managing subscribers.
+// Implementations must be safe for concurrent use.
+type Store interface {
+	// Add registers a subscriber. Idempotent. May persist to disk.
+	Add(chatID int64) error
+	// Remove unregisters a subscriber. Idempotent. May persist to disk.
+	Remove(chatID int64) error
+	// All returns all current subscriber chat IDs.
+	All() []int64
 }
 
 // Request is the Telegram sendMessage API request payload.
@@ -53,7 +62,7 @@ type Chat struct {
 // Sender broadcasts messages to all subscribers via the Telegram Bot API.
 type Sender struct {
 	token      string
-	store      *store.Store
+	store      Store
 	client     HTTPClient
 	logger     *slog.Logger
 	chunkSize  int

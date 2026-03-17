@@ -14,11 +14,11 @@ type MockCapturerService struct {
 }
 
 // ForegroundWindow implements capturer.CapturerService.
-func (mock *MockCapturerService) ForegroundWindow(ctx context.Context) (*capturer.WindowInfo, error) {
-	return mock.ForegroundWindowFunc(ctx)
+func (m *MockCapturerService) ForegroundWindow(ctx context.Context) (*capturer.WindowInfo, error) {
+	return m.ForegroundWindowFunc(ctx)
 }
 
 // CaptureCenter implements capturer.CapturerService.
-func (mock *MockCapturerService) CaptureCenter(window *capturer.WindowInfo, bounds *image.Rectangle) (*image.RGBA, error) {
-	return mock.CaptureCenterFunc(window, bounds)
+func (m *MockCapturerService) CaptureCenter(window *capturer.WindowInfo, bounds *image.Rectangle) (*image.RGBA, error) {
+	return m.CaptureCenterFunc(window, bounds)
 }

@@ -8,11 +8,11 @@ type MockExtractorService struct {
 }
 
 // Extract implements extractor.Service.
-func (mock *MockExtractorService) Extract(file *image.RGBA) (string, error) {
-	return mock.ExtractFunc(file)
+func (m *MockExtractorService) Extract(file *image.RGBA) (string, error) {
+	return m.ExtractFunc(file)
 }
 
 // Close implements extractor.Service.
-func (mock *MockExtractorService) Close() error {
+func (m *MockExtractorService) Close() error {
 	return nil
 }
