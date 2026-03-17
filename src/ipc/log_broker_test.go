@@ -1,6 +1,7 @@
 package ipc_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -15,6 +16,9 @@ func TestLogBroker_broadcastsToSubscribers(t *testing.T) {
 	defer broker.Unsubscribe(id1)
 	defer broker.Unsubscribe(id2)
 
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+
 	line := []byte("time=2026-03-17T12:00:00Z level=INFO msg=\"test\"")
 	if _, err := broker.Write(line); err != nil {
 		t.Fatalf("Write() error: %v", err)
@@ -26,7 +30,7 @@ func TestLogBroker_broadcastsToSubscribers(t *testing.T) {
 		if event.Message != "test" {
 			t.Errorf("ch1: expected message 'test', got %q", event.Message)
 		}
-	case <-time.After(1 * time.Second):
+	case <-ctx.Done():
 		t.Error("ch1: timeout waiting for event")
 	}
 
@@ -35,7 +39,7 @@ func TestLogBroker_broadcastsToSubscribers(t *testing.T) {
 		if event.Message != "test" {
 			t.Errorf("ch2: expected message 'test', got %q", event.Message)
 		}
-	case <-time.After(1 * time.Second):
+	case <-ctx.Done():
 		t.Error("ch2: timeout waiting for event")
 	}
 }
@@ -53,6 +57,9 @@ func TestLogBroker_dropsSlowSubscriber(t *testing.T) {
 	}
 
 	// Next write should not block (drops slow subscriber)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
 	done := make(chan struct{})
 	go func() {
 		broker.Write(line)
@@ -62,7 +69,7 @@ func TestLogBroker_dropsSlowSubscriber(t *testing.T) {
 	select {
 	case <-done:
 		// Expected: write returned immediately without blocking
-	case <-time.After(5 * time.Second):
+	case <-ctx.Done():
 		t.Fatal("Write() blocked on slow subscriber (expected non-blocking drop)")
 	}
 }
@@ -84,6 +91,9 @@ func TestLogBroker_concurrentSubscribeUnsubscribe(t *testing.T) {
 	t.Parallel()
 	broker := ipc.NewLogBroker()
 
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
 	done := make(chan struct{})
 	for i := 0; i < 10; i++ {
 		go func() {
@@ -95,11 +105,10 @@ func TestLogBroker_concurrentSubscribeUnsubscribe(t *testing.T) {
 	}
 
 	// Wait for all goroutines with a timeout guard
-	timeoutChan := time.After(5 * time.Second)
 	for i := 0; i < 10; i++ {
 		select {
 		case <-done:
-		case <-timeoutChan:
+		case <-ctx.Done():
 			t.Fatal("timeout waiting for goroutines")
 		}
 	}

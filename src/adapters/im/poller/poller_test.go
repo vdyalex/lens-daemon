@@ -54,7 +54,7 @@ func TestPoller_startCommand(t *testing.T) {
 
 	client := poller.NewWithClient("token", store, mockClient, mocks.NopLogger(), 30*time.Second, 35*time.Second)
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	// Track when poller exits
@@ -69,14 +69,15 @@ func TestPoller_startCommand(t *testing.T) {
 		// First poll completed; now cancel to stop the poller
 		cancel()
 		// Wait for Run to exit (should be fast since next poll will error)
+		exitCtx, exitCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer exitCancel()
 		select {
 		case <-runDone:
 			// Poller exited - store operations are guaranteed complete
-		case <-time.After(5 * time.Second):
+		case <-exitCtx.Done():
 			t.Fatal("poller did not exit after cancel")
 		}
-	case <-time.After(5 * time.Second):
-		cancel()
+	case <-ctx.Done():
 		t.Fatal("timed out waiting for first poll")
 	}
 
@@ -519,22 +520,26 @@ func TestPoller_malformedJSONResponse(t *testing.T) {
 
 	client := poller.NewWithClient("token", store, mockClient, mocks.NopLogger(), 30*time.Second, 35*time.Second)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
-	defer cancel()
+	pollerCtx, pollerCancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	defer pollerCancel()
 
 	// Just verify that the poller doesn't panic on malformed JSON
 	// The error will be logged and the poller will retry
 	go func() {
-		client.Run(ctx)
+		client.Run(pollerCtx)
 		once.Do(func() {
 			close(done)
 		})
 	}()
 
+	// Use a longer test timeout to allow poller goroutine to finish after context expires
+	testCtx, testCancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer testCancel()
+
 	select {
 	case <-done:
 		// Poller completed without panicking - test passes
-	case <-time.After(1 * time.Second):
+	case <-testCtx.Done():
 		t.Fatal("poller hung on malformed JSON")
 	}
 }
