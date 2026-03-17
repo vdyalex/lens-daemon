@@ -432,3 +432,53 @@ func TestPoller_whitespaceCommand(test *testing.T) {
 		test.Errorf("expected chatID 12345 in store (whitespace trimmed), got %v", all)
 	}
 }
+
+func TestPoller_deadlineExceeded(test *testing.T) {
+	store := mocks.MockStore(test)
+
+	callCount := 0
+	done := make(chan struct{})
+	once := &sync.Once{}
+	mockClient := &mocks.MockIMHTTPClient{
+		DoFunc: func(req *http.Request) (*http.Response, error) {
+			callCount++
+			if callCount == 1 {
+				// First call returns deadline exceeded (simulating long-poll timeout)
+				return nil, context.DeadlineExceeded
+			}
+			// Second call succeeds; signal completion
+			result := struct {
+				OK     bool        `json:"ok"`
+				Result []im.Update `json:"result"`
+			}{
+				OK:     true,
+				Result: []im.Update{},
+			}
+			body, _ := json.Marshal(result)
+			once.Do(func() {
+				close(done)
+			})
+			return mocks.NewJSONResponse(200, string(body)), nil
+		},
+	}
+
+	logger := mocks.NopLogger()
+	client := poller.NewWithClient("token", store, mockClient, logger, 30*time.Second, 35*time.Second)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	go client.Run(ctx)
+
+	select {
+	case <-done:
+		// Second poll succeeded after deadline exceeded
+	case <-ctx.Done():
+		test.Fatal("timed out waiting for poller to resume after deadline exceeded")
+	}
+
+	// Poller should have made at least 2 calls (first deadline exceeded, then success)
+	if callCount < 2 {
+		test.Errorf("expected at least 2 calls, got %d", callCount)
+	}
+}

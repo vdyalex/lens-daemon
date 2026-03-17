@@ -3,6 +3,7 @@ package poller
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -36,12 +37,18 @@ func New(token string, store *store.Store, logger *slog.Logger, longPollTimeout,
 }
 
 // Run polls for updates indefinitely until ctx is cancelled.
-// It logs warnings on errors and retries with a 5-second backoff.
+// Expected deadline/canceled errors from the polling timeout are not logged;
+// other errors are logged as warnings and retried with a 5-second backoff.
 func (poller *Poller) Run(ctx context.Context) {
 	for {
 		if err := poller.poll(ctx); err != nil {
 			if ctx.Err() != nil {
 				return
+			}
+			// Our own pollerTimeout fired — expected for long-polling when no updates
+			// arrive before the timeout. Resume immediately without logging.
+			if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+				continue
 			}
 			poller.logger.Warn("Poller error", "error", err)
 			select {

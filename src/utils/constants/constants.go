@@ -26,8 +26,11 @@ const (
 
 // Telegram-related timeouts.
 const (
-	// TimeoutTelegramHTTPClient is the per-request HTTP timeout for Telegram API calls.
-	TimeoutTelegramHTTPClient = 30 * time.Second
+	// TimeoutTelegramHTTPClient is disabled (0) for long-polling.
+	// The context-based TimeoutTelegramPoller is the correct bounding mechanism;
+	// a per-request HTTP client timeout races with the server-side long-poll timeout
+	// and causes spurious "Client.Timeout exceeded" errors.
+	TimeoutTelegramHTTPClient = 0
 
 	// TimeoutTelegramPoller is the context timeout for Telegram polling operations.
 	// Set 5s longer than the server-side timeout to allow for network jitter.
