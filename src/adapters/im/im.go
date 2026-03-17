@@ -1,4 +1,4 @@
-package messenger
+package im
 
 import (
 	"bytes"
@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vdyalex/lens-daemon/src/adapters/messenger/subscriber"
-	"github.com/vdyalex/lens-daemon/src/types"
+	"github.com/vdyalex/lens-daemon/src/adapters/im/helpers"
+	"github.com/vdyalex/lens-daemon/src/adapters/im/store"
 	"github.com/vdyalex/lens-daemon/src/utils/constants"
 	"github.com/vdyalex/lens-daemon/src/utils/exceptions"
 )
@@ -22,26 +22,22 @@ const (
 	telegramAPI = "https://api.telegram.org"
 )
 
-// Sender broadcasts messages to all subscribers via the Telegram Bot API.
-type Sender struct {
-	token      string
-	store      *subscriber.Store
-	client     types.MessengerHTTPClient
-	logger     *slog.Logger
-	chunkSize  int
-	maxRetries int
-}
-
-// New creates a new Telegram message broadcaster.
-func New(botToken string, store *subscriber.Store, logger *slog.Logger, chunkSize, maxRetries int, httpClientTimeout time.Duration) *Sender {
+// NewWithClient creates a new Telegram message broadcaster with a custom HTTP client.
+// This is primarily used for testing with mock HTTP clients.
+func NewWithClient(botToken string, store *store.Store, client HTTPClient, logger *slog.Logger, chunkSize, maxRetries int) *Sender {
 	return &Sender{
 		token:      botToken,
 		store:      store,
-		client:     &http.Client{Timeout: httpClientTimeout},
+		client:     client,
 		logger:     logger,
 		chunkSize:  chunkSize,
 		maxRetries: maxRetries,
 	}
+}
+
+// New creates a new Telegram message broadcaster.
+func New(botToken string, store *store.Store, logger *slog.Logger, chunkSize, maxRetries int, httpClientTimeout time.Duration) *Sender {
+	return NewWithClient(botToken, store, &http.Client{Timeout: httpClientTimeout}, logger, chunkSize, maxRetries)
 }
 
 // sendTo sends a message to a specific chat, handling chunking and rate limits.
@@ -88,9 +84,9 @@ func (sender *Sender) sendChunk(ctx context.Context, chatID int64, text string) 
 
 // doSendChunk performs the actual HTTP call to Telegram.
 func (sender *Sender) doSendChunk(ctx context.Context, chatID int64, text string) error {
-	payload := types.MessengerRequest{
+	payload := Request{
 		ChatID:    chatID,
-		Text:      toTelegramMarkdown(text),
+		Text:      helpers.ToTelegramMarkdown(text),
 		ParseMode: constants.TelegramParseMode,
 	}
 
@@ -112,16 +108,16 @@ func (sender *Sender) doSendChunk(ctx context.Context, chatID int64, text string
 	}
 	defer response.Body.Close()
 
-	var telegram types.MessengerResponse
+	var telegram Response
 	if err := json.NewDecoder(response.Body).Decode(&telegram); err != nil {
-		return fmt.Errorf("Decode telegram response: %w", err)
+		return fmt.Errorf("Decode Telegram response: %w", err)
 	}
 
 	if !telegram.OK {
 		if response.StatusCode == http.StatusTooManyRequests {
-			return fmt.Errorf("%w: %s", exceptions.MessengerRateLimitException, telegram.Description)
+			return fmt.Errorf("%w: %s", exceptions.IMRateLimitException, telegram.Description)
 		}
-		return fmt.Errorf("%w: %s", exceptions.MessengerTelegramAPIException, telegram.Description)
+		return fmt.Errorf("%w: %s", exceptions.IMTelegramAPIException, telegram.Description)
 	}
 
 	return nil
@@ -129,7 +125,7 @@ func (sender *Sender) doSendChunk(ctx context.Context, chatID int64, text string
 
 // isRateLimit checks if an error is a Telegram rate-limit error.
 func isRateLimit(err error) bool {
-	return errors.Is(err, exceptions.MessengerRateLimitException)
+	return errors.Is(err, exceptions.IMRateLimitException)
 }
 
 // parseRetryAfter extracts the retry-after duration from a Telegram error message.

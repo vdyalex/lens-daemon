@@ -17,11 +17,11 @@ const (
 	// TimeoutOCRExtract is the deadline for running Vision OCR on the captured image.
 	TimeoutOCRExtract = 30 * time.Second
 
-	// TimeoutAgentProcess is the deadline for Claude API call and response.
-	TimeoutAgentProcess = 60 * time.Second
+	// TimeoutAIProcess is the deadline for Claude API call and response.
+	TimeoutAIProcess = 60 * time.Second
 
-	// TimeoutTelegramBroadcast is the deadline for sending messages to all subscribers.
-	TimeoutTelegramBroadcast = 30 * time.Second
+	// TelegramBroadcastTimeout is the deadline for sending messages to all subscribers.
+	TelegramBroadcastTimeout = 30 * time.Second
 )
 
 // Telegram-related timeouts.
@@ -60,11 +60,11 @@ const (
 	TelegramMaxRetries = 1
 )
 
-// Claude API constants.
+// Anthropic API constants.
 const (
-	// ClaudeMaxResponseTokens is the maximum tokens requested from Claude API per call.
+	// AnthropicMaxResponseTokens is the maximum tokens requested from Anthropic API per call.
 	// Higher values allow longer responses but consume more tokens.
-	ClaudeMaxResponseTokens = 1024
+	AnthropicMaxResponseTokens = 1024
 )
 
 // Event listener constants.

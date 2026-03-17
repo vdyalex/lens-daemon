@@ -67,7 +67,7 @@ Environment variables injected before process start → godotenv.Load() (no-op i
 See `.env.example` for the complete list with descriptions and defaults. Common variables:
 
 - `LOG_LEVEL` — Minimum log level: "debug", "info", "warn", "error" (default: "info")
-- `CLAUDE_MODEL` — Claude model to use (default: "claude-sonnet-4-6")
+- `ANTHROPIC_MODEL` — Anthropic model to use (default: "claude-sonnet-4-6")
 - `SYSTEM_PROMPT` — Custom system prompt for Claude (default: generic questionnaire assistant)
 - `HOTKEY_TRIGGER_KEYNAME` — Trigger hotkey name (default: "RightShift")
 - `HOTKEY_BOUNDS_KEYNAME` — Bounds hotkey name (default: "RightOption")

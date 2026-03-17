@@ -7,6 +7,6 @@
 - **OCR text extraction**: Convert the captured image to text using Apple Vision framework. The image is PNG-encoded in memory and passed directly to the Vision API via byte buffer -- no intermediate files touch the disk.
 - **AI processing**: Send extracted text to Claude AI with a configurable system prompt. Empty OCR results are silently skipped (no API call made).
 - **Telegram delivery**: Broadcast Claude's response to all active subscribers. Messages exceeding Telegram's 4096-character limit are automatically split into sequential chunks. Empty AI responses are silently skipped. The HTTP client enforces a 30-second timeout per request; a non-responsive Telegram API will not stall the pipeline indefinitely.
-- **Subscriber management**: Support dynamic subscriber registration via Telegram `/start` and `/stop` bot commands. Persist the subscriber list to a JSON file for durability across restarts.
+- **Subscriber management**: Support dynamic subscriber registration via Telegram `/start` and `/stop` bot commands. Persist the subscriber list to a plain-text file (one chat ID per line) for durability across restarts.
 - **Graceful shutdown**: Handle `SIGINT` and `SIGTERM` signals to cleanly shut down the event tap, poller, and extractor before exiting.
 - **Non-fatal runtime errors**: Pipeline errors (capture failure, OCR failure, API errors) are logged but do not terminate the daemon. The hotkey listener continues running for the next trigger.

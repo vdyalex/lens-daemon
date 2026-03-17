@@ -1,4 +1,4 @@
-package messenger
+package helpers
 
 import "strings"
 
@@ -10,7 +10,7 @@ var reserved = map[rune]bool{
 	'=': true, '|': true, '{': true, '}': true, '.': true, '!': true, '\\': true,
 }
 
-// toTelegramMarkdown converts a standard-markdown string to Telegram MarkdownV2.
+// ToTelegramMarkdown converts a standard-markdown string to Telegram MarkdownV2.
 //
 // Conversion rules:
 //   - Fenced code blocks (```lang\n...\n```) → preserved; language hint stripped
@@ -23,7 +23,7 @@ var reserved = map[rune]bool{
 // Note: markdown spans that cross a 4096-rune message chunk boundary will not
 // render correctly; this is a known limitation of per-chunk formatting.
 // TODO: split at formatting boundaries instead of rune count.
-func toTelegramMarkdown(text string) string {
+func ToTelegramMarkdown(text string) string {
 	runes := []rune(text)
 	runeCount := len(runes)
 	var out strings.Builder
@@ -137,10 +137,10 @@ func toTelegramMarkdown(text string) string {
 	return out.String()
 }
 
-// writeEscaped writes r to builder, prepending \ if r is a MarkdownV2 reserved character.
-func writeEscaped(builder *strings.Builder, r rune) {
-	if reserved[r] {
+// writeEscaped writes value to builder, prepending \ if value is a MarkdownV2 reserved character.
+func writeEscaped(builder *strings.Builder, value rune) {
+	if reserved[value] {
 		builder.WriteRune('\\')
 	}
-	builder.WriteRune(r)
+	builder.WriteRune(value)
 }

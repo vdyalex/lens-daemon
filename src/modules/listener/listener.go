@@ -101,18 +101,10 @@ import (
 	"image"
 	"log/slog"
 	"runtime"
-	"sync"
 	"time"
 
 	"github.com/vdyalex/lens-daemon/src/utils/exceptions"
 )
-
-// Listener manages global hotkey detection and bounds tracking.
-type Listener struct {
-	triggerCh chan struct{}
-	boundsCh  chan image.Rectangle
-	startOnce sync.Once
-}
 
 // current holds the active listener instance for CGo callbacks.
 var current *Listener

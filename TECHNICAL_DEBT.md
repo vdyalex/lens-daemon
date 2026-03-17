@@ -263,8 +263,8 @@ All exported symbols now have proper GoDoc comments following Go standards (comm
 - `TIMEOUT_FOREGROUND_WINDOW=5s` → `config.TimeoutForegroundWindow`
 - `TIMEOUT_CAPTURE=30s` → `config.TimeoutCapture`
 - `TIMEOUT_OCR_EXTRACT=30s` → `config.TimeoutOCRExtract`
-- `TIMEOUT_AGENT_PROCESS=60s` → `config.TimeoutAgentProcess`
-- `TIMEOUT_TELEGRAM_BROADCAST=30s` → `config.TimeoutTelegramBroadcast`
+- `TIMEOUT_AI_PROCESS=60s` → `config.TimeoutAIProcess`
+- `TELEGRAM_BROADCAST_TIMEOUT=30s` → `config.TelegramBroadcastTimeout`
 - `TIMEOUT_PIPELINE_OVERALL=5m` → `config.TimeoutPipelineOverall`
 
 Updated [src/utils/config/config.go](src/utils/config/config.go) to add `getDuration()` helper and new timeout fields. Updated [src/pipeline/pipeline.go](src/pipeline/pipeline.go) to use `pipeline.settings.Timeout*` instead of `constants.Timeout*`.
@@ -312,7 +312,7 @@ Updated [src/adapters/messenger/poller/poller.go](src/adapters/messenger/poller/
 ### 6. ✅ Claude Max Tokens Hardcoded (FIXED)
 
 **Status:** Fixed. Max response tokens is now configurable:
-- `CLAUDE_MAX_RESPONSE_TOKENS=1024` → `config.ClaudeMaxResponseTokens` (default: 1024)
+- `ANTHROPIC_MAX_RESPONSE_TOKENS=1024` → `config.AnthropicMaxResponseTokens` (default: 1024)
 
 Updated [src/adapters/agent/agent.go](src/adapters/agent/agent.go) to accept `maxResponseTokens` param in `New()` and use `agent.maxResponseTokens` in API calls.
 
@@ -324,7 +324,7 @@ Updated [src/adapters/agent/agent.go](src/adapters/agent/agent.go) to accept `ma
 - `VISION_LANG=en-US` (existing, already configurable)
 - `VISION_ACCURACY=accurate` → `config.VisionAccuracy` (new, default: "accurate", valid: "accurate" or "fast")
 
-Updated [src/adapters/vision/vision_bridge.m](src/adapters/vision/vision_bridge.m) to accept `int accurate` param (1=accurate, 0=fast) and map to `VNRequestTextRecognitionLevel{Accurate,Fast}`. Updated [src/adapters/vision/vision.go](src/adapters/vision/vision.go) to accept `accuracy` param and pass to C function. Updated [src/modules/extractor/extractor.go](src/modules/extractor/extractor.go) to thread accuracy through. Updated [src/pipeline/pipeline.go](src/pipeline/pipeline.go) to pass `settings.VisionAccuracy` to `extractor.New()`.
+Updated [src/bridges/vision/vision_bridge.m](src/bridges/vision/vision_bridge.m) to accept `int accurate` param (1=accurate, 0=fast) and map to `VNRequestTextRecognitionLevel{Accurate,Fast}`. Updated [src/adapters/vision/vision.go](src/adapters/vision/vision.go) to accept `accuracy` param and call bridge function. Updated [src/modules/extractor/extractor.go](src/modules/extractor/extractor.go) to thread accuracy through. Updated [src/pipeline/pipeline.go](src/pipeline/pipeline.go) to pass `settings.VisionAccuracy` to `extractor.New()`.
 
 ---
 

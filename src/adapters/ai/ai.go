@@ -1,4 +1,4 @@
-package agent
+package ai
 
 import (
 	"context"
@@ -10,19 +10,17 @@ import (
 
 const textBlockType = "text"
 
-// Agent communicates with Claude AI to process extracted screen text.
-type Agent struct {
-	client            anthropic.Client
-	model             string
-	prompt            string
-	maxResponseTokens int
+// New creates a new Claude AI agent.
+func New(apiKey, model, prompt string, maxResponseTokens int) *AI {
+	client := anthropic.NewClient(option.WithAPIKey(apiKey))
+	return NewWithMessages(&client.Messages, model, prompt, maxResponseTokens)
 }
 
-// New creates a new Claude AI agent.
-func New(apiKey, model, prompt string, maxResponseTokens int) *Agent {
-	client := anthropic.NewClient(option.WithAPIKey(apiKey))
-	return &Agent{
-		client:            client,
+// NewWithMessages creates a Claude AI agent with an injectable messages service.
+// This is primarily used for testing.
+func NewWithMessages(messages MessagesService, model, prompt string, maxResponseTokens int) *AI {
+	return &AI{
+		messages:          messages,
 		model:             model,
 		prompt:            prompt,
 		maxResponseTokens: maxResponseTokens,
@@ -30,16 +28,16 @@ func New(apiKey, model, prompt string, maxResponseTokens int) *Agent {
 }
 
 // Process sends the extracted text to Claude and returns the response.
-func (agent *Agent) Process(ctx context.Context, text string) (string, error) {
+func (ai *AI) Process(ctx context.Context, text string) (string, error) {
 	if text == "" {
 		return "", nil
 	}
 
-	response, err := agent.client.Messages.New(ctx, anthropic.MessageNewParams{
-		Model:     anthropic.Model(agent.model),
-		MaxTokens: int64(agent.maxResponseTokens),
+	response, err := ai.messages.New(ctx, anthropic.MessageNewParams{
+		Model:     anthropic.Model(ai.model),
+		MaxTokens: int64(ai.maxResponseTokens),
 		System: []anthropic.TextBlockParam{
-			{Text: agent.prompt},
+			{Text: ai.prompt},
 		},
 		Messages: []anthropic.MessageParam{
 			anthropic.NewUserMessage(

@@ -1,4 +1,4 @@
-package subscriber
+package store
 
 import (
 	"bufio"
@@ -7,29 +7,19 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"sync"
 )
-
-// Store manages a file-backed set of subscriber chat IDs.
-// Add and Remove operations persist to disk atomically via os.Rename.
-type Store struct {
-	mu          sync.RWMutex
-	subscribers map[int64]struct{}
-	path        string
-	logger      *slog.Logger
-}
 
 // NewStore loads existing subscribers from path (if it exists) and returns a ready-to-use Store.
 func NewStore(path string, logger *slog.Logger) (*Store, error) {
-	s := &Store{
+	store := &Store{
 		subscribers: make(map[int64]struct{}),
 		path:        path,
 		logger:      logger,
 	}
-	if err := s.load(); err != nil && !os.IsNotExist(err) {
+	if err := store.load(); err != nil && !os.IsNotExist(err) {
 		return nil, err
 	}
-	return s, nil
+	return store, nil
 }
 
 // Add registers a subscriber. Idempotent. Persists to disk.

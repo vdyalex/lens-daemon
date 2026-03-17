@@ -54,24 +54,24 @@ echo ""
 
 # XML escape function for SYSTEM_PROMPT
 xml_escape() {
-  local s="$1"
-  s="${s//&/&amp;}"
-  s="${s//</&lt;}"
-  s="${s//>/&gt;}"
-  s="${s//\"/&quot;}"
-  s="${s//\'/&apos;}"
-  echo "$s"
+  local escape="$1"
+  escape="${escape//&/&amp;}"
+  escape="${escape//</&lt;}"
+  escape="${escape//>/&gt;}"
+  escape="${escape//\"/&quot;}"
+  escape="${escape//\'/&apos;}"
+  echo "$escape"
 }
 
 # Set defaults for optional vars
 LOG_LEVEL="${LOG_LEVEL:-info}"
-CLAUDE_MODEL="${CLAUDE_MODEL:-claude-sonnet-4-6}"
+ANTHROPIC_MODEL="${ANTHROPIC_MODEL:-claude-sonnet-4-6}"
 VISION_LANG="${VISION_LANG:-en-US}"
-SYSTEM_PROMPT="${SYSTEM_PROMPT:-}"
+ANTHROPIC_SYSTEM_PROMPT="${ANTHROPIC_SYSTEM_PROMPT:-}"
 SUBSCRIBER_STORE_PATH="${SUBSCRIBER_STORE_PATH:-$HOME/Library/Application Support/lensd/subscribers}"
 
-# XML escape SYSTEM_PROMPT
-SYSTEM_PROMPT_ESCAPED=$(xml_escape "$SYSTEM_PROMPT")
+# XML escape ANTHROPIC_SYSTEM_PROMPT
+ANTHROPIC_SYSTEM_PROMPT_ESCAPED=$(xml_escape "$ANTHROPIC_SYSTEM_PROMPT")
 
 # Create temporary plist with substitutions
 TEMP_PLIST=$(mktemp)
@@ -82,9 +82,9 @@ sed -i '' "s|__HOME_DIR__|$HOME|g" "$TEMP_PLIST"
 sed -i '' "s|__ANTHROPIC_API_KEY__|${ANTHROPIC_API_KEY}|g" "$TEMP_PLIST"
 sed -i '' "s|__TELEGRAM_BOT_TOKEN__|${TELEGRAM_BOT_TOKEN}|g" "$TEMP_PLIST"
 sed -i '' "s|__LOG_LEVEL__|${LOG_LEVEL}|g" "$TEMP_PLIST"
-sed -i '' "s|__CLAUDE_MODEL__|${CLAUDE_MODEL}|g" "$TEMP_PLIST"
+sed -i '' "s|__ANTHROPIC_MODEL__|${ANTHROPIC_MODEL}|g" "$TEMP_PLIST"
 sed -i '' "s|__VISION_LANG__|${VISION_LANG}|g" "$TEMP_PLIST"
-sed -i '' "s|__SYSTEM_PROMPT__|${SYSTEM_PROMPT_ESCAPED}|g" "$TEMP_PLIST"
+sed -i '' "s|__ANTHROPIC_SYSTEM_PROMPT__|${ANTHROPIC_SYSTEM_PROMPT_ESCAPED}|g" "$TEMP_PLIST"
 sed -i '' "s|__SUBSCRIBER_STORE_PATH__|${SUBSCRIBER_STORE_PATH}|g" "$TEMP_PLIST"
 sed -i '' "s|__LOG_DIR__|${LOG_DIR}|g" "$TEMP_PLIST"
 

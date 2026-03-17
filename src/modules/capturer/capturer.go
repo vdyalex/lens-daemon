@@ -10,29 +10,10 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
-	"unsafe"
 
+	"github.com/vdyalex/lens-daemon/src/bridges/core_graphics"
 	"github.com/vdyalex/lens-daemon/src/utils/exceptions"
 )
-
-/*
-#cgo CFLAGS: -mmacosx-version-min=13.0
-#cgo LDFLAGS: -framework CoreGraphics -framework AppKit -framework Foundation
-#include <stdlib.h>
-unsigned char* captureScreenRect(int x, int y, int width, int height, int* outLength);
-int getMainDisplayWidth(void);
-int getMainDisplayHeight(void);
-*/
-import "C"
-
-// WindowInfo describes the currently focused window.
-type WindowInfo struct {
-	Title  string
-	X      int
-	Y      int
-	Width  int
-	Height int
-}
 
 // AppleScript error codes returned by System Events.
 const (
@@ -41,13 +22,88 @@ const (
 	osascriptOutputParts       = 5
 )
 
-// Capturer detects the foreground window and captures screenshots on MacOS.
-// It uses AppleScript to detect the foreground window and CoreGraphics (via CGo) to capture screenshots.
-type Capturer struct{}
-
 // New creates a new Capturer instance for MacOS.
 func New() *Capturer {
 	return &Capturer{}
+}
+
+// parseWindowInfo parses AppleScript output into a WindowInfo.
+// Output format: "AppName,x,y,width,height"
+func parseWindowInfo(rawOutput string) (*WindowInfo, error) {
+	parts := strings.Split(strings.TrimSpace(rawOutput), ",")
+	if len(parts) != osascriptOutputParts {
+		return nil, fmt.Errorf("Unexpected AppleScript output %s: %w", rawOutput, exceptions.CapturerAppleScriptFailedException)
+	}
+
+	x, err := strconv.Atoi(strings.TrimSpace(parts[1]))
+	if err != nil {
+		return nil, fmt.Errorf("Parse window x from AppleScript: %w", err)
+	}
+	y, err := strconv.Atoi(strings.TrimSpace(parts[2]))
+	if err != nil {
+		return nil, fmt.Errorf("Parse window y from AppleScript: %w", err)
+	}
+	width, err := strconv.Atoi(strings.TrimSpace(parts[3]))
+	if err != nil {
+		return nil, fmt.Errorf("Parse window width from AppleScript: %w", err)
+	}
+	height, err := strconv.Atoi(strings.TrimSpace(parts[4]))
+	if err != nil {
+		return nil, fmt.Errorf("Parse window height from AppleScript: %w", err)
+	}
+
+	return &WindowInfo{
+		Title:  strings.TrimSpace(parts[0]),
+		X:      x,
+		Y:      y,
+		Width:  width,
+		Height: height,
+	}, nil
+}
+
+// computeCaptureRect determines the screen-coordinate rectangle to capture.
+// Applies custom bounds if non-nil, otherwise uses window bounds.
+// Clamps to screen dimensions and validates the result.
+func computeCaptureRect(window *WindowInfo, bounds *image.Rectangle, screenW, screenH int) (image.Rectangle, error) {
+	var rect image.Rectangle
+	if bounds != nil {
+		rect = *bounds
+	} else {
+		captureX, captureY, captureW, captureH := window.X, window.Y, window.Width, window.Height
+		if window.Width >= screenW && window.Height >= screenH {
+			captureX, captureY = 0, 0
+			captureW, captureH = screenW, screenH
+		}
+		rect = image.Rect(captureX, captureY, captureX+captureW, captureY+captureH)
+	}
+
+	// Validate the rectangle before capture
+	if rect.Min.X >= rect.Max.X || rect.Min.Y >= rect.Max.Y {
+		return image.Rectangle{}, fmt.Errorf("Invalid capture rectangle: min=(%d,%d) max=(%d,%d): %w",
+			rect.Min.X, rect.Min.Y, rect.Max.X, rect.Max.Y, exceptions.CapturerInvalidCaptureRectException)
+	}
+
+	// Clamp rectangle to screen bounds to avoid offscreen captures
+	if rect.Min.X < 0 {
+		rect.Min.X = 0
+	}
+	if rect.Min.Y < 0 {
+		rect.Min.Y = 0
+	}
+	if rect.Max.X > screenW {
+		rect.Max.X = screenW
+	}
+	if rect.Max.Y > screenH {
+		rect.Max.Y = screenH
+	}
+
+	width := rect.Max.X - rect.Min.X
+	height := rect.Max.Y - rect.Min.Y
+	if width <= 0 || height <= 0 {
+		return image.Rectangle{}, fmt.Errorf("Invalid capture rectangle after clamping: width=%d height=%d: %w", width, height, exceptions.CapturerInvalidCaptureRectException)
+	}
+
+	return rect, nil
 }
 
 // ForegroundWindow returns information about the currently focused window using AppleScript.
@@ -88,42 +144,14 @@ func (capture *Capturer) ForegroundWindow(ctx context.Context) (*WindowInfo, err
 		return nil, fmt.Errorf("AppleScript: %w", err)
 	}
 
-	parts := strings.Split(strings.TrimSpace(string(out)), ",")
-	if len(parts) != osascriptOutputParts {
-		return nil, fmt.Errorf("Unexpected AppleScript output %s: %w", out, exceptions.CapturerAppleScriptFailedException)
-	}
-
-	x, err := strconv.Atoi(strings.TrimSpace(parts[1]))
-	if err != nil {
-		return nil, fmt.Errorf("Parse window x from AppleScript: %w", err)
-	}
-	y, err := strconv.Atoi(strings.TrimSpace(parts[2]))
-	if err != nil {
-		return nil, fmt.Errorf("Parse window y from AppleScript: %w", err)
-	}
-	width, err := strconv.Atoi(strings.TrimSpace(parts[3]))
-	if err != nil {
-		return nil, fmt.Errorf("Parse window width from AppleScript: %w", err)
-	}
-	height, err := strconv.Atoi(strings.TrimSpace(parts[4]))
-	if err != nil {
-		return nil, fmt.Errorf("Parse window height from AppleScript: %w", err)
-	}
-
-	return &WindowInfo{
-		Title:  strings.TrimSpace(parts[0]),
-		X:      x,
-		Y:      y,
-		Width:  width,
-		Height: height,
-	}, nil
+	return parseWindowInfo(strings.TrimSpace(string(out)))
 }
 
 // ScreenSize returns the full screen dimensions of the main display using CoreGraphics.
 // Returns CapturerInvalidDisplayDimensionsException if the dimensions are invalid (zero or negative).
 func (capture *Capturer) ScreenSize() (int, int, error) {
-	width := int(C.getMainDisplayWidth())
-	height := int(C.getMainDisplayHeight())
+	width := core_graphics.GetMainDisplayWidth()
+	height := core_graphics.GetMainDisplayHeight()
 	if width <= 0 || height <= 0 {
 		return 0, 0, fmt.Errorf("invalid display dimensions: %dx%d: %w", width, height, exceptions.CapturerInvalidDisplayDimensionsException)
 	}
@@ -142,64 +170,29 @@ func (capture *Capturer) CaptureCenter(window *WindowInfo, bounds *image.Rectang
 		return nil, fmt.Errorf("Get screen size: %w", err)
 	}
 
-	var rect image.Rectangle
-	if bounds != nil {
-		rect = *bounds
-	} else {
-		captureX, captureY, captureW, captureH := window.X, window.Y, window.Width, window.Height
-		if window.Width >= screenW && window.Height >= screenH {
-			captureX, captureY = 0, 0
-			captureW, captureH = screenW, screenH
-		}
-		rect = image.Rect(captureX, captureY, captureX+captureW, captureY+captureH)
-	}
-
-	// Validate the rectangle before capture
-	if rect.Min.X >= rect.Max.X || rect.Min.Y >= rect.Max.Y {
-		return nil, fmt.Errorf("Invalid capture rectangle: min=(%d,%d) max=(%d,%d): %w",
-			rect.Min.X, rect.Min.Y, rect.Max.X, rect.Max.Y, exceptions.CapturerInvalidCaptureRectException)
-	}
-
-	// Clamp rectangle to screen bounds to avoid offscreen captures
-	if rect.Min.X < 0 {
-		rect.Min.X = 0
-	}
-	if rect.Min.Y < 0 {
-		rect.Min.Y = 0
-	}
-	if rect.Max.X > screenW {
-		rect.Max.X = screenW
-	}
-	if rect.Max.Y > screenH {
-		rect.Max.Y = screenH
+	rect, err := computeCaptureRect(window, bounds, screenW, screenH)
+	if err != nil {
+		return nil, err
 	}
 
 	width := rect.Max.X - rect.Min.X
 	height := rect.Max.Y - rect.Min.Y
-	if width <= 0 || height <= 0 {
-		return nil, fmt.Errorf("Invalid capture rectangle after clamping: width=%d height=%d: %w", width, height, exceptions.CapturerInvalidCaptureRectException)
-	}
 
 	// Call CoreGraphics to capture the screen region
-	var outLength C.int
-	pixelDataPtr := C.captureScreenRect(C.int(rect.Min.X), C.int(rect.Min.Y), C.int(width), C.int(height), &outLength)
-	if pixelDataPtr == nil {
+	pixelData, ok := core_graphics.CaptureScreenRect(rect.Min.X, rect.Min.Y, width, height)
+	if !ok {
 		return nil, fmt.Errorf("Screenshot capture failed: rect=(%d,%d)-(%d,%d): %w", rect.Min.X, rect.Min.Y, rect.Max.X, rect.Max.Y, exceptions.CapturerCaptureFailedException)
 	}
-	defer C.free(unsafe.Pointer(pixelDataPtr))
 
-	// Convert raw RGBA bytes to image.RGBA
+	// Validate returned buffer size
 	expectedSize := width * height * 4
-	if outLength != C.int(expectedSize) {
-		return nil, fmt.Errorf("Screenshot capture returned unexpected size: got %d bytes, expected %d: %w", outLength, expectedSize, exceptions.CapturerCaptureFailedException)
+	if len(pixelData) != expectedSize {
+		return nil, fmt.Errorf("Screenshot capture returned unexpected size: got %d bytes, expected %d: %w", len(pixelData), expectedSize, exceptions.CapturerCaptureFailedException)
 	}
-
-	// Create a Go slice from the C buffer
-	pixelSlice := unsafe.Slice((*byte)(pixelDataPtr), outLength)
 
 	// Create image.RGBA and copy pixel data
 	img := image.NewRGBA(image.Rect(0, 0, width, height))
-	copy(img.Pix, pixelSlice)
+	copy(img.Pix, pixelData)
 
 	return img, nil
 }

@@ -34,20 +34,20 @@ var (
 	ListenerEventTapCreateFailedException = errors.New("CGEventTapCreate failed — grant Accessibility permission to this app")
 )
 
-// Vision domain: OCR
+// OCR domain: text recognition
 var (
-	// VisionEmptyInputException is returned when the PNG data passed to the Vision framework is empty.
-	VisionEmptyInputException = errors.New("Empty PNG data")
-	// VisionOCRFailedException is returned when the Vision OCR engine fails to process the image (returns nil result).
-	VisionOCRFailedException = errors.New("Vision OCR returned null")
+	// OCREmptyInputException is returned when the PNG data passed to the OCR engine is empty.
+	OCREmptyInputException = errors.New("Empty PNG data")
+	// OCRFailedException is returned when the OCR engine fails to process the image (returns nil result).
+	OCRFailedException = errors.New("OCR returned null")
 )
 
-// Messenger domain: Telegram API
+// IM domain: Telegram API
 var (
-	// MessengerRateLimitException is returned when the Telegram API responds with HTTP 429 (Too Many Requests).
-	MessengerRateLimitException = errors.New("Rate limit")
-	// MessengerTelegramAPIException is returned when the Telegram API returns a non-200 error response.
-	MessengerTelegramAPIException = errors.New("Telegram error")
+	// IMRateLimitException is returned when the Telegram API responds with HTTP 429 (Too Many Requests).
+	IMRateLimitException = errors.New("Rate limit")
+	// IMTelegramAPIException is returned when the Telegram API returns a non-200 error response.
+	IMTelegramAPIException = errors.New("Telegram error")
 )
 
 // Pipeline domain: timeout errors

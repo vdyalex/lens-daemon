@@ -7,31 +7,38 @@ import (
 	"image"
 	"log/slog"
 	"strings"
-	"sync"
 
-	"github.com/vdyalex/lens-daemon/src/adapters/agent"
-	"github.com/vdyalex/lens-daemon/src/adapters/messenger"
-	"github.com/vdyalex/lens-daemon/src/adapters/messenger/poller"
-	"github.com/vdyalex/lens-daemon/src/adapters/messenger/subscriber"
+	"github.com/vdyalex/lens-daemon/src/adapters/ai"
+	"github.com/vdyalex/lens-daemon/src/adapters/im"
+	"github.com/vdyalex/lens-daemon/src/adapters/im/poller"
+	"github.com/vdyalex/lens-daemon/src/adapters/im/store"
 	"github.com/vdyalex/lens-daemon/src/modules/capturer"
 	"github.com/vdyalex/lens-daemon/src/modules/extractor"
 	"github.com/vdyalex/lens-daemon/src/modules/listener"
-	"github.com/vdyalex/lens-daemon/src/types"
 	"github.com/vdyalex/lens-daemon/src/utils/config"
 	"github.com/vdyalex/lens-daemon/src/utils/exceptions"
 )
 
-// Pipeline orchestrates the full screen-monitor workflow.
-type Pipeline struct {
-	settings      *config.Config
-	logger        *slog.Logger
-	capturer      *capturer.Capturer
-	extractor     *extractor.Extractor
-	agent         types.AgentProcessor
-	messenger     types.MessengerBroadcaster
-	poller        *poller.Poller
-	boundsMu      sync.RWMutex
-	captureBounds *image.Rectangle
+// NewWithDependencies creates a pipeline with injectable dependencies.
+// This is primarily used for testing with mock implementations.
+func NewWithDependencies(
+	settings *config.Config,
+	logger *slog.Logger,
+	capturer capturer.Service,
+	extractor extractor.Service,
+	agent ai.Processor,
+	broadcaster im.Broadcaster,
+	pollerService poller.Service,
+) *Pipeline {
+	return &Pipeline{
+		settings:  settings,
+		logger:    logger,
+		capturer:  capturer,
+		extractor: extractor,
+		agent:     agent,
+		messenger: broadcaster,
+		poller:    pollerService,
+	}
 }
 
 // New creates a fully wired pipeline from settings.
@@ -39,26 +46,27 @@ type Pipeline struct {
 func New(settings *config.Config, logger *slog.Logger) (*Pipeline, error) {
 	ocr := extractor.New(settings.VisionLanguage, settings.VisionAccuracy)
 
-	store, err := subscriber.NewStore(settings.SubscriberStorePath, logger)
+	store, err := store.NewStore(settings.SubscriberStorePath, logger)
 	if err != nil {
 		return nil, err
 	}
 
-	return &Pipeline{
-		settings:  settings,
-		logger:    logger,
-		capturer:  capturer.New(),
-		extractor: ocr,
-		agent:     agent.New(settings.AnthropicAPIKey, settings.ClaudeModel, settings.SystemPrompt, settings.ClaudeMaxResponseTokens),
-		messenger: messenger.New(settings.TelegramBotToken, store, logger, settings.TelegramMessageChunkSize, settings.TelegramMaxRetries, settings.TelegramHTTPClientTimeout),
-		poller:    poller.New(settings.TelegramBotToken, store, logger, settings.TelegramLongPollTimeout, settings.TelegramPollerTimeout, settings.TelegramHTTPClientTimeout),
-	}, nil
+	pipeline := NewWithDependencies(
+		settings,
+		logger,
+		capturer.New(),
+		ocr,
+		ai.New(settings.AnthropicAPIKey, settings.AnthropicModel, settings.AnthropicSystemPrompt, settings.AnthropicMaxResponseTokens),
+		im.New(settings.TelegramBotToken, store, logger, settings.TelegramMessageChunkSize, settings.TelegramMaxRetries, settings.TelegramHTTPClientTimeout),
+		poller.New(settings.TelegramBotToken, store, logger, settings.TelegramLongPollTimeout, settings.TelegramPollerTimeout, settings.TelegramHTTPClientTimeout),
+	)
+	return pipeline, nil
 }
 
-// process runs a single capture-to-broadcast cycle: detect foreground window, capture screenshot,
+// Process runs a single capture-to-broadcast cycle: detect foreground window, capture screenshot,
 // extract text via OCR, send to Claude AI, and broadcast response to Telegram subscribers.
 // Returns nil on success; logs warnings for non-fatal conditions (empty OCR/response).
-func (pipeline *Pipeline) process(ctx context.Context) error {
+func (pipeline *Pipeline) Process(ctx context.Context) error {
 	// Step 1: Detect the foreground window
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, pipeline.settings.TimeoutForegroundWindow)
 	defer cancel()
@@ -148,7 +156,7 @@ func (pipeline *Pipeline) process(ctx context.Context) error {
 	pipeline.logger.Debug("OCR text content", slog.String("text", text))
 
 	// Step 4: Process with Anthropic
-	agentCtx, agentCancel := context.WithTimeout(ctx, pipeline.settings.TimeoutAgentProcess)
+	agentCtx, agentCancel := context.WithTimeout(ctx, pipeline.settings.TimeoutAIProcess)
 	defer agentCancel()
 	response, err := pipeline.agent.Process(agentCtx, text)
 	if err != nil {
@@ -164,9 +172,9 @@ func (pipeline *Pipeline) process(ctx context.Context) error {
 	pipeline.logger.Debug("Anthropic response content", slog.String("response", response))
 
 	// Step 5: Broadcast to Telegram subscribers
-	telegramCtx, telegramCancel := context.WithTimeout(ctx, pipeline.settings.TimeoutTelegramBroadcast)
-	defer telegramCancel()
-	if err := pipeline.messenger.Broadcast(telegramCtx, response); err != nil {
+	broadcastCtx, broadcastCancel := context.WithTimeout(ctx, pipeline.settings.TelegramBroadcastTimeout)
+	defer broadcastCancel()
+	if err := pipeline.messenger.Broadcast(broadcastCtx, response); err != nil {
 		return err
 	}
 	pipeline.logger.Info("Broadcast to Telegram subscribers successfully")
@@ -209,7 +217,7 @@ func (pipeline *Pipeline) Run(ctx context.Context) error {
 		for range queue {
 			// Create a context for this run (allows long OCR+API calls)
 			runCtx, cancel := context.WithTimeout(ctx, pipeline.settings.TimeoutPipelineOverall)
-			if err := pipeline.process(runCtx); err != nil && !errors.Is(err, context.Canceled) {
+			if err := pipeline.Process(runCtx); err != nil && !errors.Is(err, context.Canceled) {
 				pipeline.logger.Error("Pipeline error", "error", err)
 			}
 			cancel()

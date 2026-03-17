@@ -16,9 +16,9 @@
     <key>ANTHROPIC_API_KEY</key><string>__ANTHROPIC_API_KEY__</string>
     <key>TELEGRAM_BOT_TOKEN</key><string>__TELEGRAM_BOT_TOKEN__</string>
     <key>LOG_LEVEL</key><string>__LOG_LEVEL__</string>
-    <key>CLAUDE_MODEL</key><string>__CLAUDE_MODEL__</string>
+    <key>ANTHROPIC_MODEL</key><string>__ANTHROPIC_MODEL__</string>
     <key>VISION_LANG</key><string>__VISION_LANG__</string>
-    <key>SYSTEM_PROMPT</key><string>__SYSTEM_PROMPT__</string>
+    <key>ANTHROPIC_SYSTEM_PROMPT</key><string>__ANTHROPIC_SYSTEM_PROMPT__</string>
     <key>SUBSCRIBER_STORE_PATH</key><string>__SUBSCRIBER_STORE_PATH__</string>
   </dict>
   <key>KeepAlive</key><true/>

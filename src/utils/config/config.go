@@ -14,47 +14,6 @@ import (
 
 var logger = slog.New(slog.NewTextHandler(os.Stderr, nil))
 
-// Config holds all application configuration loaded from environment variables.
-type Config struct {
-	// Logging settings
-	LogLevel slog.Level // Minimum log level (LOG_LEVEL, default: info)
-
-	// OCR settings
-	VisionLanguage string // VISION_LANG: Vision language (BCP 47, e.g., "en-US", default: "en-US")
-	VisionAccuracy string // VISION_ACCURACY: OCR accuracy level ("accurate" or "fast", default: "accurate")
-
-	// Claude AI settings
-	AnthropicAPIKey         string
-	ClaudeModel             string
-	SystemPrompt            string
-	ClaudeMaxResponseTokens int // CLAUDE_MAX_RESPONSE_TOKENS: max tokens per Claude API call (default: 1024)
-
-	// Telegram settings
-	TelegramBotToken          string
-	SubscriberStorePath       string        // File path for subscriber list (default: "tmp/subscribers")
-	TelegramMessageChunkSize  int           // TELEGRAM_MESSAGE_CHUNK_SIZE: max runes per message (default: 4096)
-	TelegramMaxRetries        int           // TELEGRAM_MAX_RETRIES: retry attempts on rate limit (default: 1)
-	TelegramLongPollTimeout   time.Duration // TELEGRAM_LONG_POLL_TIMEOUT: server-side long-poll timeout (default: 30s)
-	TelegramPollerTimeout     time.Duration // TELEGRAM_POLLER_TIMEOUT: context timeout for poller (default: 35s)
-	TelegramHTTPClientTimeout time.Duration // TELEGRAM_HTTP_CLIENT_TIMEOUT: HTTP client timeout (default: 30s)
-
-	// Pipeline timeouts
-	TimeoutPipelineOverall   time.Duration // TIMEOUT_PIPELINE_OVERALL: total capture-to-broadcast time (default: 5m)
-	TimeoutForegroundWindow  time.Duration // TIMEOUT_FOREGROUND_WINDOW: window detection timeout (default: 5s)
-	TimeoutCapture           time.Duration // TIMEOUT_CAPTURE: screenshot capture timeout (default: 30s)
-	TimeoutOCRExtract        time.Duration // TIMEOUT_OCR_EXTRACT: OCR extraction timeout (default: 30s)
-	TimeoutAgentProcess      time.Duration // TIMEOUT_AGENT_PROCESS: Claude API call timeout (default: 60s)
-	TimeoutTelegramBroadcast time.Duration // TIMEOUT_TELEGRAM_BROADCAST: broadcast to subscribers timeout (default: 30s)
-
-	// Event listener settings
-	EventTapPollInterval time.Duration // EVENT_TAP_POLL_INTERVAL: CFRunLoop polling interval (default: 500ms)
-	HotkeyTriggerKeycode int           // Resolved from HOTKEY_TRIGGER_KEYNAME env var (default: RightShift)
-	HotkeyBoundsKeycode  int           // Resolved from HOTKEY_BOUNDS_KEYNAME env var (default: RightOption)
-
-	// Worker settings
-	WorkerQueueCapacity int // WORKER_QUEUE_CAPACITY: capture queue buffer size (default: 1)
-}
-
 // getStr retrieves a string environment variable, returning fallback if not set.
 func getStr(key, fallback string) string {
 	if value := os.Getenv(key); value != "" {
@@ -96,8 +55,8 @@ func getLogLevel(key string, fallback slog.Level) slog.Level {
 // Returns fallback if the variable is absent or invalid.
 func getDuration(key string, fallback time.Duration) time.Duration {
 	if value := os.Getenv(key); value != "" {
-		if d, err := time.ParseDuration(value); err == nil {
-			return d
+		if duration, err := time.ParseDuration(value); err == nil {
+			return duration
 		}
 		logger.Warn("Invalid duration value, using default", "key", key, "value", value, "fallback", fallback.String())
 	}
@@ -127,28 +86,28 @@ func Load() (*Config, error) {
 	_ = godotenv.Load() // Load .env if present; no-op if absent or already-set vars are preserved
 
 	cfg := &Config{
-		LogLevel:                  getLogLevel("LOG_LEVEL", slog.LevelInfo),
-		VisionLanguage:            getStr("VISION_LANG", "en-US"),
-		VisionAccuracy:            getStr("VISION_ACCURACY", "accurate"),
-		AnthropicAPIKey:           getStr("ANTHROPIC_API_KEY", ""),
-		ClaudeModel:               getStr("CLAUDE_MODEL", "claude-sonnet-4-6"),
-		SystemPrompt:              getStr("SYSTEM_PROMPT", "You're a questionnaire assistant. Provide quick, accurate responses with maximum efficiency."),
-		ClaudeMaxResponseTokens:   getInt("CLAUDE_MAX_RESPONSE_TOKENS", constants.ClaudeMaxResponseTokens),
-		TelegramBotToken:          getStr("TELEGRAM_BOT_TOKEN", ""),
-		SubscriberStorePath:       getStr("SUBSCRIBER_STORE_PATH", "tmp/subscribers"),
-		TelegramMessageChunkSize:  getInt("TELEGRAM_MESSAGE_CHUNK_SIZE", constants.TelegramMessageChunkSize),
-		TelegramMaxRetries:        getInt("TELEGRAM_MAX_RETRIES", constants.TelegramMaxRetries),
-		TelegramLongPollTimeout:   getDuration("TELEGRAM_LONG_POLL_TIMEOUT", constants.TimeoutTelegramLongPoll),
-		TelegramPollerTimeout:     getDuration("TELEGRAM_POLLER_TIMEOUT", constants.TimeoutTelegramPoller),
-		TelegramHTTPClientTimeout: getDuration("TELEGRAM_HTTP_CLIENT_TIMEOUT", constants.TimeoutTelegramHTTPClient),
-		TimeoutPipelineOverall:    getDuration("TIMEOUT_PIPELINE_OVERALL", constants.TimeoutPipelineOverall),
-		TimeoutForegroundWindow:   getDuration("TIMEOUT_FOREGROUND_WINDOW", constants.TimeoutForegroundWindow),
-		TimeoutCapture:            getDuration("TIMEOUT_CAPTURE", constants.TimeoutCapture),
-		TimeoutOCRExtract:         getDuration("TIMEOUT_OCR_EXTRACT", constants.TimeoutOCRExtract),
-		TimeoutAgentProcess:       getDuration("TIMEOUT_AGENT_PROCESS", constants.TimeoutAgentProcess),
-		TimeoutTelegramBroadcast:  getDuration("TIMEOUT_TELEGRAM_BROADCAST", constants.TimeoutTelegramBroadcast),
-		EventTapPollInterval:      getDuration("EVENT_TAP_POLL_INTERVAL", constants.EventTapPollInterval),
-		WorkerQueueCapacity:       getInt("WORKER_QUEUE_CAPACITY", constants.WorkerQueueCapacity),
+		LogLevel:                   getLogLevel("LOG_LEVEL", slog.LevelInfo),
+		VisionLanguage:             getStr("VISION_LANG", "en-US"),
+		VisionAccuracy:             getStr("VISION_ACCURACY", "accurate"),
+		AnthropicAPIKey:            getStr("ANTHROPIC_API_KEY", ""),
+		AnthropicModel:             getStr("ANTHROPIC_MODEL", "claude-sonnet-4-6"),
+		AnthropicSystemPrompt:      getStr("ANTHROPIC_SYSTEM_PROMPT", "You're a questionnaire assistant. Provide quick, accurate responses with maximum efficiency."),
+		AnthropicMaxResponseTokens: getInt("ANTHROPIC_MAX_RESPONSE_TOKENS", constants.AnthropicMaxResponseTokens),
+		TelegramBotToken:           getStr("TELEGRAM_BOT_TOKEN", ""),
+		SubscriberStorePath:        getStr("SUBSCRIBER_STORE_PATH", "tmp/subscribers"),
+		TelegramMessageChunkSize:   getInt("TELEGRAM_MESSAGE_CHUNK_SIZE", constants.TelegramMessageChunkSize),
+		TelegramMaxRetries:         getInt("TELEGRAM_MAX_RETRIES", constants.TelegramMaxRetries),
+		TelegramLongPollTimeout:    getDuration("TELEGRAM_LONG_POLL_TIMEOUT", constants.TimeoutTelegramLongPoll),
+		TelegramPollerTimeout:      getDuration("TELEGRAM_POLLER_TIMEOUT", constants.TimeoutTelegramPoller),
+		TelegramHTTPClientTimeout:  getDuration("TELEGRAM_HTTP_CLIENT_TIMEOUT", constants.TimeoutTelegramHTTPClient),
+		TimeoutPipelineOverall:     getDuration("TIMEOUT_PIPELINE_OVERALL", constants.TimeoutPipelineOverall),
+		TimeoutForegroundWindow:    getDuration("TIMEOUT_FOREGROUND_WINDOW", constants.TimeoutForegroundWindow),
+		TimeoutCapture:             getDuration("TIMEOUT_CAPTURE", constants.TimeoutCapture),
+		TimeoutOCRExtract:          getDuration("TIMEOUT_OCR_EXTRACT", constants.TimeoutOCRExtract),
+		TimeoutAIProcess:           getDuration("TIMEOUT_AI_PROCESS", constants.TimeoutAIProcess),
+		TelegramBroadcastTimeout:   getDuration("TELEGRAM_BROADCAST_TIMEOUT", constants.TelegramBroadcastTimeout),
+		EventTapPollInterval:       getDuration("EVENT_TAP_POLL_INTERVAL", constants.EventTapPollInterval),
+		WorkerQueueCapacity:        getInt("WORKER_QUEUE_CAPACITY", constants.WorkerQueueCapacity),
 	}
 
 	if cfg.AnthropicAPIKey == "" {

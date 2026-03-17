@@ -6,7 +6,7 @@ import (
 	"image"
 	"image/png"
 
-	"github.com/vdyalex/lens-daemon/src/adapters/vision"
+	"github.com/vdyalex/lens-daemon/src/adapters/ocr"
 )
 
 // encodeImage encodes an RGBA image to PNG bytes.
@@ -18,17 +18,18 @@ func encodeImage(image *image.RGBA) ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
-// Extractor extracts text from an in-memory image using Apple's Vision framework.
-type Extractor struct {
-	client *vision.Client
-}
-
 // New creates an extractor using the Vision framework adapter.
 // language should be a BCP 47 code (e.g., "en-US", "zh-Hans", "ja", "ko").
 // accuracy should be "accurate" or "fast"; any other value defaults to "accurate".
 func New(language, accuracy string) *Extractor {
+	return NewWithClient(ocr.New(language, accuracy))
+}
+
+// NewWithClient creates an extractor with an injectable OCR client.
+// This is primarily used for testing.
+func NewWithClient(client OCRClient) *Extractor {
 	return &Extractor{
-		client: vision.New(language, accuracy),
+		client: client,
 	}
 }
 

@@ -9,7 +9,7 @@ Hotkey (configurable) → Screen Capture → OCR → Claude AI → Telegram
 ```
 
 1. **Hotkey** — global keyboard listener via MacOS `CGEventTap`. Default: `RightShift` key. Customizable via `HOTKEY_TRIGGER_KEYNAME` environment variable
-2. **Capture** — grabs the entire active window via AppleScript and CoreGraphics (direct CGo bridge, no external libraries). Default: hold `RightOption` key to define custom bounds. Customizable via `HOTKEY_BOUNDS_KEYNAME`
+2. **Capture** — grabs the entire active window via AppleScript and CoreGraphics (direct Objective-C bridge via `src/bridges/core_graphics`, no external libraries). Default: hold `RightOption` key to define custom bounds. Customizable via `HOTKEY_BOUNDS_KEYNAME`
 3. **OCR** — extracts text from the image using Apple Vision framework, entirely in-memory
 4. **AI** — sends extracted text to Claude with a configurable system prompt (max 1024 response tokens)
 5. **Notify** — broadcasts Claude's response to all Telegram subscribers, auto-chunking messages exceeding 4096 runes
@@ -55,8 +55,8 @@ All configuration is done through environment variables. Copy `.env.example` to 
 | Variable | Default | Description |
 |---|---|---|
 | `SUBSCRIBER_STORE_PATH` | `tmp/subscribers`* | File path for the subscriber list (persists users who sent `/start`) |
-| `VISION_ACCURACY` | `accurate` | OCR accuracy level: `accurate` (slower, higher quality) or `fast` (faster, lower quality) |
-| `CLAUDE_MAX_RESPONSE_TOKENS` | `1024` | Maximum tokens per Claude API response |
+| `VISION_ACCURACY` | `accurate` | Vision accuracy level: `accurate` (slower, higher quality) or `fast` (faster, lower quality) |
+| `ANTHROPIC_MAX_RESPONSE_TOKENS` | `1024` | Maximum tokens per Anthropic API response |
 | `TELEGRAM_MESSAGE_CHUNK_SIZE` | `4096` | Maximum runes per Telegram message (auto-splits longer responses) |
 | `TELEGRAM_MAX_RETRIES` | `1` | Retry attempts on Telegram rate limit (HTTP 429) |
 | `TELEGRAM_LONG_POLL_TIMEOUT` | `30s` | Server-side long-poll timeout for Telegram updates |
@@ -66,14 +66,14 @@ All configuration is done through environment variables. Copy `.env.example` to 
 | `TIMEOUT_FOREGROUND_WINDOW` | `5s` | Deadline for detecting the active window via AppleScript |
 | `TIMEOUT_CAPTURE` | `30s` | Deadline for taking a screenshot |
 | `TIMEOUT_OCR_EXTRACT` | `30s` | Deadline for OCR text extraction via Vision framework |
-| `TIMEOUT_AGENT_PROCESS` | `60s` | Deadline for Claude API call and response |
-| `TIMEOUT_TELEGRAM_BROADCAST` | `30s` | Deadline for broadcasting to all subscribers |
+| `TIMEOUT_AI_PROCESS` | `60s` | Deadline for Claude AI API call and response |
+| `TELEGRAM_BROADCAST_TIMEOUT` | `30s` | Deadline for broadcasting to all subscribers |
 | `EVENT_TAP_POLL_INTERVAL` | `500ms` | CFRunLoop polling interval for keyboard event detection |
 | `WORKER_QUEUE_CAPACITY` | `1` | Buffer size for capture queue (only 1 concurrent capture allowed; additional triggers are dropped) |
 | `LOG_LEVEL` | `info` | Minimum log level (`debug`, `info`, `warn`, `error`) |
-| `VISION_LANG` | `en-US` | OCR language (BCP 47 code, e.g., `en-US`, `fr-FR`, `de-DE`, `zh-Hans`, `ja`, `ko`) |
-| `CLAUDE_MODEL` | `claude-sonnet-4-6` | Claude model ID to use for AI processing |
-| `SYSTEM_PROMPT` | *(built-in)* | System prompt sent to Claude with each request |
+| `VISION_LANG` | `en-US` | Vision language (BCP 47 code, e.g., `en-US`, `fr-FR`, `de-DE`, `zh-Hans`, `ja`, `ko`) |
+| `ANTHROPIC_MODEL` | `claude-sonnet-4-6` | Anthropic model ID to use for AI processing |
+| `ANTHROPIC_SYSTEM_PROMPT` | *(built-in)* | System prompt sent to Anthropic with each request |
 | `HOTKEY_TRIGGER_KEYNAME` | `RightShift` | Hotkey to trigger capture (see [Hotkey Configuration](#-hotkey-configuration) below) |
 | `HOTKEY_BOUNDS_KEYNAME` | `RightOption` | Hotkey to define custom capture bounds (see [Hotkey Configuration](#-hotkey-configuration) below) |
 
@@ -158,7 +158,7 @@ The service will:
 | `make service-logs` | View real-time service logs |
 | `make service-uninstall` | Uninstall and remove the service |
 
-The service is managed as a MacOS LaunchAgent (`com.vdyalex.lensd`). The following environment variables from your `.env` file are embedded into the LaunchAgent plist at installation time: `ANTHROPIC_API_KEY`, `TELEGRAM_BOT_TOKEN`, `LOG_LEVEL`, `CLAUDE_MODEL`, `VISION_LANG`, `SYSTEM_PROMPT`, `SUBSCRIBER_STORE_PATH`. Other optional variables (timeouts, accuracy modes, etc.) will use their built-in defaults unless you modify the plist directly.
+The service is managed as a MacOS LaunchAgent (`com.vdyalex.lensd`). The following environment variables from your `.env` file are embedded into the LaunchAgent plist at installation time: `ANTHROPIC_API_KEY`, `TELEGRAM_BOT_TOKEN`, `LOG_LEVEL`, `ANTHROPIC_MODEL`, `VISION_LANG`, `ANTHROPIC_SYSTEM_PROMPT`, `SUBSCRIBER_STORE_PATH`. Other optional variables (timeouts, accuracy modes, etc.) will use their built-in defaults unless you modify the plist directly.
 
 After installation, you may need to re-grant **Accessibility** and **Screen Recording** permissions in System Settings if they don't automatically persist. See [Permissions](#-permissions) below.
 

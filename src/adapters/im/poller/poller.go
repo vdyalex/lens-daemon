@@ -10,37 +10,29 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vdyalex/lens-daemon/src/adapters/messenger/subscriber"
-	"github.com/vdyalex/lens-daemon/src/types"
+	"github.com/vdyalex/lens-daemon/src/adapters/im"
+	"github.com/vdyalex/lens-daemon/src/adapters/im/store"
 	"github.com/vdyalex/lens-daemon/src/utils/constants"
 	"github.com/vdyalex/lens-daemon/src/utils/exceptions"
 )
 
-// Poller long-polls Telegram's getUpdates API and dispatches /start and /stop commands
-// to the subscriber store. It runs in a background goroutine.
-type Poller struct {
-	token             string
-	store             *subscriber.Store
-	client            types.MessengerHTTPClient
-	logger            *slog.Logger
-	offset            int64
-	longPollTimeout   time.Duration
-	pollerTimeout     time.Duration
-	httpClientTimeout time.Duration
+// NewWithClient creates a Poller with a custom HTTP client.
+// This is primarily used for testing with mock HTTP clients.
+func NewWithClient(token string, store *store.Store, client im.HTTPClient, logger *slog.Logger, longPollTimeout, pollerTimeout time.Duration) *Poller {
+	return &Poller{
+		token:           token,
+		store:           store,
+		client:          client,
+		logger:          logger,
+		offset:          0,
+		longPollTimeout: longPollTimeout,
+		pollerTimeout:   pollerTimeout,
+	}
 }
 
 // New creates a Poller. The offset starts at 0 and is advanced as updates are processed.
-func New(token string, store *subscriber.Store, logger *slog.Logger, longPollTimeout, pollerTimeout, httpClientTimeout time.Duration) *Poller {
-	return &Poller{
-		token:             token,
-		store:             store,
-		client:            &http.Client{Timeout: httpClientTimeout},
-		logger:            logger,
-		offset:            0,
-		longPollTimeout:   longPollTimeout,
-		pollerTimeout:     pollerTimeout,
-		httpClientTimeout: httpClientTimeout,
-	}
+func New(token string, store *store.Store, logger *slog.Logger, longPollTimeout, pollerTimeout, httpClientTimeout time.Duration) *Poller {
+	return NewWithClient(token, store, &http.Client{Timeout: httpClientTimeout}, logger, longPollTimeout, pollerTimeout)
 }
 
 // Run polls for updates indefinitely until ctx is cancelled.
@@ -88,15 +80,15 @@ func (poller *Poller) poll(ctx context.Context) error {
 	defer response.Body.Close()
 
 	var result struct {
-		OK          bool                    `json:"ok"`
-		Result      []types.MessengerUpdate `json:"result"`
-		Description string                  `json:"description"`
+		OK          bool        `json:"ok"`
+		Result      []im.Update `json:"result"`
+		Description string      `json:"description"`
 	}
 	if err := json.NewDecoder(response.Body).Decode(&result); err != nil {
 		return err
 	}
 	if !result.OK {
-		return fmt.Errorf("%w: %s", exceptions.MessengerTelegramAPIException, result.Description)
+		return fmt.Errorf("%w: %s", exceptions.IMTelegramAPIException, result.Description)
 	}
 
 	for _, update := range result.Result {
@@ -111,12 +103,12 @@ func (poller *Poller) poll(ctx context.Context) error {
 
 // handleUpdate processes a single Telegram update.
 // /start adds the chat to the store; /stop removes it.
-func (poller *Poller) handleUpdate(u types.MessengerUpdate) error {
-	if u.Message == nil || u.Message.Text == "" {
+func (poller *Poller) handleUpdate(update im.Update) error {
+	if update.Message == nil || update.Message.Text == "" {
 		return nil
 	}
-	text := strings.TrimSpace(u.Message.Text)
-	chatID := u.Message.Chat.ID
+	text := strings.TrimSpace(update.Message.Text)
+	chatID := update.Message.Chat.ID
 
 	switch text {
 	case "/start":

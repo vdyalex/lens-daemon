@@ -6,15 +6,19 @@ The application follows a clean layered architecture with interface-based design
 
 **Modules** handle MacOS-specific operations:
 - **Listener** -- global hotkey detection and bounds tracking via `CGEventTap` (cgo)
-- **Capturer** -- foreground window detection (AppleScript) and screenshot capture
+- **Capturer** -- foreground window detection (AppleScript) and screenshot capture, using `src/bridges/core_graphics` for CoreGraphics calls
 - **Extractor** -- OCR text extraction interface consumed by the pipeline
 
 **Adapters** integrate with external services:
-- **Agent** -- Claude AI client using the official Anthropic Go SDK
-- **Messenger** -- Telegram Bot API sender with message chunking and MarkdownV2 formatting
-- **Poller** -- Telegram long-polling for subscriber management (`/start`, `/stop` commands)
-- **Subscriber Store** -- JSON-backed persistence for subscriber chat IDs
-- **Vision** -- Objective-C bridge to Apple's Vision framework for OCR
+- **AI** -- Claude AI client using the official Anthropic Go SDK (package `ai`)
+- **IM** -- Telegram Bot API sender with message chunking and MarkdownV2 formatting (package `im`)
+  - **Poller** -- Telegram long-polling for subscriber management (`/start`, `/stop` commands) (package `im/poller`)
+  - **Store** -- plain-text file-backed persistence for subscriber chat IDs (package `im/store`)
+- **OCR** -- Apple Vision framework adapter wrapping `src/bridges/vision` (package `ocr`)
+
+**Bridges** separate CGo boundaries into dedicated packages:
+- **`src/bridges/vision`** -- Objective-C wrapper for Apple Vision framework OCR (`visionRecognizeText`)
+- **`src/bridges/core_graphics`** -- Objective-C wrappers for CoreGraphics screen capture and display queries (`captureScreenRect`, `getMainDisplayWidth`, `getMainDisplayHeight`)
 
 **Pipeline** orchestrates the full workflow, wiring all components together at startup and processing each hotkey trigger through the sequential capture-OCR-AI-Telegram flow.
 
@@ -27,11 +31,11 @@ flowchart TD
 
     subgraph Init[Initialization]
         C --> D[extractor.New<br/>Vision OCR extractor]
-        C --> E[subscriber.NewStore<br/>Load subscriber list from JSON]
-        C --> F[messenger.New<br/>Telegram broadcaster]
+        C --> E[store.NewStore<br/>Load subscriber list from file]
+        C --> F[im.New<br/>Telegram broadcaster]
         C --> G[poller.New<br/>Telegram subscriber poller]
         C --> H[capturer.New<br/>MacOS capturer]
-        C --> I[agent.New<br/>Anthropic SDK client]
+        C --> I[ai.New<br/>Anthropic SDK client]
     end
 
     Init --> J[signal.Notify<br/>SIGINT / SIGTERM]
