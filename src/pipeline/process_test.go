@@ -395,12 +395,9 @@ func TestProcess_goroutineContextCheckOnExpiredContext(t *testing.T) {
 
 	p := createTestPipeline(t, mocks)
 
-	// Use a very short timeout that expires before process runs
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
-	defer cancel()
-
-	// Give timeout time to expire
-	time.Sleep(5 * time.Millisecond)
+	// Create an already-cancelled context to test expiration handling
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
 
 	err := p.Process(ctx)
 

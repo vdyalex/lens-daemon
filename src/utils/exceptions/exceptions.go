@@ -57,3 +57,31 @@ var (
 	// ErrPipelineOCRTimeout is returned when the OCR extraction step exceeds its timeout threshold.
 	ErrPipelineOCRTimeout = errors.New("ocr timeout")
 )
+
+// Config file domain
+var (
+	// ErrConfigFileNotFound is returned when the config file does not exist.
+	ErrConfigFileNotFound = errors.New("config file not found")
+	// ErrConfigFileParseFailed is returned when the config file exists but cannot be parsed.
+	ErrConfigFileParseFailed = errors.New("config file parse failed")
+)
+
+// IPC domain
+var (
+	// ErrIPCNotConnected is returned when the IPC client cannot connect to the daemon socket.
+	ErrIPCNotConnected = errors.New("ipc not connected")
+	// ErrIPCCommandFailed is returned when an IPC command returns an error response.
+	ErrIPCCommandFailed = errors.New("ipc command failed")
+	// ErrIPCProtocolError is returned when the IPC framing protocol is violated.
+	ErrIPCProtocolError = errors.New("ipc protocol error")
+)
+
+// Daemon domain
+var (
+	// ErrDaemonNotRunning is returned when the daemon PID file does not exist.
+	ErrDaemonNotRunning = errors.New("daemon not running")
+	// ErrDaemonAlreadyRunning is returned when an attempt is made to start a daemon that is already running.
+	ErrDaemonAlreadyRunning = errors.New("daemon already running")
+	// ErrPIDFileStale is returned when the PID file exists but the process is not running.
+	ErrPIDFileStale = errors.New("pid file stale")
+)

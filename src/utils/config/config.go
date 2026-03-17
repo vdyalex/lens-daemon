@@ -18,15 +18,17 @@ type loader struct {
 	logger *slog.Logger
 }
 
-// getStr retrieves a string environment variable, returning fallback if not set.
-func (l *loader) getStr(key, fallback string) string {
+// getStr retrieves a string environment variable, then fallback.
+// Precedence: env var > fallback
+func (l *loader) getStr(key string, fallback string) string {
 	if value := os.Getenv(key); value != "" {
 		return value
 	}
 	return fallback
 }
 
-// getInt retrieves an integer environment variable, returning fallback if not set or invalid.
+// getInt retrieves an integer environment variable, then fallback.
+// Precedence: env var > fallback
 // Logs a warning if the env var value cannot be parsed as an integer.
 func (l *loader) getInt(key string, fallback int) int {
 	if value := os.Getenv(key); value != "" {
@@ -40,22 +42,22 @@ func (l *loader) getInt(key string, fallback int) int {
 
 // getLogLevel parses the named environment variable as a log level string.
 // Accepted values (case-insensitive): "debug", "info", "warn", "error".
+// Precedence: env var > fallback
 // Returns fallback if the variable is absent or unrecognised.
 func (l *loader) getLogLevel(key string, fallback slog.Level) slog.Level {
-	value := os.Getenv(key)
-	if value == "" {
-		return fallback
-	}
-	var level slog.Level
-	if err := level.UnmarshalText([]byte(value)); err != nil {
+	if value := os.Getenv(key); value != "" {
+		var level slog.Level
+		if err := level.UnmarshalText([]byte(value)); err == nil {
+			return level
+		}
 		l.logger.Warn("invalid log level value, using default", "key", key, "value", value, "fallback", fallback.String())
-		return fallback
 	}
-	return level
+	return fallback
 }
 
 // getDuration parses the named environment variable as a time.Duration.
 // Accepted formats: "300ms", "1.5h", "2h45m", etc. (see time.ParseDuration).
+// Precedence: env var > fallback
 // Returns fallback if the variable is absent or invalid.
 func (l *loader) getDuration(key string, fallback time.Duration) time.Duration {
 	if value := os.Getenv(key); value != "" {
@@ -67,40 +69,33 @@ func (l *loader) getDuration(key string, fallback time.Duration) time.Duration {
 	return fallback
 }
 
-// Load reads application configuration from environment variables.
+// Load reads application configuration from environment variables and .env file.
 //
-// Environment Variable Precedence and Loading:
-//  1. godotenv.Load() loads variables from .env file (safe variant: does NOT override already-set vars)
-//  2. os.Getenv() reads variables in this order (first match wins):
-//     a. Variables already set in the shell environment (highest priority)
-//     b. Variables loaded from .env by godotenv (only if not in shell env)
-//     c. Default fallback values defined in config struct
-//
-// Typical usage patterns:
-// - Development: .env file contains config, loaded automatically on startup
-// - Service (MacOS LaunchAgent): env vars embedded in plist take precedence, .env is supplementary
-// - CI/Container: env vars injected before process start, .env file optional
+// Precedence Chain (highest to lowest):
+//  1. Environment variables (either shell-set or passed from flags)
+//  2. .env file variables (loaded via godotenv.Load)
+//  3. Compiled default values
 //
 // Required env vars: ANTHROPIC_API_KEY, TELEGRAM_BOT_TOKEN.
-// Optional env vars are loaded with sensible defaults (see Config struct field comments).
 // Returns ErrConfigMissingAPIKey if ANTHROPIC_API_KEY is not set.
 // Returns ErrConfigMissingBotToken if TELEGRAM_BOT_TOKEN is not set.
 // Returns ErrConfigInvalidHotkey if HOTKEY_TRIGGER_KEYNAME or HOTKEY_BOUNDS_KEYNAME are invalid.
 func Load() (*Config, error) {
 	_ = godotenv.Load() // Load .env if present; no-op if absent or already-set vars are preserved
 
-	ldr := &loader{logger: slog.New(slog.NewTextHandler(os.Stderr, nil))}
+	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
+	ldr := &loader{logger: logger}
 
 	cfg := &Config{
 		LogLevel:                   ldr.getLogLevel("LOG_LEVEL", slog.LevelInfo),
-		VisionLanguage:             ldr.getStr("VISION_LANG", "en-US"),
-		VisionAccuracy:             ldr.getStr("VISION_ACCURACY", "accurate"),
+		VisionLanguage:             ldr.getStr("VISION_LANG", constants.DefaultVisionLanguage),
+		VisionAccuracy:             ldr.getStr("VISION_ACCURACY", constants.DefaultVisionAccuracy),
 		AnthropicAPIKey:            ldr.getStr("ANTHROPIC_API_KEY", ""),
-		AnthropicModel:             ldr.getStr("ANTHROPIC_MODEL", "claude-sonnet-4-6"),
-		AnthropicSystemPrompt:      ldr.getStr("ANTHROPIC_SYSTEM_PROMPT", "You're a questionnaire assistant. Provide quick, accurate responses with maximum efficiency."),
+		AnthropicModel:             ldr.getStr("ANTHROPIC_MODEL", constants.DefaultAnthropicModel),
+		AnthropicSystemPrompt:      ldr.getStr("ANTHROPIC_SYSTEM_PROMPT", constants.DefaultAnthropicSystemPrompt),
 		AnthropicMaxResponseTokens: ldr.getInt("ANTHROPIC_MAX_RESPONSE_TOKENS", constants.AnthropicMaxResponseTokens),
 		TelegramBotToken:           ldr.getStr("TELEGRAM_BOT_TOKEN", ""),
-		StorePath:                  ldr.getStr("SUBSCRIBER_STORE_PATH", "tmp/subscribers"),
+		StorePath:                  ldr.getStr("SUBSCRIBER_STORE_PATH", constants.DefaultStorePath),
 		TelegramMessageChunkSize:   ldr.getInt("TELEGRAM_MESSAGE_CHUNK_SIZE", constants.TelegramMessageChunkSize),
 		TelegramMaxRetries:         ldr.getInt("TELEGRAM_MAX_RETRIES", constants.TelegramMaxRetries),
 		TelegramLongPollTimeout:    ldr.getDuration("TELEGRAM_LONG_POLL_TIMEOUT", constants.TimeoutTelegramLongPoll),

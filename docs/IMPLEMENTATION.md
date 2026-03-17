@@ -4,12 +4,13 @@
 
 - **Platform**: MacOS only. Uses MacOS-specific APIs (`CGEventTap`, `CFRunLoop`, `CoreGraphics`, `CoreFoundation`, `Vision framework`) via cgo and AppleScript via `osascript`.
 - **In-memory processing**: No screenshots, intermediate images, or temporary files are written to disk at any point in the pipeline.
-- **Daemon operation**: Runs as a background CLI daemon. Does not appear in the Dock or Cmd-Tab (pure CLI process with no GUI elements).
-- **Event-driven**: Idle until the hotkey is pressed. No polling, no timers, no periodic screen checks.
+- **CLI and daemon operation**: Single binary with Cobra subcommands (daemon, start, stop, status, logs, restart). The `start` command daemonizes via process re-exec with `syscall.SysProcAttr{Setsid: true}`. Does not appear in Dock or Cmd-Tab (pure CLI process).
+- **Event-driven**: Idle until hotkey pressed or IPC command received. No polling, no timers, no periodic screen checks.
 - **Single-trigger pipeline**: Each hotkey press executes a full sequential pipeline (capture -> OCR -> AI -> Telegram). The pipeline does not overlap; if a capture is already in progress, additional triggers are dropped.
 - **Language**: Go 1.24+ with cgo (for `CoreGraphics`/`CoreFoundation` bindings and Vision framework).
-- **Settings**: All settings via environment variables. No config files, no CLI flags.
-- **Logging**: Structured log output to stderr using Go's slog TextHandler (time, level, message, and key-value fields). Log verbosity is controlled by `LOG_LEVEL`.
+- **Configuration**: All settings via environment variables. CLI flags on start/daemon/restart commands are forwarded as env vars to child processes. No config files.
+- **IPC communication**: Unix domain socket with length-prefixed JSON for inter-process communication. Enables remote status checks, log streaming, and graceful shutdown.
+- **Logging**: Structured log output using Go's slog (time, level, message, and key-value fields). Log verbosity controlled by `LOG_LEVEL`. Daemon output goes to stderr (for `make run daemon`) and is replicated to IPC log broker for `lensd logs` streaming.
 - **External dependencies**: No external OCR dependencies required (uses built-in Apple Vision framework).
 - **Security permissions**: Requires MacOS Accessibility and Screen Recording permissions granted to the terminal or binary.
 

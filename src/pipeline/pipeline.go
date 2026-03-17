@@ -4,6 +4,8 @@ package pipeline
 import (
 	"context"
 	"log/slog"
+	"os"
+	"time"
 
 	"github.com/vdyalex/lens-daemon/src/adapters/ai"
 	"github.com/vdyalex/lens-daemon/src/adapters/im"
@@ -33,6 +35,7 @@ func NewWithDependencies(
 		agent:     agent,
 		messenger: broadcaster,
 		poller:    pollerService,
+		startTime: time.Now(),
 	}
 }
 
@@ -97,4 +100,14 @@ func (p *Pipeline) Process(ctx context.Context) error {
 	}
 
 	return p.processWithAIAndBroadcast(ctx, text)
+}
+
+// Status returns a snapshot of the pipeline's current runtime state.
+// Safe to call concurrently.
+func (p *Pipeline) Status() (int, float64, time.Time, string) {
+	p.lastCaptureMu.RLock()
+	defer p.lastCaptureMu.RUnlock()
+
+	uptimeSeconds := time.Since(p.startTime).Seconds()
+	return os.Getpid(), uptimeSeconds, p.lastCaptureTime, p.lastWindowTitle
 }

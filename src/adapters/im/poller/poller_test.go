@@ -27,36 +27,58 @@ func TestPoller_startCommand(t *testing.T) {
 
 	done := make(chan struct{})
 	once := &sync.Once{}
+	callCount := 0
 	mockClient := &mocks.MockIMHTTPClient{
 		DoFunc: func(req *http.Request) (*http.Response, error) {
+			callCount++
 			result := struct {
 				OK     bool        `json:"ok"`
 				Result []im.Update `json:"result"`
 			}{
-				OK:     true,
-				Result: []im.Update{update},
+				OK: true,
+			}
+			// First call returns the update; second call returns empty to stop polling
+			if callCount == 1 {
+				result.Result = []im.Update{update}
+				once.Do(func() {
+					close(done)
+				})
+			} else {
+				// Return error on subsequent calls to trigger immediate context check
+				return nil, context.Canceled
 			}
 			body, _ := json.Marshal(result)
-			once.Do(func() {
-				close(done)
-			})
 			return mocks.NewJSONResponse(200, string(body)), nil
 		},
 	}
 
 	client := poller.NewWithClient("token", store, mockClient, mocks.NopLogger(), 30*time.Second, 35*time.Second)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	go client.Run(ctx)
+	// Track when poller exits
+	runDone := make(chan struct{})
+	go func() {
+		client.Run(ctx)
+		close(runDone)
+	}()
 
 	select {
 	case <-done:
-		// First poll completed; store.Add has been called synchronously
-		time.Sleep(10 * time.Millisecond) // Allow poller to finish processing
+		// First poll completed; now cancel to stop the poller
+		cancel()
+		// Wait for Run to exit (should be fast since next poll will error)
+		exitCtx, exitCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer exitCancel()
+		select {
+		case <-runDone:
+			// Poller exited - store operations are guaranteed complete
+		case <-exitCtx.Done():
+			t.Fatal("poller did not exit after cancel")
+		}
 	case <-ctx.Done():
-		t.Fatal("timed out waiting for poller to process the update")
+		t.Fatal("timed out waiting for first poll")
 	}
 
 	all := store.All()
@@ -498,22 +520,26 @@ func TestPoller_malformedJSONResponse(t *testing.T) {
 
 	client := poller.NewWithClient("token", store, mockClient, mocks.NopLogger(), 30*time.Second, 35*time.Second)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
-	defer cancel()
+	pollerCtx, pollerCancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	defer pollerCancel()
 
 	// Just verify that the poller doesn't panic on malformed JSON
 	// The error will be logged and the poller will retry
 	go func() {
-		client.Run(ctx)
+		client.Run(pollerCtx)
 		once.Do(func() {
 			close(done)
 		})
 	}()
 
+	// Use a longer test timeout to allow poller goroutine to finish after context expires
+	testCtx, testCancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer testCancel()
+
 	select {
 	case <-done:
 		// Poller completed without panicking - test passes
-	case <-time.After(1 * time.Second):
+	case <-testCtx.Done():
 		t.Fatal("poller hung on malformed JSON")
 	}
 }
