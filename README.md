@@ -166,9 +166,9 @@ After installation, you may need to re-grant **Accessibility** and **Screen Reco
 
 | Command | Purpose |
 |---|---|
-| `make build` | Compile the binary |
+| `make build` | Compile the binary to `bin/` |
 | `make run` | Build and run in foreground |
-| `make clean` | Remove the binary |
+| `make clean` | Remove build artifacts from `bin/` (preserves `.gitignore`) |
 | `make check` | Run all static checks (fmt, vet, lint, vuln) |
 | `make fmt` | Format source files with gofmt |
 | `make vet` | Run go vet static analysis |

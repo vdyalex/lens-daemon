@@ -1,5 +1,5 @@
-# Created by https://www.toptal.com/developers/gitignore/api/go,macos,jetbrains,visualstudiocode,dotenv
-# Edit at https://www.toptal.com/developers/gitignore?templates=go,macos,jetbrains,visualstudiocode,dotenv
+# Created by https://www.toptal.com/developers/gitignore/api/go,macos,dotenv,jetbrains,visualstudiocode
+# Edit at https://www.toptal.com/developers/gitignore?templates=go,macos,dotenv,jetbrains,visualstudiocode
 
 ### dotenv ###
 .env
@@ -140,7 +140,7 @@ fabric.properties
 # https://plugins.jetbrains.com/plugin/8053-azure-toolkit-for-intellij
 .idea/**/azureSettings.xml
 
-### MacOS ###
+### macOS ###
 # General
 .DS_Store
 .AppleDouble
@@ -169,7 +169,7 @@ Network Trash Folder
 Temporary Items
 .apdisk
 
-### MacOS Patch ###
+### macOS Patch ###
 # iCloud generated files
 *.icloud
 
@@ -192,4 +192,4 @@ Temporary Items
 .history
 .ionide
 
-# End of https://www.toptal.com/developers/gitignore/api/go,macos,jetbrains,visualstudiocode,dotenv
+# End of https://www.toptal.com/developers/gitignore/api/go,macos,dotenv,jetbrains,visualstudiocode

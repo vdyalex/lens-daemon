@@ -13,7 +13,7 @@ run: build
 	./$(BINARY_PATH)
 
 clean:
-	rm -f $(BINARY_PATH)
+	find bin -type f ! -name '.gitignore' -delete 2>/dev/null || true
 
 vet:
 	go vet ./...
