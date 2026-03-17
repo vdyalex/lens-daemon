@@ -37,7 +37,7 @@ cd lens-daemon
 make build
 ```
 
-This produces the `lensd` binary in the project root.
+This produces the `lensd` binary in the `bin` directory.
 
 ## ⚙️ Configuration
 
@@ -112,7 +112,7 @@ export ANTHROPIC_API_KEY="sk-ant-..."
 export TELEGRAM_BOT_TOKEN="123456:ABC..."
 
 # Run in foreground
-./lensd
+./bin/lensd
 
 # Or build and run
 make run

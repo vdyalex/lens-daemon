@@ -4,15 +4,16 @@
 export
 
 BINARY_NAME ?= lensd
+BINARY_PATH ?= ./bin/$(BINARY_NAME)
 
 build:
-	CGO_LDFLAGS=-Wl,-no_warn_duplicate_libraries go build -o $(BINARY_NAME) ./src
+	CGO_LDFLAGS=-Wl,-no_warn_duplicate_libraries go build -o $(BINARY_PATH) ./src
 
 run: build
-	./$(BINARY_NAME)
+	./$(BINARY_PATH)
 
 clean:
-	rm -f $(BINARY_NAME)
+	rm -f $(BINARY_PATH)
 
 vet:
 	go vet ./...
