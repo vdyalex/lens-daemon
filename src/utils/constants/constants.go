@@ -109,3 +109,49 @@ var HotkeyKeycodes = map[string]int{
 	"RightOption":  0x3D, // 61
 	"Fn":           0x3F, // 63
 }
+
+// Daemon startup polling constants.
+const (
+	// TimeoutDaemonStartup is the max wait for a PID file after re-exec.
+	TimeoutDaemonStartup = 3 * time.Second
+	// IntervalDaemonStartupPoll is how often to check for the PID file.
+	IntervalDaemonStartupPoll = 100 * time.Millisecond
+)
+
+// IPC layer constants.
+const (
+	// TimeoutIPCClient is the default dial/operation timeout for IPC Client.
+	TimeoutIPCClient = 5 * time.Second
+	// IPCMaxFrameSize is the 4 MiB safety limit for length-prefixed frames.
+	IPCMaxFrameSize = 4 * 1024 * 1024
+	// IPCLogSubscriberBuffer is the channel capacity for log event subscribers.
+	IPCLogSubscriberBuffer = 64
+	// SubcommandDaemon is the argv[1] used when re-execing the daemon child.
+	SubcommandDaemon = "daemon"
+)
+
+// File permission modes.
+const (
+	// PermissionPIDDirectory is the mode for the PID file parent directory.
+	PermissionPIDDirectory = 0700
+	// PermissionPIDFile is the mode for the PID file itself.
+	PermissionPIDFile = 0600
+	// PermissionSocket is the mode for the Unix domain socket file.
+	PermissionSocket = 0600
+	// PermissionLogFile is the mode for the daemon log redirect file.
+	PermissionLogFile = 0666
+)
+
+// Application configuration defaults.
+const (
+	// DefaultVisionLanguage is the BCP-47 tag passed to Vision framework.
+	DefaultVisionLanguage = "en-US"
+	// DefaultVisionAccuracy is the Vision framework accuracy level.
+	DefaultVisionAccuracy = "accurate"
+	// DefaultAnthropicModel is the Anthropic model used when unconfigured.
+	DefaultAnthropicModel = "claude-sonnet-4-6"
+	// DefaultAnthropicSystemPrompt is the system prompt used when unconfigured.
+	DefaultAnthropicSystemPrompt = "You're a questionnaire assistant. Provide quick, accurate responses with maximum efficiency."
+	// DefaultStorePath is the subscriber store file path used when unconfigured.
+	DefaultStorePath = "tmp/subscribers"
+)

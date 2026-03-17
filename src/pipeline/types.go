@@ -5,6 +5,7 @@ import (
 	"image"
 	"log/slog"
 	"sync"
+	"time"
 
 	"github.com/vdyalex/lens-daemon/src/adapters/ai"
 	"github.com/vdyalex/lens-daemon/src/adapters/im"
@@ -16,13 +17,17 @@ import (
 
 // Pipeline orchestrates the full screen-monitor workflow.
 type Pipeline struct {
-	settings      *config.Config
-	logger        *slog.Logger
-	capturer      capturer.Service
-	extractor     extractor.Service
-	agent         ai.Processor
-	messenger     im.Broadcaster
-	poller        poller.Service
-	boundsMu      sync.RWMutex
-	captureBounds *image.Rectangle
+	settings        *config.Config
+	logger          *slog.Logger
+	capturer        capturer.Service
+	extractor       extractor.Service
+	agent           ai.Processor
+	messenger       im.Broadcaster
+	poller          poller.Service
+	boundsMu        sync.RWMutex
+	captureBounds   *image.Rectangle
+	startTime       time.Time
+	lastCaptureMu   sync.RWMutex
+	lastCaptureTime time.Time
+	lastWindowTitle string
 }
