@@ -33,7 +33,9 @@ func (c *Client) Send(ctx context.Context, request Request) (Response, error) {
 	defer connection.Close()
 
 	// Set deadline for operations
-	connection.SetDeadline(time.Now().Add(c.timeout))
+	if err := connection.SetDeadline(time.Now().Add(c.timeout)); err != nil {
+		return Response{}, err
+	}
 
 	// Marshal and send request
 	payload, err := json.Marshal(request)

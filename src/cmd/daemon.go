@@ -69,7 +69,11 @@ func runDaemon() {
 		logger.Error("failed to write pid file", "error", err)
 		os.Exit(1)
 	}
-	defer daemon.RemovePID(pidPath)
+	defer func() {
+		if err := daemon.RemovePID(pidPath); err != nil {
+			logger.Warn("failed to remove pid file", "error", err)
+		}
+	}()
 
 	logger.Info("lensd started", "pid", os.Getpid())
 
