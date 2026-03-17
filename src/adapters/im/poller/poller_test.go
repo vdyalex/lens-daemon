@@ -27,36 +27,57 @@ func TestPoller_startCommand(t *testing.T) {
 
 	done := make(chan struct{})
 	once := &sync.Once{}
+	callCount := 0
 	mockClient := &mocks.MockIMHTTPClient{
 		DoFunc: func(req *http.Request) (*http.Response, error) {
+			callCount++
 			result := struct {
 				OK     bool        `json:"ok"`
 				Result []im.Update `json:"result"`
 			}{
-				OK:     true,
-				Result: []im.Update{update},
+				OK: true,
+			}
+			// First call returns the update; second call returns empty to stop polling
+			if callCount == 1 {
+				result.Result = []im.Update{update}
+				once.Do(func() {
+					close(done)
+				})
+			} else {
+				// Return error on subsequent calls to trigger immediate context check
+				return nil, context.Canceled
 			}
 			body, _ := json.Marshal(result)
-			once.Do(func() {
-				close(done)
-			})
 			return mocks.NewJSONResponse(200, string(body)), nil
 		},
 	}
 
 	client := poller.NewWithClient("token", store, mockClient, mocks.NopLogger(), 30*time.Second, 35*time.Second)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	go client.Run(ctx)
+	// Track when poller exits
+	runDone := make(chan struct{})
+	go func() {
+		client.Run(ctx)
+		close(runDone)
+	}()
 
 	select {
 	case <-done:
-		// First poll completed; store.Add has been called synchronously
-		time.Sleep(10 * time.Millisecond) // Allow poller to finish processing
-	case <-ctx.Done():
-		t.Fatal("timed out waiting for poller to process the update")
+		// First poll completed; now cancel to stop the poller
+		cancel()
+		// Wait for Run to exit (should be fast since next poll will error)
+		select {
+		case <-runDone:
+			// Poller exited - store operations are guaranteed complete
+		case <-time.After(5 * time.Second):
+			t.Fatal("poller did not exit after cancel")
+		}
+	case <-time.After(5 * time.Second):
+		cancel()
+		t.Fatal("timed out waiting for first poll")
 	}
 
 	all := store.All()
