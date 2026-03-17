@@ -1,3 +1,4 @@
+// Package poller provides long-polling functionality for receiving Telegram messages.
 package poller
 
 import (

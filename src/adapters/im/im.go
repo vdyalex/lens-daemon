@@ -1,3 +1,4 @@
+// Package im provides Telegram broadcast capabilities for sending messages to subscribers.
 package im
 
 import (

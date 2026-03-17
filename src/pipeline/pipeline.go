@@ -1,3 +1,4 @@
+// Package pipeline orchestrates the screenshot capture, OCR, AI processing, and Telegram broadcast workflow.
 package pipeline
 
 import (
@@ -50,9 +51,28 @@ func New(settings *config.Config, logger *slog.Logger) (*Pipeline, error) {
 		logger,
 		capturer.New(),
 		ocr,
-		ai.New(settings.AnthropicAPIKey, settings.AnthropicModel, settings.AnthropicSystemPrompt, settings.AnthropicMaxResponseTokens),
-		im.New(settings.TelegramBotToken, store, logger, settings.TelegramMessageChunkSize, settings.TelegramMaxRetries, settings.TelegramHTTPClientTimeout),
-		poller.New(settings.TelegramBotToken, store, logger, settings.TelegramLongPollTimeout, settings.TelegramPollerTimeout, settings.TelegramHTTPClientTimeout),
+		ai.New(
+			settings.AnthropicAPIKey,
+			settings.AnthropicModel,
+			settings.AnthropicSystemPrompt,
+			settings.AnthropicMaxResponseTokens,
+		),
+		im.New(
+			settings.TelegramBotToken,
+			store,
+			logger,
+			settings.TelegramMessageChunkSize,
+			settings.TelegramMaxRetries,
+			settings.TelegramHTTPClientTimeout,
+		),
+		poller.New(
+			settings.TelegramBotToken,
+			store,
+			logger,
+			settings.TelegramLongPollTimeout,
+			settings.TelegramPollerTimeout,
+			settings.TelegramHTTPClientTimeout,
+		),
 	)
 	return pipeline, nil
 }

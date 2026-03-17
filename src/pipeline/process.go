@@ -1,3 +1,4 @@
+// Package pipeline orchestrates the screenshot capture, OCR, AI processing, and Telegram broadcast workflow.
 package pipeline
 
 import (
@@ -26,7 +27,13 @@ func (p *Pipeline) fetchWindow(ctx context.Context) (*capturer.WindowInfo, error
 	if err != nil {
 		return nil, err
 	}
-	p.logger.Debug("foreground window", slog.String("title", window.Title), slog.Int("width", window.Width), slog.Int("height", window.Height), slog.Int("x", window.X), slog.Int("y", window.Y))
+	p.logger.Debug("foreground window",
+		slog.String("title", window.Title),
+		slog.Int("width", window.Width),
+		slog.Int("height", window.Height),
+		slog.Int("x", window.X),
+		slog.Int("y", window.Y),
+	)
 	return window, nil
 }
 
@@ -37,7 +44,12 @@ func (p *Pipeline) captureScreenshot(ctx context.Context, window *capturer.Windo
 	p.boundsMu.RUnlock()
 
 	if bounds != nil {
-		p.logger.Debug("capturing with custom bounds", slog.Int("minX", bounds.Min.X), slog.Int("minY", bounds.Min.Y), slog.Int("maxX", bounds.Max.X), slog.Int("maxY", bounds.Max.Y))
+		p.logger.Debug("capturing with custom bounds",
+			slog.Int("minX", bounds.Min.X),
+			slog.Int("minY", bounds.Min.Y),
+			slog.Int("maxX", bounds.Max.X),
+			slog.Int("maxY", bounds.Max.Y),
+		)
 	} else {
 		p.logger.Debug("capturing center of window (no custom bounds)")
 	}
@@ -54,7 +66,10 @@ func (p *Pipeline) captureScreenshot(ctx context.Context, window *capturer.Windo
 			p.logger.Error("screenshot capture failed", "error", err)
 			errCh <- err
 		} else {
-			p.logger.Debug("screenshot captured successfully", "width", img.Bounds().Dx(), "height", img.Bounds().Dy())
+			p.logger.Debug("screenshot captured successfully",
+				"width", img.Bounds().Dx(),
+				"height", img.Bounds().Dy(),
+			)
 			imageCh <- img
 		}
 	}()
@@ -67,7 +82,9 @@ func (p *Pipeline) captureScreenshot(ctx context.Context, window *capturer.Windo
 		p.logger.Debug("screenshot error received from goroutine")
 		return nil, err
 	case <-ctxCapture.Done():
-		p.logger.Error("screenshot capture timeout", slog.String("timeout", p.settings.TimeoutCapture.String()))
+		p.logger.Error("screenshot capture timeout",
+			slog.String("timeout", p.settings.TimeoutCapture.String()),
+		)
 		return nil, fmt.Errorf("%w (%s)", exceptions.ErrPipelineCaptureTimeout, p.settings.TimeoutCapture)
 	}
 }
@@ -75,7 +92,10 @@ func (p *Pipeline) captureScreenshot(ctx context.Context, window *capturer.Windo
 // extractAndProcessText runs OCR and validates the result.
 // Returns nil if OCR produces empty text (non-fatal).
 func (p *Pipeline) extractAndProcessText(ctx context.Context, img *image.RGBA) (string, error) {
-	p.logger.Debug("running ocr on captured image", slog.Int("width", img.Bounds().Dx()), slog.Int("height", img.Bounds().Dy()))
+	p.logger.Debug("running ocr on captured image",
+		slog.Int("width", img.Bounds().Dx()),
+		slog.Int("height", img.Bounds().Dy()),
+	)
 	ocrCtx, ocrCancel := context.WithTimeout(ctx, p.settings.TimeoutOCRExtract)
 	defer ocrCancel()
 

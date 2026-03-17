@@ -1,3 +1,4 @@
+// Package ai provides integration with the Anthropic Claude API for text processing.
 package ai
 
 import (

@@ -1,3 +1,4 @@
+// Package pipeline orchestrates the screenshot capture, OCR, AI processing, and Telegram broadcast workflow.
 package pipeline
 
 import (
@@ -16,7 +17,13 @@ func (p *Pipeline) Run(ctx context.Context) error {
 	defer p.extractor.Close()
 
 	hotkeyListener := listener.New()
-	triggers, bounds, err := hotkeyListener.Listen(ctx, p.logger, p.settings.EventTapPollInterval, p.settings.HotkeyTriggerKeycode, p.settings.HotkeyBoundsKeycode)
+	triggers, bounds, err := hotkeyListener.Listen(
+		ctx,
+		p.logger,
+		p.settings.EventTapPollInterval,
+		p.settings.HotkeyTriggerKeycode,
+		p.settings.HotkeyBoundsKeycode,
+	)
 	if err != nil {
 		return err
 	}
@@ -30,7 +37,12 @@ func (p *Pipeline) Run(ctx context.Context) error {
 			p.boundsMu.Lock()
 			p.captureBounds = &rect
 			p.boundsMu.Unlock()
-			p.logger.Info("capture bounds updated", slog.Int("minX", rect.Min.X), slog.Int("minY", rect.Min.Y), slog.Int("maxX", rect.Max.X), slog.Int("maxY", rect.Max.Y))
+			p.logger.Info("capture bounds updated",
+				slog.Int("minX", rect.Min.X),
+				slog.Int("minY", rect.Min.Y),
+				slog.Int("maxX", rect.Max.X),
+				slog.Int("maxY", rect.Max.Y),
+			)
 		}
 	}()
 
