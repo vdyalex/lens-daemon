@@ -1,4 +1,4 @@
-name: Pipeline
+name: Continuous Integration
 
 on:
   push:
@@ -8,9 +8,13 @@ on:
     branches:
       - main
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  ci:
-    name: Continuous Integration
+  pull_request:
+    name: Pull Request
     runs-on: macos-latest
 
     steps:
