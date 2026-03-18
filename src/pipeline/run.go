@@ -45,11 +45,13 @@ func (p *Pipeline) Run(ctx context.Context) error {
 	workerDone := make(chan struct{})
 	go p.runAnalyseWorker(ctx, workerDone)
 
+	var captureGroup sync.WaitGroup
+
 	for {
 		select {
 		case <-ctx.Done():
 			p.logger.Info("pipeline shutting down")
-			p.captureGroup.Wait()
+			captureGroup.Wait()
 			close(p.analyseQueue)
 			<-workerDone
 			if closeErr := p.extractor.Close(); closeErr != nil {
@@ -57,9 +59,9 @@ func (p *Pipeline) Run(ctx context.Context) error {
 			}
 			return ctx.Err()
 		case <-triggers:
-			p.captureGroup.Add(1)
+			captureGroup.Add(1)
 			go func() {
-				defer p.captureGroup.Done()
+				defer captureGroup.Done()
 				if err := p.capture(ctx); isFatalError(err) {
 					p.logger.Error("capture error", "error", err)
 				}
