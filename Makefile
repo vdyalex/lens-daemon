@@ -31,7 +31,7 @@ test:
 	unset ANTHROPIC_API_KEY TELEGRAM_BOT_TOKEN; go test -count=1 -p 1 ./...
 
 coverage:
-	unset ANTHROPIC_API_KEY TELEGRAM_BOT_TOKEN; go test -count=1 -p 1 -coverprofile=coverage.out ./... && go tool cover -html=coverage.out -o coverage.html && echo "Coverage report generated: coverage.html"
+	unset ANTHROPIC_API_KEY TELEGRAM_BOT_TOKEN; go test -count=1 -p 1 -coverprofile=coverage/coverage.out ./... && go tool cover -html=coverage/coverage.out -o coverage/coverage.html && echo "Coverage report generated: coverage.html"
 
 test-integration:
 	unset ANTHROPIC_API_KEY TELEGRAM_BOT_TOKEN; go test -count=1 -p 1 -run Integration ./src/ipc/... ./src/daemon/...
