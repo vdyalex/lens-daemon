@@ -1,6 +1,29 @@
+![Lens](.github/header.png)
+
 # Lens
 
+[![Build Status](https://img.shields.io/github/actions/workflow/status/vdyalex/lens-daemon/pipeline.yml?branch=main&style=flat-square)](https://github.com/vdyalex/lens-daemon/actions)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/vdyalex/lens-daemon?style=flat-square)](https://golang.org)
+[![License](https://img.shields.io/github/license/vdyalex/lens-daemon?style=flat-square)](LICENSE)
+
 A MacOS daemon that captures your screen on demand via a global hotkey, extracts text using OCR, processes it through Claude AI (Anthropic), and broadcasts the response to Telegram subscribers. All operations happen in-memory with zero disk writes for screenshots.
+
+- [Lens](#lens)
+  - [⚡ How it works](#-how-it-works)
+  - [📋 Pre-requisites](#-pre-requisites)
+  - [🔧 Installation](#-installation)
+  - [⚙️ Configuration](#️-configuration)
+    - [Required](#required)
+    - [Optional](#optional)
+    - [🎛️ Hotkey Configuration](#️-hotkey-configuration)
+  - [▶️ Running](#️-running)
+    - [CLI Commands](#cli-commands)
+    - [Manually](#manually)
+    - [Build and Test Commands](#build-and-test-commands)
+  - [🔐 Permissions](#-permissions)
+  - [📦 Dependencies](#-dependencies)
+    - [🛠️ Tools](#️-tools)
+  - [📄 License](#-license)
 
 ## ⚡ How it works
 
@@ -32,7 +55,7 @@ For detailed documentation, see:
 ## 📋 Pre-requisites
 
 - **MacOS** (uses CoreGraphics CGEventTap, Vision framework, and AppleScript)
-- **Go 1.24+** (with cgo support)
+- **Go 1.25+** (with cgo support)
 - **Anthropic API key** — get one at [console.anthropic.com](https://console.anthropic.com)
 - **Telegram bot** — create one via [@BotFather](https://t.me/BotFather)
 
@@ -180,7 +203,7 @@ Send `/stop` to the Telegram bot to unsubscribe. Run `./bin/lensd stop` to stop 
 | `make validate` | Run go vet static analysis |
 | `make lint` | Run golangci-lint static analysis |
 | `make vulnerabilities` | Run govulncheck vulnerability scanner |
-| `make coverage` | Generate test coverage report (produces `coverage.html`) |
+| `make coverage` | Generate test coverage report (produces `coverage/coverage.html`) |
 | `make generate` | Run go generate on all packages |
 | `make tools` | Install analysis tools (golangci-lint, govulncheck, mockgen) |
 | `make daemon` | Build and run in daemon mode (foreground) |
@@ -211,7 +234,28 @@ CGEventTapCreate failed -- grant Accessibility permission to this app
 |---|---|
 | **Standard Library** | `sync` (WaitGroup for concurrent Phase 2 analysis), `context` (cancellation and timeouts), `image` (RGBA image buffers), `time` (deadlines and polling), `encoding/json` (IPC protocol) |
 | [`anthropic-sdk-go`](https://github.com/anthropics/anthropic-sdk-go) | Official Anthropic Go SDK for Claude AI API |
-
-**Indirect dependencies** (pulled in by the Anthropic SDK): `tidwall/gjson`, `tidwall/sjson`, `tidwall/match`, `tidwall/pretty`, `golang.org/x/sync`.
+| [`joho/godotenv`](https://github.com/joho/godotenv) | Loads `.env` files into environment variables at startup |
+| [`pterm/pterm`](https://github.com/pterm/pterm) | Terminal UI — colorized output for CLI commands (`start`, `stop`, `status`, `logs`, `restart`) |
+| [`spf13/cobra`](https://github.com/spf13/cobra) | CLI command framework — powers all `lensd` subcommands |
 
 **Built-in frameworks**: CoreGraphics (screen capture via CGo), Apple Vision framework (OCR via CGo), AppleScript (window detection). No external OCR libraries required.
+
+### 🛠️ Tools
+
+The following analysis and code generation tools are installed via `make tools` and invoked during development and CI:
+
+| Tool | Purpose |
+|---|---|
+| `go vet` | Static analysis — detects suspicious constructs and common mistakes |
+| `gofmt` | Formatter — enforces standard Go code formatting |
+| [`golangci-lint`](https://github.com/golangci/golangci-lint) | Linter aggregator — runs multiple linters in one pass |
+| [`govulncheck`](https://pkg.go.dev/golang.org/x/vuln/cmd/govulncheck) | Vulnerability scanner — checks dependencies against the Go vulnerability database |
+| [`mockgen`](https://pkg.go.dev/go.uber.org/mock/mockgen) | Mock generator — generates interface mocks for unit tests (via `go.uber.org/mock`) |
+
+---
+
+## 📄 License
+
+This project is licensed under the **GNU General Public License v3.0** — see the [LICENSE](LICENSE) file for details.
+
+You are free to use, modify, and distribute this software under the terms of the GPLv3 license. Any derivative works must also be licensed under GPLv3.
