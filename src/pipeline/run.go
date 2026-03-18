@@ -5,13 +5,14 @@ import (
 	"context"
 	"image"
 	"log/slog"
+	"sync"
 )
 
 // Run starts the two-phase pipeline event loop and blocks until ctx is cancelled.
 //
 // On each hotkey trigger, Run spawns a Phase 1 goroutine (capture) tracked by
-// captureGroup. A single Phase 2 worker goroutine (analyse) drains the analyseQueue
-// channel serially.
+// captureGroup. A Phase 2 worker goroutine (analyse) reads from analyseQueue and
+// spawns one goroutine per result, processing concurrently.
 //
 // Shutdown sequence:
 //  1. ctx.Done fires; the main select loop exits.
@@ -83,15 +84,28 @@ func (p *Pipeline) trackBounds(bounds <-chan image.Rectangle) {
 	}
 }
 
-// runAnalyseWorker is the Phase 2 serial worker. It drains analyseQueue until
-// the channel is closed, then closes workerDone to signal Run().
+// runAnalyseWorker is the Phase 2 concurrent worker. It drains analyseQueue until
+// the channel is closed, spawning one goroutine per result. All goroutines share ctx;
+// cancellation propagates to every in-flight analyse call.
+//
+// wg.Wait() blocks until every goroutine completes, so workerDone is not closed until
+// all in-flight work is done. This preserves the shutdown contract with Run().
+//
+// ctx: parent context; passed through to each analyse goroutine.
+// workerDone: closed when all in-flight goroutines have completed.
 func (p *Pipeline) runAnalyseWorker(ctx context.Context, workerDone chan<- struct{}) {
 	defer close(workerDone)
+	var wg sync.WaitGroup
 	for result := range p.analyseQueue {
-		if err := p.analyse(ctx, result); isFatalError(err) {
-			p.logger.Error("analyse error", "error", err,
-				"window", result.WindowTitle,
-			)
-		}
+		wg.Add(1)
+		go func(result CaptureResult) {
+			defer wg.Done()
+			if err := p.analyse(ctx, result); isFatalError(err) {
+				p.logger.Error("analyse error", "error", err,
+					"window", result.WindowTitle,
+				)
+			}
+		}(result)
 	}
+	wg.Wait()
 }
