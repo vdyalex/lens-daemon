@@ -1,13 +1,13 @@
 package cmd
 
-// globalFlags holds CLI flags shared across commands.
-type globalFlags struct {
-	model        string
-	systemPrompt string
-	maxTokens    int
-	logLevel     string
-	apiKey       string
-	botToken     string
+// GlobalFlags holds CLI flags shared across commands.
+type GlobalFlags struct {
+	Model        string
+	SystemPrompt string
+	MaxTokens    int
+	LogLevel     string
+	APIKey       string
+	BotToken     string
 }
 
-var flags globalFlags
+var flags GlobalFlags

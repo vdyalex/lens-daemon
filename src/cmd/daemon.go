@@ -30,8 +30,8 @@ var daemonCmd = &cobra.Command{
 // This allows config to be passed as command-line arguments to daemon/start/restart commands.
 // Returns an error if any environment variable cannot be set.
 func applyFlags() error {
-	for _, pair := range flagEnvPairs() {
-		if err := os.Setenv(pair.key, pair.value); err != nil {
+	for _, pair := range FlagEnvPairs() {
+		if err := os.Setenv(pair.Key, pair.Value); err != nil {
 			return err
 		}
 	}

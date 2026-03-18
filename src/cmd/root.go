@@ -34,11 +34,11 @@ func init() {
 
 	// Define flags for daemon, start, restart
 	for _, cmd := range []*cobra.Command{daemonCmd, startCmd, restartCmd} {
-		cmd.Flags().StringVar(&flags.model, "model", "", "Anthropic model name (env: ANTHROPIC_MODEL)")
-		cmd.Flags().StringVar(&flags.systemPrompt, "system-prompt", "", "AI system prompt (env: ANTHROPIC_SYSTEM_PROMPT)")
-		cmd.Flags().IntVar(&flags.maxTokens, "max-tokens", 0, "Max response tokens (env: ANTHROPIC_MAX_RESPONSE_TOKENS)")
-		cmd.Flags().StringVar(&flags.logLevel, "log-level", "", "Log level: debug/info/warn/error (env: LOG_LEVEL)")
-		cmd.Flags().StringVar(&flags.apiKey, "api-key", "", "Anthropic API key (env: ANTHROPIC_API_KEY)")
-		cmd.Flags().StringVar(&flags.botToken, "bot-token", "", "Telegram bot token (env: TELEGRAM_BOT_TOKEN)")
+		cmd.Flags().StringVar(&flags.Model, "model", "", "Anthropic model name (env: ANTHROPIC_MODEL)")
+		cmd.Flags().StringVar(&flags.SystemPrompt, "system-prompt", "", "AI system prompt (env: ANTHROPIC_SYSTEM_PROMPT)")
+		cmd.Flags().IntVar(&flags.MaxTokens, "max-tokens", 0, "Max response tokens (env: ANTHROPIC_MAX_RESPONSE_TOKENS)")
+		cmd.Flags().StringVar(&flags.LogLevel, "log-level", "", "Log level: debug/info/warn/error (env: LOG_LEVEL)")
+		cmd.Flags().StringVar(&flags.APIKey, "api-key", "", "Anthropic API key (env: ANTHROPIC_API_KEY)")
+		cmd.Flags().StringVar(&flags.BotToken, "bot-token", "", "Telegram bot token (env: TELEGRAM_BOT_TOKEN)")
 	}
 }

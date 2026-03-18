@@ -36,12 +36,14 @@ type Config struct {
 	TimeoutOCRExtract        time.Duration // TIMEOUT_OCR_EXTRACT: OCR extraction timeout (default: 30s)
 	TimeoutAIProcess         time.Duration // TIMEOUT_AI_PROCESS: Claude API call timeout (default: 60s)
 	TelegramBroadcastTimeout time.Duration // TELEGRAM_BROADCAST_TIMEOUT: broadcast to subscribers timeout (default: 30s)
+	TimeoutCapturePhase      time.Duration // TIMEOUT_CAPTURE_PHASE: Phase 1 total budget (default: 40s)
+	TimeoutAnalysePhase      time.Duration // TIMEOUT_ANALYSE_PHASE: Phase 2 total budget (default: 5m)
 
 	// Event listener settings
 	EventTapPollInterval time.Duration // EVENT_TAP_POLL_INTERVAL: CFRunLoop polling interval (default: 500ms)
 	HotkeyTriggerKeycode int           // Resolved from HOTKEY_TRIGGER_KEYNAME env var (default: RightShift)
 	HotkeyBoundsKeycode  int           // Resolved from HOTKEY_BOUNDS_KEYNAME env var (default: RightOption)
 
-	// Worker settings
-	WorkerQueueCapacity int // WORKER_QUEUE_CAPACITY: capture queue buffer size (default: 1)
+	// Pipeline phase settings
+	AnalyseQueueCapacity int // ANALYSE_QUEUE_CAPACITY: analyse channel buffer (default: 16)
 }

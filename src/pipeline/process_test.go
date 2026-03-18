@@ -242,6 +242,7 @@ func TestProcess_agentError(t *testing.T) {
 }
 
 func TestProcess_broadcastError(t *testing.T) {
+	// Broadcast errors are now non-fatal; Process() should succeed even if broadcast fails.
 	testErr := fmt.Errorf("Broadcast failed")
 	mocks := createTestMocks(t)
 	defer mocks.ctrl.Finish()
@@ -279,8 +280,9 @@ func TestProcess_broadcastError(t *testing.T) {
 	ctx := context.Background()
 	err := client.Process(ctx)
 
-	if !errors.Is(err, testErr) {
-		t.Errorf("expected %v, got %v", testErr, err)
+	// Broadcast failure is non-fatal; expect nil error
+	if err != nil {
+		t.Errorf("expected no error (broadcast non-fatal), got %v", err)
 	}
 }
 

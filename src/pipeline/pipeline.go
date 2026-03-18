@@ -13,6 +13,7 @@ import (
 	"github.com/vdyalex/lens-daemon/src/adapters/im/store"
 	"github.com/vdyalex/lens-daemon/src/modules/capturer"
 	"github.com/vdyalex/lens-daemon/src/modules/extractor"
+	"github.com/vdyalex/lens-daemon/src/modules/listener"
 	"github.com/vdyalex/lens-daemon/src/utils/config"
 )
 
@@ -26,16 +27,19 @@ func NewWithDependencies(
 	agent ai.Processor,
 	broadcaster im.Broadcaster,
 	pollerService poller.Service,
+	listenerService listener.Service,
 ) *Pipeline {
 	return &Pipeline{
-		settings:  settings,
-		logger:    logger,
-		capturer:  capturer,
-		extractor: extractor,
-		agent:     agent,
-		messenger: broadcaster,
-		poller:    pollerService,
-		startTime: time.Now(),
+		settings:     settings,
+		logger:       logger,
+		capturer:     capturer,
+		extractor:    extractor,
+		agent:        agent,
+		messenger:    broadcaster,
+		poller:       pollerService,
+		listener:     listenerService,
+		startTime:    time.Now(),
+		analyseQueue: make(chan CaptureResult, settings.AnalyseQueueCapacity),
 	}
 }
 
@@ -76,12 +80,15 @@ func New(settings *config.Config, logger *slog.Logger) (*Pipeline, error) {
 			settings.TelegramPollerTimeout,
 			settings.TelegramHTTPClientTimeout,
 		),
+		listener.New(),
 	)
 	return pipeline, nil
 }
 
 // Process runs a single capture-to-broadcast cycle: detect foreground window, capture screenshot,
 // extract text via OCR, send to Claude AI, and broadcast response to Telegram subscribers.
+// Deprecated: not used by Run(), which uses the two-phase pipeline (capture, analyse).
+// Retained for tests and tooling only.
 // Returns nil on success; logs warnings for non-fatal conditions (empty OCR/response).
 func (p *Pipeline) Process(ctx context.Context) error {
 	window, err := p.fetchWindow(ctx)
@@ -103,6 +110,7 @@ func (p *Pipeline) Process(ctx context.Context) error {
 }
 
 // Status returns a snapshot of the pipeline's current runtime state.
+// lastCaptureTime reflects the Phase 1 capture time, not the broadcast completion time.
 // Safe to call concurrently.
 func (p *Pipeline) Status() (int, float64, time.Time, string) {
 	p.lastCaptureMu.RLock()
