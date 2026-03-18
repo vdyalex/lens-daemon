@@ -1,14 +1,15 @@
 //go:build darwin
 
-package capturer
+package capturer_test
 
 import (
+	"github.com/vdyalex/lens-daemon/src/modules/capturer"
 	"image"
 	"testing"
 )
 
 func TestParseWindowInfo_valid(t *testing.T) {
-	info, err := parseWindowInfo("Chrome,10,20,800,600")
+	info, err := capturer.ParseWindowInfo("Chrome,10,20,800,600")
 
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -22,7 +23,7 @@ func TestParseWindowInfo_valid(t *testing.T) {
 }
 
 func TestParseWindowInfo_titleWithSpaces(t *testing.T) {
-	info, err := parseWindowInfo("  App Name  ,  10  ,  20  ,  100  ,  200  ")
+	info, err := capturer.ParseWindowInfo("  App Name  ,  10  ,  20  ,  100  ,  200  ")
 
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -36,7 +37,7 @@ func TestParseWindowInfo_titleWithSpaces(t *testing.T) {
 }
 
 func TestParseWindowInfo_wrongPartCount(t *testing.T) {
-	_, err := parseWindowInfo("a,b,c")
+	_, err := capturer.ParseWindowInfo("a,b,c")
 
 	if err == nil {
 		t.Errorf("expected error for wrong part count, got nil")
@@ -44,7 +45,7 @@ func TestParseWindowInfo_wrongPartCount(t *testing.T) {
 }
 
 func TestParseWindowInfo_nonNumericX(t *testing.T) {
-	_, err := parseWindowInfo("App,notnum,0,100,100")
+	_, err := capturer.ParseWindowInfo("App,notnum,0,100,100")
 
 	if err == nil {
 		t.Errorf("expected parse error for non-numeric X, got nil")
@@ -52,7 +53,7 @@ func TestParseWindowInfo_nonNumericX(t *testing.T) {
 }
 
 func TestParseWindowInfo_nonNumericY(t *testing.T) {
-	_, err := parseWindowInfo("App,0,notnum,100,100")
+	_, err := capturer.ParseWindowInfo("App,0,notnum,100,100")
 
 	if err == nil {
 		t.Errorf("expected parse error for non-numeric Y, got nil")
@@ -60,7 +61,7 @@ func TestParseWindowInfo_nonNumericY(t *testing.T) {
 }
 
 func TestParseWindowInfo_nonNumericWidth(t *testing.T) {
-	_, err := parseWindowInfo("App,0,0,notnum,100")
+	_, err := capturer.ParseWindowInfo("App,0,0,notnum,100")
 
 	if err == nil {
 		t.Errorf("expected parse error for non-numeric Width, got nil")
@@ -68,7 +69,7 @@ func TestParseWindowInfo_nonNumericWidth(t *testing.T) {
 }
 
 func TestParseWindowInfo_nonNumericHeight(t *testing.T) {
-	_, err := parseWindowInfo("App,0,0,100,notnum")
+	_, err := capturer.ParseWindowInfo("App,0,0,100,notnum")
 
 	if err == nil {
 		t.Errorf("expected parse error for non-numeric Height, got nil")
@@ -76,9 +77,9 @@ func TestParseWindowInfo_nonNumericHeight(t *testing.T) {
 }
 
 func TestComputeCaptureRect_noBounds(t *testing.T) {
-	window := &WindowInfo{X: 100, Y: 50, Width: 800, Height: 600}
+	window := &capturer.WindowInfo{X: 100, Y: 50, Width: 800, Height: 600}
 
-	rect, err := computeCaptureRect(window, nil, 1920, 1080)
+	rect, err := capturer.ComputeCaptureRect(window, nil, 1920, 1080)
 
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -89,9 +90,9 @@ func TestComputeCaptureRect_noBounds(t *testing.T) {
 }
 
 func TestComputeCaptureRect_fullscreenWindow(t *testing.T) {
-	window := &WindowInfo{X: 0, Y: 0, Width: 1920, Height: 1080}
+	window := &capturer.WindowInfo{X: 0, Y: 0, Width: 1920, Height: 1080}
 
-	rect, err := computeCaptureRect(window, nil, 1920, 1080)
+	rect, err := capturer.ComputeCaptureRect(window, nil, 1920, 1080)
 
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -102,10 +103,10 @@ func TestComputeCaptureRect_fullscreenWindow(t *testing.T) {
 }
 
 func TestComputeCaptureRect_customBounds(t *testing.T) {
-	window := &WindowInfo{X: 100, Y: 50, Width: 800, Height: 600}
+	window := &capturer.WindowInfo{X: 100, Y: 50, Width: 800, Height: 600}
 	bounds := image.Rect(200, 150, 400, 300)
 
-	rect, err := computeCaptureRect(window, &bounds, 1920, 1080)
+	rect, err := capturer.ComputeCaptureRect(window, &bounds, 1920, 1080)
 
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -116,9 +117,9 @@ func TestComputeCaptureRect_customBounds(t *testing.T) {
 }
 
 func TestComputeCaptureRect_clampNegativeOrigin(t *testing.T) {
-	window := &WindowInfo{X: -10, Y: -10, Width: 800, Height: 600}
+	window := &capturer.WindowInfo{X: -10, Y: -10, Width: 800, Height: 600}
 
-	rect, err := computeCaptureRect(window, nil, 1920, 1080)
+	rect, err := capturer.ComputeCaptureRect(window, nil, 1920, 1080)
 
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -129,9 +130,9 @@ func TestComputeCaptureRect_clampNegativeOrigin(t *testing.T) {
 }
 
 func TestComputeCaptureRect_clampExceedScreen(t *testing.T) {
-	window := &WindowInfo{X: 1500, Y: 800, Width: 800, Height: 600}
+	window := &capturer.WindowInfo{X: 1500, Y: 800, Width: 800, Height: 600}
 
-	rect, err := computeCaptureRect(window, nil, 1920, 1080)
+	rect, err := capturer.ComputeCaptureRect(window, nil, 1920, 1080)
 
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -142,9 +143,9 @@ func TestComputeCaptureRect_clampExceedScreen(t *testing.T) {
 }
 
 func TestComputeCaptureRect_zeroAreaAfterClamp(t *testing.T) {
-	window := &WindowInfo{X: 2000, Y: 2000, Width: 100, Height: 100}
+	window := &capturer.WindowInfo{X: 2000, Y: 2000, Width: 100, Height: 100}
 
-	_, err := computeCaptureRect(window, nil, 1920, 1080)
+	_, err := capturer.ComputeCaptureRect(window, nil, 1920, 1080)
 
 	if err == nil {
 		t.Errorf("expected error for zero-area rect after clamp, got nil")
@@ -153,9 +154,9 @@ func TestComputeCaptureRect_zeroAreaAfterClamp(t *testing.T) {
 
 func TestComputeCaptureRect_invalidRect(t *testing.T) {
 	bounds := image.Rect(100, 100, 100, 100) // Min.X == Max.X
-	window := &WindowInfo{X: 0, Y: 0, Width: 800, Height: 600}
+	window := &capturer.WindowInfo{X: 0, Y: 0, Width: 800, Height: 600}
 
-	_, err := computeCaptureRect(window, &bounds, 1920, 1080)
+	_, err := capturer.ComputeCaptureRect(window, &bounds, 1920, 1080)
 
 	if err == nil {
 		t.Errorf("expected error for invalid rect, got nil")

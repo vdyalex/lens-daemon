@@ -107,8 +107,10 @@ func Load() (*Config, error) {
 		TimeoutOCRExtract:          ldr.getDuration("TIMEOUT_OCR_EXTRACT", constants.TimeoutOCRExtract),
 		TimeoutAIProcess:           ldr.getDuration("TIMEOUT_AI_PROCESS", constants.TimeoutAIProcess),
 		TelegramBroadcastTimeout:   ldr.getDuration("TELEGRAM_BROADCAST_TIMEOUT", constants.TelegramBroadcastTimeout),
+		TimeoutCapturePhase:        ldr.getDuration("TIMEOUT_CAPTURE_PHASE", constants.TimeoutCapturePhase),
+		TimeoutAnalysePhase:        ldr.getDuration("TIMEOUT_ANALYSE_PHASE", constants.TimeoutAnalysePhase),
 		EventTapPollInterval:       ldr.getDuration("EVENT_TAP_POLL_INTERVAL", constants.EventTapPollInterval),
-		WorkerQueueCapacity:        ldr.getInt("WORKER_QUEUE_CAPACITY", constants.WorkerQueueCapacity),
+		AnalyseQueueCapacity:       ldr.getInt("ANALYSE_QUEUE_CAPACITY", constants.AnalyseQueueCapacity),
 	}
 
 	if cfg.AnthropicAPIKey == "" {

@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"os"
 	"os/signal"
 	"strings"
@@ -11,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/vdyalex/lens-daemon/src/ipc"
+	"github.com/vdyalex/lens-daemon/src/utils/exceptions"
 )
 
 var logsCmd = &cobra.Command{
@@ -59,7 +61,12 @@ func runLogs() {
 
 	logChan, err := client.Subscribe(ctx)
 	if err != nil {
-		pterm.Fatal.Printfln("failed to subscribe to logs: %v", err)
+		if errors.Is(err, exceptions.ErrIPCNotConnected) {
+			pterm.Error.Println("daemon is not running — start it with 'lensd start'")
+		} else {
+			pterm.Error.Printfln("failed to subscribe to logs: %v", err)
+		}
+		os.Exit(1)
 	}
 
 	logger := pterm.DefaultLogger.WithLevel(pterm.LogLevelDebug)

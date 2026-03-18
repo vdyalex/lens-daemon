@@ -151,7 +151,8 @@ func (p *Pipeline) processWithAIAndBroadcast(ctx context.Context, text string) e
 	broadcastCtx, broadcastCancel := context.WithTimeout(ctx, p.settings.TelegramBroadcastTimeout)
 	defer broadcastCancel()
 	if err := p.messenger.Broadcast(broadcastCtx, response); err != nil {
-		return err
+		p.logger.Info("broadcast skipped", "error", err)
+		return nil
 	}
 	p.logger.Info("broadcast to telegram subscribers successfully")
 	return nil
