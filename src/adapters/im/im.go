@@ -159,7 +159,7 @@ func (s *Sender) Broadcast(ctx context.Context, text string) error {
 	var lastErr error
 	for _, chatID := range chatIDs {
 		if err := s.sendTo(ctx, chatID, text); err != nil {
-			s.logger.Error("broadcast send failed", "chat_id", chatID, "error", err)
+			s.logger.Warn("broadcast send failed", "chat_id", chatID, "error", err)
 			lastErr = err
 		}
 	}

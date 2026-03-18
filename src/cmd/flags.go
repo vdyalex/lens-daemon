@@ -2,35 +2,35 @@ package cmd
 
 import "strconv"
 
-// flagEnvPair holds a single environment variable name and its string value.
-type flagEnvPair struct {
-	key   string
-	value string
+// FlagEnvPair holds a single environment variable name and its string value.
+type FlagEnvPair struct {
+	Key   string
+	Value string
 }
 
-// flagEnvPairs returns the ordered set of flag-to-env mappings derived from flags.
+// FlagEnvPairs returns the ordered set of flag-to-env mappings derived from flags.
 // Only flags with non-zero values are included.
 // Callers consume the pairs according to their context (os.Setenv vs subprocess env).
-func flagEnvPairs() []flagEnvPair {
-	var pairs []flagEnvPair
+func FlagEnvPairs() []FlagEnvPair {
+	var pairs []FlagEnvPair
 
-	if flags.model != "" {
-		pairs = append(pairs, flagEnvPair{"ANTHROPIC_MODEL", flags.model})
+	if flags.Model != "" {
+		pairs = append(pairs, FlagEnvPair{"ANTHROPIC_MODEL", flags.Model})
 	}
-	if flags.systemPrompt != "" {
-		pairs = append(pairs, flagEnvPair{"ANTHROPIC_SYSTEM_PROMPT", flags.systemPrompt})
+	if flags.SystemPrompt != "" {
+		pairs = append(pairs, FlagEnvPair{"ANTHROPIC_SYSTEM_PROMPT", flags.SystemPrompt})
 	}
-	if flags.maxTokens != 0 {
-		pairs = append(pairs, flagEnvPair{"ANTHROPIC_MAX_RESPONSE_TOKENS", strconv.Itoa(flags.maxTokens)})
+	if flags.MaxTokens != 0 {
+		pairs = append(pairs, FlagEnvPair{"ANTHROPIC_MAX_RESPONSE_TOKENS", strconv.Itoa(flags.MaxTokens)})
 	}
-	if flags.logLevel != "" {
-		pairs = append(pairs, flagEnvPair{"LOG_LEVEL", flags.logLevel})
+	if flags.LogLevel != "" {
+		pairs = append(pairs, FlagEnvPair{"LOG_LEVEL", flags.LogLevel})
 	}
-	if flags.apiKey != "" {
-		pairs = append(pairs, flagEnvPair{"ANTHROPIC_API_KEY", flags.apiKey})
+	if flags.APIKey != "" {
+		pairs = append(pairs, FlagEnvPair{"ANTHROPIC_API_KEY", flags.APIKey})
 	}
-	if flags.botToken != "" {
-		pairs = append(pairs, flagEnvPair{"TELEGRAM_BOT_TOKEN", flags.botToken})
+	if flags.BotToken != "" {
+		pairs = append(pairs, FlagEnvPair{"TELEGRAM_BOT_TOKEN", flags.BotToken})
 	}
 
 	return pairs

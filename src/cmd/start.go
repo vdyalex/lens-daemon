@@ -27,10 +27,10 @@ var startCmd = &cobra.Command{
 // This allows configuration to be passed through re-exec to the child daemon process.
 // Returns a slice of environment variable strings in the form "KEY=VALUE".
 func buildExtraEnv() []string {
-	pairs := flagEnvPairs()
+	pairs := FlagEnvPairs()
 	env := make([]string, 0, len(pairs))
 	for _, pair := range pairs {
-		env = append(env, pair.key+"="+pair.value)
+		env = append(env, pair.Key+"="+pair.Value)
 	}
 	return env
 }
@@ -46,7 +46,8 @@ func runStart() {
 		ExtraEnv: buildExtraEnv(),
 	}
 	if err := daemon.Daemonize(opts); err != nil {
-		pterm.Fatal.Printfln("start failed: %v", err)
+		pterm.Error.Printfln("start failed: %v", err)
+		os.Exit(1)
 	}
 
 	spinner := NewSpinner("Starting lensd…")

@@ -83,9 +83,24 @@ const (
 
 // Worker queue constants.
 const (
-	// WorkerQueueCapacity is the buffer size for the capture trigger channel.
-	// Only 1 concurrent capture is allowed; additional triggers are dropped if full.
+	// Deprecated: use AnalyseQueueCapacity instead. TODO: remove after config migration.
+	// WorkerQueueCapacity is retained for backward compatibility only.
 	WorkerQueueCapacity = 1
+)
+
+// Pipeline phase constants.
+const (
+	// TimeoutCapturePhase is the total context budget for a Phase 1 goroutine.
+	// Covers TimeoutForegroundWindow (5s) + TimeoutCapture (30s) + scheduling headroom.
+	TimeoutCapturePhase = 40 * time.Second
+
+	// TimeoutAnalysePhase is the total context budget for a Phase 2 iteration.
+	// Covers TimeoutOCRExtract (30s) + TimeoutAIProcess (60s) + TelegramBroadcastTimeout (30s) + headroom.
+	TimeoutAnalysePhase = 5 * time.Minute
+
+	// AnalyseQueueCapacity is the default buffer depth for the analyse channel.
+	// 5 slots keeps a tight backlog; excess captures are dropped with a warning.
+	AnalyseQueueCapacity = 5
 )
 
 // Hotkey defaults.

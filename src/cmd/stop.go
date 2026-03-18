@@ -19,7 +19,8 @@ var stopCmd = &cobra.Command{
 	Long:  `Sends SIGTERM to the daemon via its PID file.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		if err := runStop(); err != nil {
-			pterm.Fatal.Printfln("%v", err)
+			pterm.Error.Printfln("%v", err)
+			os.Exit(1)
 		}
 	},
 }
