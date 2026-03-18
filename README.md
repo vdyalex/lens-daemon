@@ -4,15 +4,22 @@ A MacOS daemon that captures your screen on demand via a global hotkey, extracts
 
 ## ⚡ How it works
 
+The daemon uses a **two-phase pipeline** for low-latency capture and parallel processing:
+
 ```
-Hotkey (configurable) → Screen Capture → OCR → Claude AI → Telegram
+Phase 1 (Fast)      Phase 2 (Async)
+Hotkey → Capture    ↓ (queue)    OCR → AI → Telegram
+                    ↓ (concurrent)
 ```
 
 1. **Hotkey** — global keyboard listener via MacOS `CGEventTap`. Default: `RightShift` key. Customizable via `HOTKEY_TRIGGER_KEYNAME` environment variable
 2. **Capture** — grabs the entire active window via AppleScript and CoreGraphics (direct Objective-C bridge via `src/bridges/core_graphics`, no external libraries). Default: hold `RightOption` key to define custom bounds. Customizable via `HOTKEY_BOUNDS_KEYNAME`
-3. **OCR** — extracts text from the image using Apple Vision framework, entirely in-memory
-4. **AI** — sends extracted text to Claude with a configurable system prompt (max 1024 response tokens)
-5. **Notify** — broadcasts Claude's response to all Telegram subscribers, auto-chunking messages exceeding 4096 runes
+3. **Queue** — captured images are enqueued for Phase 2 analysis (queue capacity: 16 by default, configurable via `ANALYSE_QUEUE_CAPACITY`)
+4. **OCR** — extracts text from the image using Apple Vision framework, entirely in-memory
+5. **AI** — sends extracted text to Claude with a configurable system prompt (max 1024 response tokens)
+6. **Notify** — broadcasts Claude's response to all Telegram subscribers, auto-chunking messages exceeding 4096 runes
+
+**Key benefit**: Rapid hotkey presses are captured immediately in Phase 1 while Phase 2 processes previous results concurrently. If analysis is slower than capture (typical case), results queue up and are processed in parallel without losing captures.
 
 Captures happen **only** when you press the hotkey. No continuous polling or background recording.
 
@@ -146,15 +153,17 @@ export TELEGRAM_BOT_TOKEN="123456:ABC..."
 ./bin/lensd stop
 
 # Or build and run in foreground
-make run daemon
+make daemon
 ```
 
 Once running:
 
 1. **Subscribe**: Send `/start` to your Telegram bot to begin receiving responses
 2. **Capture**: Press the configured trigger hotkey (default: `RightShift`) at any time to trigger a capture
+   - Multiple rapid captures are queued and processed concurrently
+   - If the queue is full (16 items by default), the newest capture is dropped with a warning log
 3. **Custom bounds** (optional): Hold the configured bounds hotkey (default: `RightOption`), move your mouse to define a region, then release
-4. The daemon captures the screen, runs OCR, sends the text to Claude, and broadcasts the response to all subscribers
+4. The daemon captures the screen, enqueues for analysis, then processes OCR, sends the text to Claude, and broadcasts the response to all subscribers
 
 Send `/stop` to the Telegram bot to unsubscribe. Run `./bin/lensd stop` to stop the daemon.
 
@@ -163,16 +172,23 @@ Send `/stop` to the Telegram bot to unsubscribe. Run `./bin/lensd stop` to stop 
 | Command | Purpose |
 |---|---|
 | `make build` | Compile the binary to `bin/` |
-| `make run [ARGS]` | Build and run the binary with optional arguments (e.g., `make run daemon`, `make run start`) |
 | `make test` | Run all unit tests |
 | `make test-integration` | Run integration tests (daemon + IPC tests) |
-| `make check` | Run all static checks (fmt, vet, lint, vuln) and tests |
-| `make clean` | Remove build artifacts from `bin/` (preserves `.gitignore`) |
-| `make fmt` | Format source files with gofmt |
-| `make vet` | Run go vet static analysis |
+| `make check` | Run all static checks and tests (format + validate + lint + vulnerabilities + test + test-integration) |
+| `make clean` | Remove build artifacts from `bin/` |
+| `make format` | Format source files with gofmt |
+| `make validate` | Run go vet static analysis |
 | `make lint` | Run golangci-lint static analysis |
-| `make vuln` | Run govulncheck vulnerability scanner |
-| `make tools` | Install golangci-lint and govulncheck tools |
+| `make vulnerabilities` | Run govulncheck vulnerability scanner |
+| `make coverage` | Generate test coverage report (produces `coverage.html`) |
+| `make generate` | Run go generate on all packages |
+| `make tools` | Install analysis tools (golangci-lint, govulncheck, mockgen) |
+| `make daemon` | Build and run in daemon mode (foreground) |
+| `make start` | Build and start daemon in background |
+| `make stop` | Stop the running daemon |
+| `make status` | Check daemon status |
+| `make restart` | Rebuild, stop, and start the daemon |
+| `make logs` | Stream daemon logs to stdout |
 
 ## 🔐 Permissions
 
@@ -193,6 +209,7 @@ CGEventTapCreate failed -- grant Accessibility permission to this app
 
 | Dependency | Purpose |
 |---|---|
+| **Standard Library** | `sync` (WaitGroup for concurrent Phase 2 analysis), `context` (cancellation and timeouts), `image` (RGBA image buffers), `time` (deadlines and polling), `encoding/json` (IPC protocol) |
 | [`anthropic-sdk-go`](https://github.com/anthropics/anthropic-sdk-go) | Official Anthropic Go SDK for Claude AI API |
 
 **Indirect dependencies** (pulled in by the Anthropic SDK): `tidwall/gjson`, `tidwall/sjson`, `tidwall/match`, `tidwall/pretty`, `golang.org/x/sync`.
