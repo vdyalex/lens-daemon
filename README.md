@@ -69,7 +69,7 @@ All configuration is done through environment variables. Copy `.env.example` to 
 | `TIMEOUT_AI_PROCESS` | `60s` | Deadline for Claude AI API call and response |
 | `TELEGRAM_BROADCAST_TIMEOUT` | `30s` | Deadline for broadcasting to all subscribers |
 | `EVENT_TAP_POLL_INTERVAL` | `500ms` | CFRunLoop polling interval for keyboard event detection |
-| `WORKER_QUEUE_CAPACITY` | `1` | Buffer size for capture queue (only 1 concurrent capture allowed; additional triggers are dropped) |
+| `ANALYSE_QUEUE_CAPACITY` | `16` | Buffer size for Phase 2 analyse queue (captures are queued when analyse is slower than capture) |
 | `LOG_LEVEL` | `info` | Minimum log level (`debug`, `info`, `warn`, `error`) |
 | `VISION_LANG` | `en-US` | Vision language (BCP 47 code, e.g., `en-US`, `fr-FR`, `de-DE`, `zh-Hans`, `ja`, `ko`) |
 | `ANTHROPIC_MODEL` | `claude-sonnet-4-6` | Anthropic model ID to use for AI processing |
