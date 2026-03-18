@@ -1,4 +1,4 @@
-.PHONY: build run clean generate validate format lint vulnerabilities test coverage check tools start stop status restart logs test-integration
+.PHONY: build clean generate validate format lint vulnerabilities test coverage check tools deamon start stop status restart logs test-integration
 
 -include .env
 export
@@ -39,6 +39,9 @@ test-integration:
 check: format validate lint vulnerabilities test test-integration
 
 # Daemon management convenience targets
+daemon: build
+	$(BINARY_PATH) daemon
+
 start: build
 	$(BINARY_PATH) start
 

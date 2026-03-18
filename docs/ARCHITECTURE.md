@@ -28,7 +28,12 @@ The application uses a **single binary, multiple subcommands** architecture:
 
 ## Pipeline Design
 
-The pipeline orchestrates the full workflow, wiring all components together at startup and processing each hotkey trigger through the sequential capture-OCR-AI-Telegram flow.
+The pipeline orchestrates the full workflow with a **two-phase design**:
+
+- **Phase 1 (Capture)**: One goroutine per hotkey trigger; captures complete independently and in parallel
+- **Phase 2 (Analyse)**: Results queue up and are processed concurrently (one goroutine per queued result) for OCR-AI-Telegram
+
+This separation decouples fast Phase 1 captures from slow Phase 2 analysis, preventing missed captures when the pipeline is busy.
 
 **Modules** handle MacOS-specific operations:
 
@@ -90,12 +95,18 @@ flowchart TD
     end
 
     V -->|status/logs request| W[ipc.Handler<br/>Query pipeline or stream logs]
-    V -->|hotkey pressed| X([pipeline.process<br/>5 min overall timeout])
+    V -->|hotkey pressed| X([Phase 1: Capture<br/>5 min overall timeout])
 
-    subgraph Process[Sequential process pipeline]
+    subgraph Phase1[Phase 1: Capture - Sequential per trigger]
         X --> Y[ForegroundWindow<br/>AppleScript - window info<br/>5 s timeout]
         Y --> Z[CaptureCenter<br/>Full window or custom bounds<br/>30 s timeout]
-        Z --> AA[extractor.Extract<br/>RGBA - PNG - Vision API - text<br/>30 s timeout]
+    end
+
+    Phase1 --> X2{Enqueue to<br/>analyseQueue}
+    X2 -->|queue not full| X3[Phase 2: Analyse<br/>One goroutine per result]
+
+    subgraph Phase2[Phase 2: Analyse - Concurrent per result]
+        X3 --> AA[extractor.Extract<br/>RGBA - PNG - Vision API - text<br/>30 s timeout]
         AA --> AB[agent.Process<br/>Text - Claude API - response<br/>60 s timeout]
         AB --> AC[messenger.Broadcast<br/>Response - all Telegram subscribers<br/>30 s timeout]
     end
@@ -105,6 +116,8 @@ flowchart TD
 ```
 
 Each pipeline run has an overall timeout of 5 minutes. Individual step timeouts are enforced to prevent any single operation from stalling the daemon indefinitely.
+
+**Phase 1 and Phase 2 are independent**: Phase 1 captures complete quickly and enqueue to `analyseQueue` (capacity 16 by default). Phase 2 processes queued results concurrently—if the queue fills, new captures are dropped with a warning log, preventing unbounded memory growth.
 
 ## Sequence Diagrams
 
@@ -212,7 +225,7 @@ For fullscreen windows (width and height >= screen dimensions), the daemon captu
 
 - **CGEventTap in listen-only mode**: The event tap observes keyboard and mouse events without modifying or consuming them. Other applications continue to receive all events normally. On shutdown, the listener disables the tap and releases all C resources before the goroutine exits.
 - **Non-blocking hotkey channel**: The C callback sends to a buffered channel with a non-blocking select, ensuring the `CFRunLoop` is never stalled by a slow pipeline execution.
-- **Async worker processing**: A dedicated worker goroutine processes captures sequentially (limited to 1 concurrent run) while the main loop stays responsive to new hotkey triggers. If the queue is full, additional triggers are silently dropped.
+- **Two-phase pipeline**: Phase 1 captures are unbounded per trigger (responsive to rapid hotkeys). Phase 2 processes queued results concurrently (one goroutine per result) but bounded by `analyseQueue` capacity (16 by default). If the queue is full, captures are dropped with a warning log.
 - **In-memory image pipeline**: Images flow as `*image.RGBA` through the pipeline and are PNG-encoded into a byte buffer only when passed to the Vision API. No files are created at any point.
 - **Atomic subscriber persistence**: The subscriber store writes to a temporary file and uses `os.Rename()` for atomic updates, protected by a read-write mutex for concurrent access.
 - **MarkdownV2 formatting**: All Telegram messages are converted to MarkdownV2 format, escaping special characters for proper rendering.

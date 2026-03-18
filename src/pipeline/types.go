@@ -43,6 +43,5 @@ type Pipeline struct {
 	lastCaptureMu   sync.RWMutex
 	lastCaptureTime time.Time
 	lastWindowTitle string
-	captureGroup    sync.WaitGroup
 	analyseQueue    chan CaptureResult
 }

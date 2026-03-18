@@ -62,8 +62,9 @@ func (p *Pipeline) capture(ctx context.Context) error {
 // analyse executes Phase 2: runs OCR on the captured image, sends text to the AI agent,
 // and broadcasts the response to Telegram subscribers.
 //
-// analyse is called serially by the single analyse worker goroutine; it is never called
-// concurrently. An empty OCR result or an empty AI response is non-fatal and returns nil.
+// analyse is safe to call concurrently from multiple goroutines. Each call wraps ctx
+// with its own TimeoutAnalysePhase sub-context. An empty OCR result or an empty AI
+// response is non-fatal and returns nil.
 //
 // ctx: parent context; analyse wraps it with TimeoutAnalysePhase internally.
 // result: the CaptureResult produced by Phase 1.
