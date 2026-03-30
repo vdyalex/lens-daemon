@@ -2,9 +2,7 @@
 package daemon
 
 import (
-	"fmt"
 	"os"
-	"os/user"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -12,6 +10,7 @@ import (
 
 	"github.com/vdyalex/lens-daemon/src/utils/constants"
 	"github.com/vdyalex/lens-daemon/src/utils/exceptions"
+	"github.com/vdyalex/lens-daemon/src/utils/paths"
 )
 
 // WritePID atomically writes the current process PID to path.
@@ -31,17 +30,7 @@ func WritePID(path string) error {
 			_, staleErr := ReadPID(path)
 			if staleErr == exceptions.ErrPIDFileStale {
 				// Stale file was removed by ReadPID; retry the open
-				f, retryErr := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, constants.PermissionPIDFile)
-				if retryErr != nil {
-					return exceptions.ErrDaemonAlreadyRunning
-				}
-				defer f.Close()
-				currentPID := os.Getpid()
-				if _, err := f.WriteString(strconv.Itoa(currentPID)); err != nil {
-					os.Remove(path)
-					return err
-				}
-				return nil
+				return writePIDToFile(path)
 			}
 			// Process is still running
 			return exceptions.ErrDaemonAlreadyRunning
@@ -50,12 +39,7 @@ func WritePID(path string) error {
 	}
 	defer f.Close()
 
-	currentPID := os.Getpid()
-	if _, err := f.WriteString(strconv.Itoa(currentPID)); err != nil {
-		os.Remove(path)
-		return err
-	}
-	return nil
+	return writePIDContent(f, path)
 }
 
 // ReadPID reads the PID from path.
@@ -98,12 +82,29 @@ func RemovePID(path string) error {
 
 // DefaultPIDPath returns the canonical PID file path: $TMPDIR/lensd-<uid>.pid
 func DefaultPIDPath() string {
-	tmpdir := os.TempDir()
-	uid := "unknown"
-	if u, err := user.Current(); err == nil {
-		uid = u.Uid
+	return paths.DaemonPath("pid")
+}
+
+// writePIDToFile creates a new PID file at path and writes the current process PID.
+// Used for the retry path after stale file removal.
+func writePIDToFile(path string) error {
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, constants.PermissionPIDFile)
+	if err != nil {
+		return exceptions.ErrDaemonAlreadyRunning
 	}
-	return filepath.Join(tmpdir, fmt.Sprintf("lensd-%s.pid", uid))
+	defer f.Close()
+
+	return writePIDContent(f, path)
+}
+
+// writePIDContent writes the current process PID to f and removes path on failure.
+func writePIDContent(f *os.File, path string) error {
+	currentPID := os.Getpid()
+	if _, err := f.WriteString(strconv.Itoa(currentPID)); err != nil {
+		os.Remove(path)
+		return err
+	}
+	return nil
 }
 
 // isProcessRunning checks if a process with the given PID is alive.

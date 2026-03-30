@@ -141,8 +141,28 @@ const (
 	IPCMaxFrameSize = 4 * 1024 * 1024
 	// IPCLogSubscriberBuffer is the channel capacity for log event subscribers.
 	IPCLogSubscriberBuffer = 64
+	// IPCReadTimeout is the per-connection read deadline for server and client frames.
+	IPCReadTimeout = 5 * time.Second
+	// IPCLogRingBuffer is the number of recent log events replayed to new subscribers.
+	IPCLogRingBuffer = 100
 	// SubcommandDaemon is the argv[1] used when re-execing the daemon child.
 	SubcommandDaemon = "daemon"
+)
+
+// Slog text handler field keys used by the log broker parser.
+const (
+	// SlogFieldTime is the key emitted by slog.TextHandler for the event timestamp.
+	SlogFieldTime = "time"
+	// SlogFieldLevel is the key emitted by slog.TextHandler for the log level.
+	SlogFieldLevel = "level"
+	// SlogFieldMessage is the key emitted by slog.TextHandler for the log message.
+	SlogFieldMessage = "msg"
+)
+
+// Log streaming constants.
+const (
+	// LogsReconnectInterval is the delay before the logs command retries after a daemon disconnect.
+	LogsReconnectInterval = 3 * time.Second
 )
 
 // File permission modes.
@@ -154,7 +174,7 @@ const (
 	// PermissionSocket is the mode for the Unix domain socket file.
 	PermissionSocket = 0600
 	// PermissionLogFile is the mode for the daemon log redirect file.
-	PermissionLogFile = 0666
+	PermissionLogFile = 0600
 )
 
 // Application configuration defaults.

@@ -3,20 +3,16 @@ package ipc
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+	"errors"
 	"log/slog"
 	"net"
 	"os"
-	"os/user"
-	"path/filepath"
+	"time"
 
 	"github.com/vdyalex/lens-daemon/src/utils/constants"
+	"github.com/vdyalex/lens-daemon/src/utils/exceptions"
+	"github.com/vdyalex/lens-daemon/src/utils/paths"
 )
-
-// Handler is the interface that processes an IPC Request and returns a Response.
-type Handler interface {
-	Handle(ctx context.Context, conn net.Conn, req Request) (Response, error)
-}
 
 // Server listens on a Unix domain socket and dispatches requests.
 type Server struct {
@@ -36,10 +32,14 @@ func NewServer(socketPath string, handler Handler, logger *slog.Logger) *Server 
 
 // Serve starts the accept loop. Blocks until ctx is cancelled.
 // The socket file is removed on return. Each accepted connection is handled
-// in its own goroutine. Returns ctx.Err() on normal shutdown.
-func (s *Server) Serve(ctx context.Context) error {
+// in its own goroutine. onReady is called after the socket is listening and
+// permissions are set; pass nil if no callback is needed.
+// Returns ctx.Err() on normal shutdown.
+func (s *Server) Serve(ctx context.Context, onReady func()) error {
 	// Clean up stale socket
-	os.Remove(s.socketPath)
+	if err := os.Remove(s.socketPath); err != nil && !os.IsNotExist(err) {
+		s.logger.Warn("failed to remove stale socket", "path", s.socketPath, "error", err)
+	}
 
 	listener, err := net.Listen("unix", s.socketPath)
 	if err != nil {
@@ -54,6 +54,10 @@ func (s *Server) Serve(ctx context.Context) error {
 
 	s.logger.Info("ipc server listening", "socket", s.socketPath)
 
+	if onReady != nil {
+		onReady()
+	}
+
 	// Goroutine to close listener when context is cancelled
 	go func() {
 		<-ctx.Done()
@@ -61,12 +65,14 @@ func (s *Server) Serve(ctx context.Context) error {
 	}()
 
 	for {
-		conn, err := listener.Accept()
+		connection, err := listener.Accept()
 		if err != nil {
 			select {
 			case <-ctx.Done():
 				// Normal shutdown
-				os.Remove(s.socketPath)
+				if removeErr := os.Remove(s.socketPath); removeErr != nil && !os.IsNotExist(removeErr) {
+					s.logger.Warn("failed to remove socket on shutdown", "path", s.socketPath, "error", removeErr)
+				}
 				return ctx.Err()
 			default:
 				s.logger.Error("accept failed", "error", err)
@@ -75,66 +81,72 @@ func (s *Server) Serve(ctx context.Context) error {
 		}
 
 		// Handle connection in goroutine
-		go s.handleConn(ctx, conn)
+		go s.handleConnection(ctx, connection)
 	}
 }
 
-func (s *Server) handleConn(ctx context.Context, conn net.Conn) {
-	defer conn.Close()
+// handleConnection reads one request frame from the connection, dispatches it to the handler, and writes the response.
+// It sets a read deadline to prevent slow clients from blocking. On ErrClientDisconnected, returns without logging.
+func (s *Server) handleConnection(ctx context.Context, connection net.Conn) {
+	defer connection.Close()
+
+	// Set read deadline to prevent slow/malicious clients from holding goroutines
+	if err := connection.SetReadDeadline(time.Now().Add(constants.IPCReadTimeout)); err != nil {
+		s.logger.Warn("failed to set read deadline", "error", err)
+		return
+	}
 
 	// Read request frame
-	reqData, err := ReadFrame(conn)
+	requestData, err := ReadFrame(connection)
 	if err != nil {
 		s.logger.Warn("failed to read request frame", "error", err)
 		return
 	}
 
 	// Unmarshal request
-	var req Request
-	if err := json.Unmarshal(reqData, &req); err != nil {
+	var request Request
+	if err := json.Unmarshal(requestData, &request); err != nil {
 		s.logger.Warn("failed to unmarshal request", "error", err)
-		resp := Response{OK: false, Error: "invalid request"}
-		data, err := json.Marshal(resp)
+		response := Response{OK: false, Error: "invalid request"}
+		data, err := json.Marshal(response)
 		if err != nil {
 			s.logger.Error("failed to marshal error response", "error", err)
 			return
 		}
-		if err := WriteFrame(conn, data); err != nil {
+		if err := WriteFrame(connection, data); err != nil {
 			s.logger.Warn("failed to write error response", "error", err)
 		}
 		return
 	}
 
 	// Handle request
-	resp, err := s.handler.Handle(ctx, conn, req)
+	response, err := s.handler.Handle(ctx, connection, request)
 	if err != nil {
-		s.logger.Warn("handler error", "command", req.Command, "error", err)
-		resp = Response{OK: false, Error: err.Error()}
+		// Skip logging for normal client disconnections
+		if !errors.Is(err, exceptions.ErrClientDisconnected) {
+			s.logger.Warn("handler error", "command", request.Command, "error", err)
+		}
+		return
 	}
 
-	// Special case: log.subscribe writes events directly to conn, not a response
-	if req.Command == CommandLogSubscribe && resp.OK {
+	// Special case: log.subscribe writes events directly to connection, not a response
+	if request.Command == CommandLogSubscribe && response.OK {
 		return // Handler already wrote frames
 	}
 
 	// Send response
-	respData, err := json.Marshal(resp)
+	responseData, err := json.Marshal(response)
 	if err != nil {
 		s.logger.Error("failed to marshal response", "error", err)
 		return
 	}
 
-	if err := WriteFrame(conn, respData); err != nil {
+	if err := WriteFrame(connection, responseData); err != nil {
 		s.logger.Warn("failed to write response frame", "error", err)
 	}
 }
 
 // DefaultSocketPath returns $TMPDIR/lensd-<uid>.sock
 func DefaultSocketPath() string {
-	tmpdir := os.TempDir()
-	uid := "unknown"
-	if u, err := user.Current(); err == nil {
-		uid = u.Uid
-	}
-	return filepath.Join(tmpdir, fmt.Sprintf("lensd-%s.sock", uid))
+	return paths.DaemonPath("sock")
 }

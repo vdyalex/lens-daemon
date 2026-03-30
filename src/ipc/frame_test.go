@@ -52,6 +52,23 @@ func TestReadFrame_truncatedReturnsError(t *testing.T) {
 	}
 }
 
+func TestReadFrame_truncatedWrapsUnexpectedEOF(t *testing.T) {
+	// Write length but not enough payload data
+	buffer := &bytes.Buffer{}
+	buffer.Write([]byte{0x00, 0x00, 0x00, 0x10}) // Length: 16 bytes
+	buffer.Write([]byte("short"))                // Only 5 bytes
+
+	_, err := ipc.ReadFrame(buffer)
+
+	// The error should wrap both ErrIPCProtocolError and io.ErrUnexpectedEOF
+	if !errors.Is(err, exceptions.ErrIPCProtocolError) {
+		t.Errorf("expected ErrIPCProtocolError in chain, got: %v", err)
+	}
+	if !errors.Is(err, io.ErrUnexpectedEOF) {
+		t.Errorf("expected io.ErrUnexpectedEOF in chain, got: %v", err)
+	}
+}
+
 func TestReadFrame_eofReturnsEof(t *testing.T) {
 	buffer := &bytes.Buffer{} // Empty buffer
 

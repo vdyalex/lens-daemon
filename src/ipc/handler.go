@@ -5,8 +5,17 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net"
-	"time"
+
+	"github.com/vdyalex/lens-daemon/src/utils/exceptions"
 )
+
+// CommandHandler dispatches IPC requests to pipeline and log broker operations.
+type CommandHandler struct {
+	pipeline   PipelineService
+	broker     *LogBroker
+	cancelFunc context.CancelFunc
+	logger     *slog.Logger
+}
 
 // NewCommandHandler constructs a CommandHandler.
 func NewCommandHandler(
@@ -19,27 +28,26 @@ func NewCommandHandler(
 		pipeline:   pipeline,
 		broker:     broker,
 		cancelFunc: cancelFunc,
-		startTime:  time.Now(),
 		logger:     logger,
 	}
 }
 
 // Handle implements Handler. Dispatches to the appropriate command handler.
-func (h *CommandHandler) Handle(ctx context.Context, conn net.Conn, req Request) (Response, error) {
-	switch req.Command {
+func (h *CommandHandler) Handle(ctx context.Context, connection net.Conn, request Request) (Response, error) {
+	switch request.Command {
 	case CommandStatus:
-		return h.handleStatus(ctx)
+		return h.handleStatus()
 	case CommandShutdown:
 		return h.handleShutdown()
 	case CommandLogSubscribe:
-		return h.handleLogSubscribe(ctx, conn)
+		return h.handleLogSubscribe(ctx, connection)
 	default:
 		return Response{OK: false, Error: "unknown command"}, nil
 	}
 }
 
 // handleStatus returns the current pipeline status as a StatusPayload.
-func (h *CommandHandler) handleStatus(ctx context.Context) (Response, error) {
+func (h *CommandHandler) handleStatus() (Response, error) {
 	pid, uptimeSeconds, lastCaptureTime, lastWindowTitle := h.pipeline.Status()
 
 	payload := StatusPayload{
@@ -66,7 +74,7 @@ func (h *CommandHandler) handleShutdown() (Response, error) {
 
 // handleLogSubscribe subscribes to log events and streams them to the client.
 // The handler writes LogEvent frames directly to the connection; no response envelope is sent.
-func (h *CommandHandler) handleLogSubscribe(ctx context.Context, conn net.Conn) (Response, error) {
+func (h *CommandHandler) handleLogSubscribe(ctx context.Context, connection net.Conn) (Response, error) {
 	id, eventCh := h.broker.Subscribe()
 	defer h.broker.Unsubscribe(id)
 
@@ -74,7 +82,7 @@ func (h *CommandHandler) handleLogSubscribe(ctx context.Context, conn net.Conn) 
 	for {
 		select {
 		case <-ctx.Done():
-			return Response{}, ctx.Err()
+			return Response{}, exceptions.ErrClientDisconnected
 		case event := <-eventCh:
 			// Send event frame
 			data, err := json.Marshal(event)
@@ -82,8 +90,8 @@ func (h *CommandHandler) handleLogSubscribe(ctx context.Context, conn net.Conn) 
 				h.logger.Error("failed to marshal log event", "error", err)
 				return Response{}, err
 			}
-			if err := WriteFrame(conn, data); err != nil {
-				return Response{}, err
+			if err := WriteFrame(connection, data); err != nil {
+				return Response{}, exceptions.ErrClientDisconnected
 			}
 		}
 	}

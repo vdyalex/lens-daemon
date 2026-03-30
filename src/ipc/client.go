@@ -3,12 +3,21 @@ package ipc
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net"
+	"os"
 	"time"
 
 	"github.com/vdyalex/lens-daemon/src/utils/constants"
 	"github.com/vdyalex/lens-daemon/src/utils/exceptions"
 )
+
+// Client manages a connection to the daemon IPC socket.
+type Client struct {
+	socketPath string
+	timeout    time.Duration
+}
 
 // NewClient creates a Client for socketPath with a default timeout.
 func NewClient(socketPath string) *Client {
@@ -19,7 +28,7 @@ func NewClient(socketPath string) *Client {
 }
 
 // Send dials the socket, sends request, reads one Response, and closes the connection.
-// Returns ErrIPCNotConnected if the socket is not reachable.
+// Returns ErrIPCNotConnected (wrapping the underlying dial error) if the socket is not reachable.
 func (c *Client) Send(ctx context.Context, request Request) (Response, error) {
 	// Create a context with timeout
 	dialCtx, cancel := context.WithTimeout(ctx, c.timeout)
@@ -28,7 +37,7 @@ func (c *Client) Send(ctx context.Context, request Request) (Response, error) {
 	var dialer net.Dialer
 	connection, err := dialer.DialContext(dialCtx, "unix", c.socketPath)
 	if err != nil {
-		return Response{}, exceptions.ErrIPCNotConnected
+		return Response{}, fmt.Errorf("%w: %w", exceptions.ErrIPCNotConnected, err)
 	}
 	defer connection.Close()
 
@@ -63,7 +72,8 @@ func (c *Client) Send(ctx context.Context, request Request) (Response, error) {
 
 // Subscribe dials the socket, sends a log.subscribe Request, and streams LogEvents
 // to the returned channel. The caller must cancel ctx to stop streaming.
-// The channel is closed when the connection ends.
+// The channel is closed when the connection ends or the daemon is unreachable.
+// Returns ErrIPCNotConnected (wrapping the underlying dial error) if the socket is not reachable.
 func (c *Client) Subscribe(ctx context.Context) (<-chan LogEvent, error) {
 	// Create a context with timeout for initial connection
 	dialCtx, cancel := context.WithTimeout(ctx, c.timeout)
@@ -72,7 +82,7 @@ func (c *Client) Subscribe(ctx context.Context) (<-chan LogEvent, error) {
 	var dialer net.Dialer
 	connection, err := dialer.DialContext(dialCtx, "unix", c.socketPath)
 	if err != nil {
-		return nil, exceptions.ErrIPCNotConnected
+		return nil, fmt.Errorf("%w: %w", exceptions.ErrIPCNotConnected, err)
 	}
 
 	// Send subscribe request
@@ -95,14 +105,19 @@ func (c *Client) Subscribe(ctx context.Context) (<-chan LogEvent, error) {
 		defer close(ch)
 
 		for {
-			select {
-			case <-ctx.Done():
-				return
-			default:
-			}
+			// Rolling deadline prevents blocking forever if the daemon crashes without
+			// closing the socket. On timeout we check ctx and renew; other errors exit.
+			// Deadline error is non-fatal — the subsequent ReadFrame will fail instead.
+			_ = connection.SetReadDeadline(time.Now().Add(constants.IPCReadTimeout))
 
 			frame, err := ReadFrame(connection)
 			if err != nil {
+				if errors.Is(err, os.ErrDeadlineExceeded) {
+					if ctx.Err() != nil {
+						return
+					}
+					continue // Deadline expired normally — renew and retry
+				}
 				return
 			}
 

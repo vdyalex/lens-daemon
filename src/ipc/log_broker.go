@@ -2,25 +2,48 @@ package ipc
 
 import (
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/vdyalex/lens-daemon/src/utils/constants"
 )
 
+// LogBroker is a fan-out io.Writer that distributes log lines to registered subscribers.
+// It parses slog text lines into LogEvent structs, stores them in a ring buffer for
+// late-subscriber replay, and sends them to all subscribers.
+// It is safe for concurrent use. Slow subscribers are dropped (non-blocking send).
+type LogBroker struct {
+	mu          sync.RWMutex
+	subscribers map[int]chan LogEvent
+	nextID      int
+	ring        []LogEvent // circular replay buffer, pre-allocated to IPCLogRingBuffer
+	ringHead    int        // index of the oldest valid event
+	ringLength  int        // number of valid events stored (0..len(ring))
+}
+
 // NewLogBroker creates a new LogBroker ready to use.
 func NewLogBroker() *LogBroker {
 	return &LogBroker{
 		subscribers: make(map[int]chan LogEvent),
+		ring:        make([]LogEvent, constants.IPCLogRingBuffer),
 	}
 }
 
 // Subscribe registers a new subscriber channel. Returns subscriber ID and channel.
+// The ring buffer is replayed into the channel (oldest to newest) before the subscriber
+// is added to the active map, so the caller receives recent history without gaps.
 // The caller owns the channel and must call Unsubscribe when done.
 func (b *LogBroker) Subscribe() (int, <-chan LogEvent) {
-	ch := make(chan LogEvent, constants.IPCLogSubscriberBuffer)
-
 	b.mu.Lock()
 	defer b.mu.Unlock()
+
+	// Size the channel to hold the full replay plus live headroom.
+	ch := make(chan LogEvent, b.ringLength+constants.IPCLogSubscriberBuffer)
+
+	// Replay ring buffer (oldest → newest) before registering so no events are missed.
+	for i := range b.ringLength {
+		ch <- b.ring[(b.ringHead+i)%len(b.ring)]
+	}
 
 	id := b.nextID
 	b.nextID++
@@ -43,9 +66,9 @@ func (b *LogBroker) Unsubscribe(id int) {
 	}
 }
 
-// Write implements io.Writer. Distributes p to all active subscribers without blocking.
-// Slow subscribers that cannot receive immediately are dropped (channel full is a no-op).
-// Parses slog key-value lines like: time=... level=INFO msg=... key=val ...
+// Write implements io.Writer. Parses slog text lines into LogEvent structs,
+// stores them in the ring buffer, and distributes to all active subscribers.
+// Slow subscribers that cannot receive immediately are dropped (non-blocking send).
 // Returns number of bytes written (always len(p)) or error.
 func (b *LogBroker) Write(p []byte) (int, error) {
 	if len(p) == 0 {
@@ -54,15 +77,23 @@ func (b *LogBroker) Write(p []byte) (int, error) {
 
 	event := parseSlogLine(p)
 
-	b.mu.RLock()
-	defer b.mu.RUnlock()
+	b.mu.Lock()
+	defer b.mu.Unlock()
 
+	// Store event in ring buffer; overwrite oldest entry when full.
+	index := (b.ringHead + b.ringLength) % len(b.ring)
+	b.ring[index] = event
+	if b.ringLength < len(b.ring) {
+		b.ringLength++
+	} else {
+		b.ringHead = (b.ringHead + 1) % len(b.ring)
+	}
+
+	// Fan out to active subscribers (non-blocking; slow subscribers are dropped).
 	for _, ch := range b.subscribers {
 		select {
 		case ch <- event:
-			// Sent successfully
 		default:
-			// Channel full; drop subscriber silently (non-blocking)
 		}
 	}
 
@@ -157,13 +188,13 @@ func parseSlogLine(p []byte) LogEvent {
 
 		// Store parsed fields
 		switch key {
-		case "time":
+		case constants.SlogFieldTime:
 			if t, err := time.Parse(time.RFC3339, value); err == nil {
 				event.Time = t
 			}
-		case "level":
+		case constants.SlogFieldLevel:
 			event.Level = value
-		case "msg":
+		case constants.SlogFieldMessage:
 			event.Message = value
 		default:
 			event.Attrs[key] = value

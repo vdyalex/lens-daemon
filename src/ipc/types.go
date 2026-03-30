@@ -4,8 +4,7 @@ package ipc
 import (
 	"context"
 	"encoding/json"
-	"log/slog"
-	"sync"
+	"net"
 	"time"
 )
 
@@ -48,31 +47,17 @@ type StatusPayload struct {
 	SubscriberCount int       `json:"subscriber_count"`
 }
 
-// Client manages a connection to the daemon IPC socket.
-type Client struct {
-	socketPath string
-	timeout    time.Duration
-}
-
 // PipelineService abstracts the pipeline for IPC handler testability.
 type PipelineService interface {
 	Status() (PID int, UptimeSeconds float64, LastCaptureTime time.Time, LastWindowTitle string)
 }
 
-// CommandHandler dispatches IPC requests to pipeline and log broker operations.
-type CommandHandler struct {
-	pipeline   PipelineService
-	broker     *LogBroker
-	cancelFunc context.CancelFunc
-	startTime  time.Time
-	logger     *slog.Logger
-}
-
-// LogBroker is a fan-out io.Writer that distributes log lines to registered subscribers.
-// It parses slog text lines into LogEvent structs and sends them to all subscribers.
-// It is safe for concurrent use. Slow subscribers are dropped (non-blocking send).
-type LogBroker struct {
-	mu          sync.RWMutex
-	subscribers map[int]chan LogEvent
-	nextID      int
+// Handler is the interface that processes an IPC Request and returns a Response.
+//
+// Special case: for CommandLogSubscribe, the handler streams LogEvent frames directly
+// to connection and returns (Response{}, error); the Response is ignored by the server.
+// This asymmetry is intentional — a future StreamHandler interface can formalize it
+// when a second streaming command is added.
+type Handler interface {
+	Handle(ctx context.Context, connection net.Conn, request Request) (Response, error)
 }

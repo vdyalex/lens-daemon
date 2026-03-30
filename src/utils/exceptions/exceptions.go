@@ -74,6 +74,8 @@ var (
 	ErrIPCCommandFailed = errors.New("ipc command failed")
 	// ErrIPCProtocolError is returned when the IPC framing protocol is violated.
 	ErrIPCProtocolError = errors.New("ipc protocol error")
+	// ErrClientDisconnected is returned when a log subscriber disconnects normally.
+	ErrClientDisconnected = errors.New("client disconnected")
 )
 
 // Daemon domain

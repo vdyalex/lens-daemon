@@ -2,6 +2,7 @@ package ipc_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -84,6 +85,89 @@ func TestLogBroker_unsubscribeStopsDelivery(t *testing.T) {
 	line := []byte("level=INFO msg=\"test\"")
 	if _, err := broker.Write(line); err != nil {
 		t.Fatalf("Write() error: %v", err)
+	}
+}
+
+func TestLogBroker_replayRingBufferOnSubscribe(t *testing.T) {
+	broker := ipc.NewLogBroker()
+
+	// Write 5 events before subscribing
+	for i := range 5 {
+		line := []byte(fmt.Sprintf("time=2026-03-17T12:00:00Z level=INFO msg=\"event %d\"", i))
+		if _, err := broker.Write(line); err != nil {
+			t.Fatalf("Write() error: %v", err)
+		}
+	}
+
+	// Subscribe after events are written — should replay all 5
+	id, ch := broker.Subscribe()
+	defer broker.Unsubscribe(id)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+
+	for i := range 5 {
+		select {
+		case event := <-ch:
+			expected := fmt.Sprintf("event %d", i)
+			if event.Message != expected {
+				t.Errorf("replayed event %d: got %q, want %q", i, event.Message, expected)
+			}
+		case <-ctx.Done():
+			t.Fatalf("timeout waiting for replayed event %d", i)
+		}
+	}
+
+	// Write one more live event — should arrive after replays
+	if _, err := broker.Write([]byte("time=2026-03-17T12:00:01Z level=INFO msg=\"live\"")); err != nil {
+		t.Fatalf("Write() error: %v", err)
+	}
+
+	select {
+	case event := <-ch:
+		if event.Message != "live" {
+			t.Errorf("live event: got %q, want %q", event.Message, "live")
+		}
+	case <-ctx.Done():
+		t.Fatal("timeout waiting for live event")
+	}
+}
+
+func TestLogBroker_ringBufferOverflow(t *testing.T) {
+	broker := ipc.NewLogBroker()
+
+	// Write 150 events (exceeds ring buffer of 100)
+	for i := range 150 {
+		line := []byte(fmt.Sprintf("level=INFO msg=\"event %d\"", i))
+		if _, err := broker.Write(line); err != nil {
+			t.Fatalf("Write() error: %v", err)
+		}
+	}
+
+	// Subscribe — should receive only the last 100
+	id, ch := broker.Subscribe()
+	defer broker.Unsubscribe(id)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+
+	// First replayed event should be event 50 (150 - 100)
+	select {
+	case event := <-ch:
+		if event.Message != "event 50" {
+			t.Errorf("first replayed event: got %q, want %q", event.Message, "event 50")
+		}
+	case <-ctx.Done():
+		t.Fatal("timeout waiting for first replayed event")
+	}
+
+	// Drain remaining 99 replayed events
+	for range 99 {
+		select {
+		case <-ch:
+		case <-ctx.Done():
+			t.Fatal("timeout draining replayed events")
+		}
 	}
 }
 

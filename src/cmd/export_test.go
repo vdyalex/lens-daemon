@@ -1,13 +1,5 @@
 package cmd
 
-// AttrsToArgs is the exported reference to the unexported attrsToArgs function.
-// It converts a map of attributes to a flattened key-value slice.
-var AttrsToArgs = attrsToArgs
-
-// SanitizeAttrValue is the exported reference to the unexported sanitizeAttrValue function.
-// It escapes newlines in attribute values for logging.
-var SanitizeAttrValue = sanitizeAttrValue
-
 // FormatUptime is the exported reference to the unexported formatUptimeSeconds function.
 // It formats uptime duration in seconds to a human-readable string.
 var FormatUptime = formatUptimeSeconds

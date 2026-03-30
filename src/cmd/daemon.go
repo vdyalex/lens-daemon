@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 	"errors"
-	"io"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -12,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/vdyalex/lens-daemon/src/daemon"
+	"github.com/vdyalex/lens-daemon/src/helpers/render"
 	"github.com/vdyalex/lens-daemon/src/ipc"
 	"github.com/vdyalex/lens-daemon/src/pipeline"
 	"github.com/vdyalex/lens-daemon/src/utils/config"
@@ -58,24 +58,35 @@ func runDaemon() {
 	// Create log broker for IPC fan-out
 	broker := ipc.NewLogBroker()
 
-	// Create logger with multi-writer (stderr + broker)
-	handlerOptions := &slog.HandlerOptions{Level: settings.LogLevel}
-	handler := slog.NewTextHandler(io.MultiWriter(os.Stderr, broker), handlerOptions)
-	logger := slog.New(handler)
+	// Create context before logger so NewDaemonHandler can bound the renderer goroutine.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	// Write PID file
+	// Create logger with render handler (TTY: pterm colorized, non-TTY: plain text to stderr + broker)
+	handlerOptions := &slog.HandlerOptions{Level: settings.LogLevel}
+	logger := slog.New(render.NewDaemonHandler(ctx, broker, handlerOptions))
+
+	// PID is written inside onReady (after IPC socket is listening).
+	// This makes PID file presence a reliable "daemon ready" signal for lensd start.
 	pidPath := daemon.DefaultPIDPath()
-	if err := daemon.WritePID(pidPath); err != nil {
-		logger.Error("failed to write pid file", "error", err)
-		os.Exit(1)
-	}
+	var pidWritten bool
 	defer func() {
-		if err := daemon.RemovePID(pidPath); err != nil {
-			logger.Warn("failed to remove pid file", "error", err)
+		if pidWritten {
+			if err := daemon.RemovePID(pidPath); err != nil {
+				logger.Warn("failed to remove pid file", "error", err)
+			}
 		}
 	}()
 
-	logger.Info("lensd started", "pid", os.Getpid())
+	onReady := func() {
+		if err := daemon.WritePID(pidPath); err != nil {
+			logger.Error("failed to write pid file", "error", err)
+			cancel()
+			return
+		}
+		pidWritten = true
+		logger.Info("lensd started", "pid", os.Getpid())
+	}
 
 	// Create pipeline
 	process, err := pipeline.New(settings, logger)
@@ -84,10 +95,6 @@ func runDaemon() {
 		os.Exit(1)
 	}
 
-	// Create context with cancellation
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	// Wire IPC handler
 	socketPath := ipc.DefaultSocketPath()
 	ipcHandler := ipc.NewCommandHandler(process, broker, cancel, logger)
@@ -95,16 +102,16 @@ func runDaemon() {
 
 	// Start IPC server in background
 	go func() {
-		if err := ipcServer.Serve(ctx); err != nil && err != context.Canceled {
+		if err := ipcServer.Serve(ctx, onReady); err != nil && !errors.Is(err, context.Canceled) {
 			logger.Error("ipc server error", "error", err)
 		}
 	}()
 
 	// Handle signals for graceful shutdown
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	signalCh := make(chan os.Signal, 1)
+	signal.Notify(signalCh, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
-		sig := <-sigChan
+		sig := <-signalCh
 		logger.Info("received signal, shutting down", slog.String("signal", sig.String()))
 		cancel()
 	}()

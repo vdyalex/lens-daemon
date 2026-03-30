@@ -33,16 +33,16 @@ func runStatus() error {
 	}
 
 	// Daemon is running; query for detailed status
-	client := ipc.NewClient(ipc.DefaultSocketPath())
-	req := ipc.Request{Command: ipc.CommandStatus}
-	resp, err := client.Send(context.Background(), req)
-	if err != nil || !resp.OK {
+	ipcClient := ipc.NewClient(ipc.DefaultSocketPath())
+	request := ipc.Request{Command: ipc.CommandStatus}
+	response, err := ipcClient.Send(context.Background(), request)
+	if err != nil || !response.OK {
 		pterm.Warning.Printfln("Daemon running | PID %d | Not responding to IPC", pid)
 		return fmt.Errorf("daemon not responding")
 	}
 
 	var payload ipc.StatusPayload
-	if err := json.Unmarshal(resp.Payload, &payload); err != nil {
+	if err := json.Unmarshal(response.Payload, &payload); err != nil {
 		pterm.Warning.Printfln("Daemon running | PID %d", pid)
 		return fmt.Errorf("failed to parse status: %w", err)
 	}

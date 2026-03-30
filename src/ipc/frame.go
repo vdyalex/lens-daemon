@@ -39,7 +39,7 @@ func ReadFrame(r io.Reader) ([]byte, error) {
 		if err == io.EOF {
 			return nil, err
 		}
-		return nil, fmt.Errorf("%w: failed to read length prefix: %v", exceptions.ErrIPCProtocolError, err)
+		return nil, fmt.Errorf("%w: failed to read length prefix: %w", exceptions.ErrIPCProtocolError, err)
 	}
 
 	frameLen := binary.BigEndian.Uint32(lenBuf)
@@ -49,7 +49,7 @@ func ReadFrame(r io.Reader) ([]byte, error) {
 
 	buf := make([]byte, frameLen)
 	if _, err := io.ReadFull(r, buf); err != nil {
-		return nil, fmt.Errorf("%w: failed to read frame payload: %v", exceptions.ErrIPCProtocolError, err)
+		return nil, fmt.Errorf("%w: failed to read frame payload: %w", exceptions.ErrIPCProtocolError, err)
 	}
 	return buf, nil
 }
