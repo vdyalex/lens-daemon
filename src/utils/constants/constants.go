@@ -161,6 +161,10 @@ const (
 	TimeoutDaemonStartup = 3 * time.Second
 	// IntervalDaemonStartupPoll is how often to check for the PID file.
 	IntervalDaemonStartupPoll = 100 * time.Millisecond
+	// TimeoutDaemonStop is the max wait for the daemon process to exit after SIGTERM.
+	TimeoutDaemonStop = 5 * time.Second
+	// IntervalDaemonStopPoll is how often to re-check the PID file during shutdown.
+	IntervalDaemonStopPoll = 100 * time.Millisecond
 )
 
 // IPC layer constants.

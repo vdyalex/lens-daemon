@@ -2,11 +2,15 @@
 package daemon
 
 import (
+	"context"
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/vdyalex/lens-daemon/src/utils/constants"
 	"github.com/vdyalex/lens-daemon/src/utils/exceptions"
@@ -78,6 +82,32 @@ func RemovePID(path string) error {
 		return err
 	}
 	return nil
+}
+
+// WaitStop polls the PID file at path until the daemon process is gone or timeout elapses.
+// Returns nil when ReadPID returns ErrDaemonNotRunning or ErrPIDFileStale.
+// Returns a non-nil error if the process is still alive after timeout.
+func WaitStop(path string, timeout time.Duration) error {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	ticker := time.NewTicker(constants.IntervalDaemonStopPoll)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("daemon did not stop within %v", timeout)
+		case <-ticker.C:
+			_, err := ReadPID(path)
+			if errors.Is(err, exceptions.ErrDaemonNotRunning) || errors.Is(err, exceptions.ErrPIDFileStale) {
+				return nil
+			}
+			if err != nil {
+				return err
+			}
+		}
+	}
 }
 
 // DefaultPIDPath returns the canonical PID file path: $TMPDIR/lensd-<uid>.pid
