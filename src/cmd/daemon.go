@@ -89,7 +89,7 @@ func runDaemon() {
 	}
 
 	// Create pipeline
-	process, err := pipeline.New(settings, logger)
+	process, subscriberStore, err := pipeline.New(settings, logger)
 	if err != nil {
 		logger.Error("pipeline initialization error", "error", err)
 		os.Exit(1)
@@ -97,7 +97,8 @@ func runDaemon() {
 
 	// Wire IPC handler
 	socketPath := ipc.DefaultSocketPath()
-	ipcHandler := ipc.NewCommandHandler(process, broker, cancel, logger)
+	subscribers := func() int { return len(subscriberStore.All()) }
+	ipcHandler := ipc.NewCommandHandler(process, broker, cancel, logger, subscribers)
 	ipcServer := ipc.NewServer(socketPath, ipcHandler, logger)
 
 	// Start IPC server in background

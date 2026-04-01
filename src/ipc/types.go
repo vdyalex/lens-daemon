@@ -41,15 +41,15 @@ type LogEvent struct {
 // StatusPayload carries runtime status information for the IPC status command.
 type StatusPayload struct {
 	PID             int       `json:"pid"`
-	UptimeSeconds   float64   `json:"uptime_seconds"`
+	Uptime          float64   `json:"uptime"`
 	LastCaptureTime time.Time `json:"last_capture_time,omitempty"`
 	LastWindowTitle string    `json:"last_window_title,omitempty"`
-	SubscriberCount int       `json:"subscriber_count"`
+	Subscribers     int       `json:"subscribers"`
 }
 
 // PipelineService abstracts the pipeline for IPC handler testability.
 type PipelineService interface {
-	Status() (PID int, UptimeSeconds float64, LastCaptureTime time.Time, LastWindowTitle string)
+	Status() (PID int, Uptime float64, LastCaptureTime time.Time, LastWindowTitle string)
 }
 
 // Handler is the interface that processes an IPC Request and returns a Response.

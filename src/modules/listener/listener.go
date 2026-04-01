@@ -140,7 +140,7 @@ func goRecordBounds(minX, minY, maxX, maxY float64) {
 // New creates a new listener instance.
 func New() *Listener {
 	return &Listener{
-		triggerCh: make(chan struct{}, 10),
+		triggerCh: make(chan struct{}, constants.ListenerTriggerChannelBuffer),
 		boundsCh:  make(chan image.Rectangle, 1),
 	}
 }

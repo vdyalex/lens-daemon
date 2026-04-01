@@ -9,7 +9,7 @@ The application uses a **single binary, multiple subcommands** architecture:
 - **`daemon`** -- runs the full pipeline with IPC server (called by `start` command)
 - **`start`** -- daemonizes the process by re-execing `lensd daemon` in a new session (uses `syscall.SysProcAttr{Setsid: true}`)
 - **`stop`** -- sends SIGTERM to the daemon via PID file
-- **`status`** -- queries daemon status (PID, uptime, last window) via IPC, one-shot output
+- **`status`** -- queries daemon status (PID, uptime, subscriber count, last window) via IPC, one-shot output
 - **`logs`** -- subscribes to IPC log stream and streams colorized log output to stdout
 - **`restart`** -- stops and starts the daemon with config flags
 

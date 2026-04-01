@@ -388,10 +388,17 @@ func TestPoller_requestURL(t *testing.T) {
 		t.Fatal("expected captured request, got nil")
 	}
 
-	url := capturedRequest.URL.String()
-	if url == "" {
-		t.Errorf("expected non-empty URL, got %q", url)
+	requestURL := capturedRequest.URL.String()
+	if requestURL == "" {
+		t.Errorf("expected non-empty URL, got %q", requestURL)
 	}
+
+	t.Run("includes allowed_updates parameter", func(t *testing.T) {
+		allowedUpdates := capturedRequest.URL.Query().Get("allowed_updates")
+		if allowedUpdates != `["message"]` {
+			t.Errorf("expected allowed_updates=[\"message\"], got %q", allowedUpdates)
+		}
+	})
 }
 
 func TestPoller_whitespaceCommand(t *testing.T) {
@@ -405,48 +412,54 @@ func TestPoller_whitespaceCommand(t *testing.T) {
 		},
 	}
 
-	callCount := 0
 	done := make(chan struct{})
+	once := &sync.Once{}
+	callCount := 0
 	mockClient := &mocks.MockIMHTTPClient{
 		DoFunc: func(req *http.Request) (*http.Response, error) {
 			callCount++
-			if callCount > 1 {
-				// Return empty result after first call
-				result := struct {
-					OK     bool        `json:"ok"`
-					Result []im.Update `json:"result"`
-				}{
-					OK:     true,
-					Result: []im.Update{},
-				}
-				body, _ := json.Marshal(result)
-				return mocks.NewJSONResponse(200, string(body)), nil
-			}
 			result := struct {
 				OK     bool        `json:"ok"`
 				Result []im.Update `json:"result"`
 			}{
-				OK:     true,
-				Result: []im.Update{update},
+				OK: true,
+			}
+			if callCount == 1 {
+				result.Result = []im.Update{update}
+				once.Do(func() {
+					close(done)
+				})
+			} else {
+				return nil, context.Canceled
 			}
 			body, _ := json.Marshal(result)
-			defer close(done)
 			return mocks.NewJSONResponse(200, string(body)), nil
 		},
 	}
 
 	client := poller.NewWithClient("token", store, mockClient, mocks.NopLogger(), 30*time.Second, 35*time.Second)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	go client.Run(ctx)
+	runDone := make(chan struct{})
+	go func() {
+		client.Run(ctx)
+		close(runDone)
+	}()
 
 	select {
 	case <-done:
-		// First poll completed; store.Add has been called
+		cancel()
+		exitCtx, exitCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer exitCancel()
+		select {
+		case <-runDone:
+		case <-exitCtx.Done():
+			t.Fatal("poller did not exit after cancel")
+		}
 	case <-ctx.Done():
-		t.Fatal("timed out waiting for poller to process the update")
+		t.Fatal("timed out waiting for first poll")
 	}
 
 	all := store.All()

@@ -9,6 +9,7 @@ import (
 	"github.com/anthropics/anthropic-sdk-go/option"
 
 	"github.com/vdyalex/lens-daemon/src/adapters/ai"
+	"github.com/vdyalex/lens-daemon/tests/mocks"
 )
 
 type mockMessages struct {
@@ -24,7 +25,7 @@ func TestProcess_emptyInput(t *testing.T) {
 	m := &mockMessages{
 		result: &anthropic.Message{},
 	}
-	agent := ai.NewWithMessages(m, "claude-test", "prompt", 1024)
+	agent := ai.NewWithMessages(m, "claude-test", "prompt", 1024, mocks.NopLogger())
 
 	text, err := agent.Process(context.Background(), "")
 
@@ -41,7 +42,7 @@ func TestProcess_apiError(t *testing.T) {
 	m := &mockMessages{
 		err: apiErr,
 	}
-	agent := ai.NewWithMessages(m, "claude-test", "prompt", 1024)
+	agent := ai.NewWithMessages(m, "claude-test", "prompt", 1024, mocks.NopLogger())
 
 	text, err := agent.Process(context.Background(), "hello")
 
@@ -60,7 +61,7 @@ func TestProcess_singleTextBlock(t *testing.T) {
 	// Note: Due to SDK complexity with ContentBlockUnion, we verify through behavior.
 	// When no content blocks are present, the concatenation should result in empty string.
 	m := &mockMessages{result: msg}
-	agent := ai.NewWithMessages(m, "claude-test", "prompt", 1024)
+	agent := ai.NewWithMessages(m, "claude-test", "prompt", 1024, mocks.NopLogger())
 
 	text, err := agent.Process(context.Background(), "input")
 

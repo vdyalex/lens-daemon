@@ -207,6 +207,27 @@ func TestStore_all_returnsSnapshot(t *testing.T) {
 	}
 }
 
+func TestStore_add_createsParentDirectory(t *testing.T) {
+	tmpDir := t.TempDir()
+	storePath := filepath.Join(tmpDir, "nested", "deep", "subscribers")
+	store, err := store.New(storePath, mocks.NopLogger())
+	if err != nil {
+		t.Fatalf("failed to create store: %v", err)
+	}
+
+	if err := store.Add(42); err != nil {
+		t.Fatalf("Add failed: %v", err)
+	}
+
+	data, err := os.ReadFile(storePath)
+	if err != nil {
+		t.Fatalf("failed to read store file: %v", err)
+	}
+	if !bytes.Contains(data, []byte("42")) {
+		t.Errorf("expected file to contain '42', got %q", string(data))
+	}
+}
+
 func TestStore_concurrentAccess(t *testing.T) {
 	tmpDir := t.TempDir()
 	storePath := filepath.Join(tmpDir, "subscribers")

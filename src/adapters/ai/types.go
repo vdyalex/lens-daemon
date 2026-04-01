@@ -5,6 +5,7 @@ package ai
 
 import (
 	"context"
+	"log/slog"
 
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/anthropics/anthropic-sdk-go/option"
@@ -26,4 +27,5 @@ type AI struct {
 	model             string
 	prompt            string
 	maxResponseTokens int
+	logger            *slog.Logger
 }

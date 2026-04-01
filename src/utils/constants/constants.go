@@ -48,6 +48,32 @@ const (
 	TimeoutTelegramRetryFallback = 1 * time.Second
 )
 
+// Telegram API connectivity constants.
+const (
+	// TelegramAPIHost is the hostname for the Telegram Bot API.
+	TelegramAPIHost = "api.telegram.org"
+
+	// TelegramAPIBaseURL is the full base URL for the Telegram Bot API.
+	TelegramAPIBaseURL = "https://" + TelegramAPIHost
+
+	// TelegramPathSendMessage is the URL path template for the sendMessage endpoint.
+	// Callers must fmt.Sprintf the bot token into the %s placeholder.
+	TelegramPathSendMessage = "/bot%s/sendMessage"
+
+	// TelegramPathGetUpdates is the URL path template for the getUpdates endpoint.
+	// Callers must fmt.Sprintf the bot token into the %s placeholder.
+	TelegramPathGetUpdates = "/bot%s/getUpdates"
+
+	// TelegramCommandStart is the bot command to subscribe a chat to broadcasts.
+	TelegramCommandStart = "/start"
+
+	// TelegramCommandStop is the bot command to unsubscribe a chat from broadcasts.
+	TelegramCommandStop = "/stop"
+
+	// TelegramAllowedUpdates is the JSON-encoded update type filter sent to getUpdates.
+	TelegramAllowedUpdates = `["message"]`
+)
+
 // Message formatting constants.
 const (
 	// TelegramMessageChunkSize is the maximum number of UTF-8 runes per Telegram message.
@@ -79,6 +105,10 @@ const (
 	// EventTapRunLoopTimeout is the timeout for each CFRunLoopRunInMode call.
 	// Kept short (50ms) to ensure responsive context cancellation on shutdown.
 	EventTapRunLoopTimeout = 50 * time.Millisecond
+
+	// ListenerTriggerChannelBuffer is the capacity of the hotkey trigger event channel.
+	// Buffered to absorb rapid keypress bursts without stalling the CGo callback.
+	ListenerTriggerChannelBuffer = 10
 )
 
 // Worker queue constants.
@@ -163,6 +193,9 @@ const (
 const (
 	// LogsReconnectInterval is the delay before the logs command retries after a daemon disconnect.
 	LogsReconnectInterval = 3 * time.Second
+
+	// RecentLogLineCount is the number of trailing log lines printed on daemon startup failure.
+	RecentLogLineCount = 10
 )
 
 // File permission modes.
@@ -175,6 +208,16 @@ const (
 	PermissionSocket = 0600
 	// PermissionLogFile is the mode for the daemon log redirect file.
 	PermissionLogFile = 0600
+	// PermissionSubscribersDirectory is the mode for the daemon subscriber store parent directory.
+	PermissionSubscribersDirectory = 0700
+	// PermissionSubscribersFile is the mode for the daemon store the list of subscribers.
+	PermissionSubscribersFile = 0600
+)
+
+// Image capture constants.
+const (
+	// BytesPerPixelRGBA is the number of bytes per pixel in a raw RGBA image buffer.
+	BytesPerPixelRGBA = 4
 )
 
 // Application configuration defaults.

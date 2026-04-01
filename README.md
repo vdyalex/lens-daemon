@@ -141,7 +141,7 @@ The `lensd` binary provides a set of subcommands for starting, stopping, and man
 | `lensd daemon` | Run the pipeline with IPC server (called by `start` command); accepts config flags |
 | `lensd start` | Start daemon in background (re-execs `lensd daemon` detached); accepts config flags |
 | `lensd stop` | Stop the running daemon |
-| `lensd status` | Check daemon status (PID, uptime, last window) |
+| `lensd status` | Check daemon status (PID, uptime, subscribers, last window) |
 | `lensd logs` | Stream daemon logs to stdout (with level-based colorization) |
 | `lensd restart` | Stop and start the daemon; accepts config flags |
 

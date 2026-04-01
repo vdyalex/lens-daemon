@@ -40,6 +40,7 @@ func New(token string, subscriberStore im.Store, logger *slog.Logger, longPollTi
 // Expected deadline/canceled errors from the polling timeout are not logged;
 // other errors are logged as warnings and retried with a 5-second backoff.
 func (p *Poller) Run(ctx context.Context) {
+	p.logger.Debug("poller started")
 	for {
 		if err := p.poll(ctx); err != nil {
 			if ctx.Err() != nil {
@@ -67,12 +68,13 @@ func (p *Poller) poll(ctx context.Context) error {
 
 	parsed := url.URL{
 		Scheme: "https",
-		Host:   "api.telegram.org",
-		Path:   fmt.Sprintf("/bot%s/getUpdates", p.token),
+		Host:   constants.TelegramAPIHost,
+		Path:   fmt.Sprintf(constants.TelegramPathGetUpdates, p.token),
 	}
 	q := parsed.Query()
 	q.Set("offset", fmt.Sprintf("%d", p.offset))
 	q.Set("timeout", fmt.Sprintf("%.0f", p.longPollTimeout.Seconds()))
+	q.Set("allowed_updates", constants.TelegramAllowedUpdates)
 	parsed.RawQuery = q.Encode()
 
 	request, err := http.NewRequestWithContext(httpCtx, http.MethodGet, parsed.String(), nil)
@@ -98,6 +100,8 @@ func (p *Poller) poll(ctx context.Context) error {
 		return fmt.Errorf("%w: %s", exceptions.ErrIMTelegramAPI, result.Description)
 	}
 
+	p.logger.Debug("updates received", "count", len(result.Result))
+
 	for _, update := range result.Result {
 		if err := p.handleUpdate(update); err != nil {
 			p.logger.Error("handle update error", "update_id", update.UpdateID, "error", err)
@@ -118,9 +122,11 @@ func (p *Poller) handleUpdate(update im.Update) error {
 	chatID := update.Message.Chat.ID
 
 	switch text {
-	case "/start":
+	case constants.TelegramCommandStart:
+		p.logger.Info("subscriber added", "chat_id", chatID)
 		return p.store.Add(chatID)
-	case "/stop":
+	case constants.TelegramCommandStop:
+		p.logger.Info("subscriber removed", "chat_id", chatID)
 		return p.store.Remove(chatID)
 	}
 	return nil

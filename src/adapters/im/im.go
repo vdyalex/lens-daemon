@@ -18,10 +18,6 @@ import (
 	"github.com/vdyalex/lens-daemon/src/utils/exceptions"
 )
 
-const (
-	telegramAPI = "https://api.telegram.org"
-)
-
 // NewWithClient creates a new Telegram message broadcaster with a custom HTTP client.
 // This is primarily used for testing with mock HTTP clients.
 func NewWithClient(botToken string, store Store, client HTTPClient, logger *slog.Logger, chunkSize, maxRetries int) *Sender {
@@ -95,7 +91,7 @@ func (s *Sender) doSendChunk(ctx context.Context, chatID int64, text string) err
 		return fmt.Errorf("marshal telegram payload: %w", err)
 	}
 
-	url := fmt.Sprintf("%s/bot%s/sendMessage", telegramAPI, s.token)
+	url := constants.TelegramAPIBaseURL + fmt.Sprintf(constants.TelegramPathSendMessage, s.token)
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
 	if err != nil {
 		return fmt.Errorf("create telegram request: %w", err)

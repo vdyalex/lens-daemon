@@ -44,13 +44,14 @@ func NewWithDependencies(
 }
 
 // New creates a fully wired pipeline from settings.
+// Returns the pipeline, the subscriber store (for status reporting), and any error.
 // logger must not be nil; pass slog.Default() if no custom logger is required.
-func New(settings *config.Config, logger *slog.Logger) (*Pipeline, error) {
+func New(settings *config.Config, logger *slog.Logger) (*Pipeline, im.Store, error) {
 	ocr := extractor.New(settings.VisionLanguage, settings.VisionAccuracy)
 
-	store, err := store.New(settings.StorePath, logger)
+	subscriberStore, err := store.New(settings.StorePath, logger)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	pipeline := NewWithDependencies(
@@ -63,10 +64,11 @@ func New(settings *config.Config, logger *slog.Logger) (*Pipeline, error) {
 			settings.AnthropicModel,
 			settings.AnthropicSystemPrompt,
 			settings.AnthropicMaxResponseTokens,
+			logger,
 		),
 		im.New(
 			settings.TelegramBotToken,
-			store,
+			subscriberStore,
 			logger,
 			settings.TelegramMessageChunkSize,
 			settings.TelegramMaxRetries,
@@ -74,7 +76,7 @@ func New(settings *config.Config, logger *slog.Logger) (*Pipeline, error) {
 		),
 		poller.New(
 			settings.TelegramBotToken,
-			store,
+			subscriberStore,
 			logger,
 			settings.TelegramLongPollTimeout,
 			settings.TelegramPollerTimeout,
@@ -82,7 +84,7 @@ func New(settings *config.Config, logger *slog.Logger) (*Pipeline, error) {
 		),
 		listener.New(),
 	)
-	return pipeline, nil
+	return pipeline, subscriberStore, nil
 }
 
 // Process runs a single capture-to-broadcast cycle: detect foreground window, capture screenshot,
@@ -116,6 +118,6 @@ func (p *Pipeline) Status() (int, float64, time.Time, string) {
 	p.lastCaptureMu.RLock()
 	defer p.lastCaptureMu.RUnlock()
 
-	uptimeSeconds := time.Since(p.startTime).Seconds()
-	return os.Getpid(), uptimeSeconds, p.lastCaptureTime, p.lastWindowTitle
+	uptime := time.Since(p.startTime).Seconds()
+	return os.Getpid(), uptime, p.lastCaptureTime, p.lastWindowTitle
 }

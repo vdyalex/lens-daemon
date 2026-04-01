@@ -34,7 +34,7 @@ func printLastLogLines(logPath string) {
 		return
 	}
 	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
-	start := max(0, len(lines)-10)
+	start := max(0, len(lines)-constants.RecentLogLineCount)
 	pterm.Info.Println("Last log output:")
 	for _, line := range lines[start:] {
 		fmt.Println(" ", line)

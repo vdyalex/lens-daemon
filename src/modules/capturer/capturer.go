@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/vdyalex/lens-daemon/src/bridges/core_graphics"
+	"github.com/vdyalex/lens-daemon/src/utils/constants"
 	"github.com/vdyalex/lens-daemon/src/utils/exceptions"
 )
 
@@ -187,7 +188,7 @@ func (c *Capturer) CaptureCenter(window *WindowInfo, bounds *image.Rectangle) (*
 	}
 
 	// Validate returned buffer size using actual physical pixel dimensions
-	expectedSize := actualWidth * actualHeight * 4
+	expectedSize := actualWidth * actualHeight * constants.BytesPerPixelRGBA
 	if len(pixelData) != expectedSize {
 		return nil, fmt.Errorf("screenshot capture returned unexpected size: got %d bytes, expected %d: %w", len(pixelData), expectedSize, exceptions.ErrCapturerCaptureFailed)
 	}

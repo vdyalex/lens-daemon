@@ -1,8 +1,8 @@
 package cmd
 
-// FormatUptime is the exported reference to the unexported formatUptimeSeconds function.
+// FormatSeconds is the exported reference to the unexported formatSeconds function.
 // It formats uptime duration in seconds to a human-readable string.
-var FormatUptime = formatUptimeSeconds
+var FormatSeconds = formatSeconds
 
 // WithFlags temporarily sets global flags during fn, restoring original after.
 // It is used by external tests (package cmd_test) to inject test flag values.

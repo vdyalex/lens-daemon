@@ -50,7 +50,8 @@ func runStatus() error {
 	rows := pterm.TableData{
 		{"Status", pterm.Green("Running")},
 		{"PID", fmt.Sprintf("%d", pid)},
-		{"Uptime", formatUptimeSeconds(payload.UptimeSeconds)},
+		{"Uptime", formatSeconds(payload.Uptime)},
+		{"Subscribers", fmt.Sprintf("%d", payload.Subscribers)},
 	}
 	if payload.LastWindowTitle != "" {
 		rows = append(rows, []string{"Last window", payload.LastWindowTitle})
@@ -60,9 +61,9 @@ func runStatus() error {
 	return nil
 }
 
-// formatUptimeSeconds converts uptime in seconds to a human-readable duration string.
+// formatSeconds converts uptime in seconds to a human-readable duration string.
 // Returns format: "Xs" (seconds), "Xm" (minutes), or "Xh Xm" (hours and minutes).
-func formatUptimeSeconds(seconds float64) string {
+func formatSeconds(seconds float64) string {
 	if seconds < time.Minute.Seconds() {
 		return fmt.Sprintf("%ds", int(seconds))
 	}

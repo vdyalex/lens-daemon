@@ -5,8 +5,11 @@ import (
 	"bytes"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/vdyalex/lens-daemon/src/utils/constants"
 )
 
 // New loads existing subscribers from path (if it exists) and returns a ready-to-use Store.
@@ -83,8 +86,13 @@ func (s *Store) persist() error {
 	}
 	data := []byte(buf.String())
 
+	directory := filepath.Dir(s.path)
+	if err := os.MkdirAll(directory, constants.PermissionSubscribersDirectory); err != nil {
+		return err
+	}
+
 	tmpPath := s.path + ".tmp"
-	if err := os.WriteFile(tmpPath, data, 0600); err != nil {
+	if err := os.WriteFile(tmpPath, data, constants.PermissionSubscribersFile); err != nil {
 		return err
 	}
 	if err := os.Rename(tmpPath, s.path); err != nil {

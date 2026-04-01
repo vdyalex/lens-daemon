@@ -11,24 +11,28 @@ import (
 
 // CommandHandler dispatches IPC requests to pipeline and log broker operations.
 type CommandHandler struct {
-	pipeline   PipelineService
-	broker     *LogBroker
-	cancelFunc context.CancelFunc
-	logger     *slog.Logger
+	pipeline    PipelineService
+	broker      *LogBroker
+	cancel      context.CancelFunc
+	logger      *slog.Logger
+	subscribers func() int
 }
 
 // NewCommandHandler constructs a CommandHandler.
+// subscribers returns the current number of Telegram subscribers.
 func NewCommandHandler(
 	pipeline PipelineService,
 	broker *LogBroker,
-	cancelFunc context.CancelFunc,
+	cancel context.CancelFunc,
 	logger *slog.Logger,
+	subscribers func() int,
 ) *CommandHandler {
 	return &CommandHandler{
-		pipeline:   pipeline,
-		broker:     broker,
-		cancelFunc: cancelFunc,
-		logger:     logger,
+		pipeline:    pipeline,
+		broker:      broker,
+		cancel:      cancel,
+		logger:      logger,
+		subscribers: subscribers,
 	}
 }
 
@@ -48,14 +52,14 @@ func (h *CommandHandler) Handle(ctx context.Context, connection net.Conn, reques
 
 // handleStatus returns the current pipeline status as a StatusPayload.
 func (h *CommandHandler) handleStatus() (Response, error) {
-	pid, uptimeSeconds, lastCaptureTime, lastWindowTitle := h.pipeline.Status()
+	pid, uptime, lastCaptureTime, lastWindowTitle := h.pipeline.Status()
 
 	payload := StatusPayload{
 		PID:             pid,
-		UptimeSeconds:   uptimeSeconds,
+		Uptime:          uptime,
 		LastCaptureTime: lastCaptureTime,
 		LastWindowTitle: lastWindowTitle,
-		SubscriberCount: h.broker.Count(),
+		Subscribers:     h.subscribers(),
 	}
 
 	data, err := json.Marshal(payload)
@@ -68,7 +72,7 @@ func (h *CommandHandler) handleStatus() (Response, error) {
 
 // handleShutdown cancels the daemon context to trigger graceful shutdown.
 func (h *CommandHandler) handleShutdown() (Response, error) {
-	h.cancelFunc()
+	h.cancel()
 	return Response{OK: true}, nil
 }
 
