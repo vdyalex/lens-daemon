@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/vdyalex/lens-daemon/src/utils/buildinfo"
 	"github.com/vdyalex/lens-daemon/src/utils/paths"
 )
 
@@ -25,7 +26,7 @@ func TestDaemonPath_format(t *testing.T) {
 				t.Fatalf("user.Current() failed: %v", err)
 			}
 
-			expected := filepath.Join(os.TempDir(), fmt.Sprintf("lensd-%s.%s", u.Uid, extension))
+			expected := filepath.Join(os.TempDir(), fmt.Sprintf("%s-%s.%s", buildinfo.BinaryName, u.Uid, extension))
 			if result != expected {
 				t.Errorf("DaemonPath(%q) = %q, want %q", extension, result, expected)
 			}

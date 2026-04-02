@@ -67,7 +67,13 @@ cd lens-daemon
 make build
 ```
 
-This produces the `lensd` binary in the `bin` directory.
+This produces a binary named `lensd` (default) in the `bin/` directory. To build with a custom binary name:
+
+```bash
+BINARY_NAME=myapp make build
+```
+
+The binary name is injected at compile time and controls the CLI command name and all daemon runtime file paths (`$TMPDIR/<binary>-<uid>.{pid,sock,log}`).
 
 ## ⚙️ Configuration
 
@@ -134,7 +140,7 @@ Invalid key names will be rejected at startup with a clear error listing all sup
 
 ### CLI Commands
 
-The `lensd` binary provides a set of subcommands for starting, stopping, and managing the daemon:
+The binary provides a set of subcommands for starting, stopping, and managing the daemon. The examples below use the default binary name `lensd`:
 
 | Command | Purpose |
 |---------|---------|

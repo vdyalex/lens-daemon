@@ -10,7 +10,7 @@
 - **Language**: Go 1.24+ with cgo (for `CoreGraphics`/`CoreFoundation` bindings and Vision framework).
 - **Configuration**: All settings via environment variables. CLI flags on start/daemon/restart commands are forwarded as env vars to child processes. No config files.
 - **IPC communication**: Unix domain socket with length-prefixed JSON for inter-process communication. Enables remote status checks, log streaming, and graceful shutdown.
-- **Logging**: Structured log output using Go's slog (time, level, message, and key-value fields). Log verbosity controlled by `LOG_LEVEL`. Daemon output goes to stderr (for `make run daemon`) and is replicated to IPC log broker for `lensd logs` streaming.
+- **Logging**: Structured log output using Go's slog (time, level, message, and key-value fields). Log verbosity controlled by `LOG_LEVEL`. Daemon output goes to stderr (for `make run daemon`) and is replicated to IPC log broker for `<binary> logs` streaming.
 - **External dependencies**: No external OCR dependencies required (uses built-in Apple Vision framework).
 - **Security permissions**: Requires MacOS Accessibility and Screen Recording permissions granted to the terminal or binary.
 

@@ -110,7 +110,7 @@ func WaitStop(path string, timeout time.Duration) error {
 	}
 }
 
-// DefaultPIDPath returns the canonical PID file path: $TMPDIR/lensd-<uid>.pid
+// DefaultPIDPath returns the canonical PID file path for the compiled binary: $TMPDIR/<binary>-<uid>.pid.
 func DefaultPIDPath() string {
 	return paths.DaemonPath("pid")
 }

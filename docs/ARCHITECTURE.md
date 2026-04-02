@@ -7,7 +7,7 @@ The application uses a **single binary, multiple subcommands** architecture:
 **CLI Layer** (`src/cmd/`) provides user-facing commands via Cobra:
 
 - **`daemon`** -- runs the full pipeline with IPC server (called by `start` command)
-- **`start`** -- daemonizes the process by re-execing `lensd daemon` in a new session (uses `syscall.SysProcAttr{Setsid: true}`)
+- **`start`** -- daemonizes the process by re-execing `<binary> daemon` in a new session (uses `syscall.SysProcAttr{Setsid: true}`)
 - **`stop`** -- sends SIGTERM to the daemon via PID file
 - **`status`** -- queries daemon status (PID, uptime, subscriber count, last window) via IPC, one-shot output
 - **`logs`** -- subscribes to IPC log stream and streams colorized log output to stdout
@@ -15,13 +15,13 @@ The application uses a **single binary, multiple subcommands** architecture:
 
 **Daemon Lifecycle** (`src/daemon/`) handles process management:
 
-- **PID file** -- stores daemon PID for status checks and shutdown signals (path: `$TMPDIR/lensd-<uid>.pid`)
+- **PID file** -- stores daemon PID for status checks and shutdown signals (path: `$TMPDIR/<binary>-<uid>.pid`, where `<binary>` is the compiled binary name)
 - **Daemonize** -- re-execs current binary with `Setsid: true` for full detachment from terminal
 - Config flags are forwarded as environment variables to the re-exec'd child process
 
 **IPC Layer** (`src/ipc/`) enables inter-process communication:
 
-- **Unix domain socket** at `$TMPDIR/lensd-<uid>.sock` with `0600` permissions
+- **Unix domain socket** at `$TMPDIR/<binary>-<uid>.sock` with `0600` permissions
 - **Length-prefixed JSON** wire format (4-byte big-endian length + UTF-8 JSON body)
 - **Log broker** -- fan-out io.Writer that distributes slog text lines to subscribed IPC clients
 - **Handler** -- dispatches IPC commands: `status`, `shutdown`, `log.subscribe`
@@ -64,8 +64,8 @@ This separation decouples fast Phase 1 captures from slow Phase 2 analysis, prev
 
 ```mermaid
 flowchart TD
-    A([lensd start<br/>user command]) --> B[daemon.Daemonize<br/>re-exec with Setsid]
-    B --> C[child: lensd daemon<br/>new session]
+    A([binary start<br/>user command]) --> B[daemon.Daemonize<br/>re-exec with Setsid]
+    B --> C[child: binary daemon<br/>new session]
     A --> D[poll for PID file<br/>startup confirmation]
 
     C --> E[config.Load<br/>Load and validate env vars]

@@ -5,9 +5,10 @@ export
 
 BINARY_NAME ?= lensd
 BINARY_PATH ?= ./bin/$(BINARY_NAME)
+XPATH = github.com/vdyalex/lens-daemon/src/utils/buildinfo.BinaryName
 
 build:
-	CGO_LDFLAGS=-Wl,-no_warn_duplicate_libraries go build -o $(BINARY_PATH) ./src
+	CGO_LDFLAGS=-Wl,-no_warn_duplicate_libraries go build -ldflags "-X '$(XPATH)=$(BINARY_NAME)'" -o $(BINARY_PATH) ./src
 
 clean:
 	find bin -type f ! -name '.gitignore' -delete 2>/dev/null || true

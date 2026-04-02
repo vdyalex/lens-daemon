@@ -1,17 +1,19 @@
-// Package cmd provides CLI subcommands for the lensd daemon.
-// The lensd binary supports six subcommands: daemon, start, stop, status, logs, and restart.
+// Package cmd provides CLI subcommands for the daemon binary.
+// The binary supports six subcommands: daemon, start, stop, status, logs, and restart.
 package cmd
 
 import (
 	"os"
 
 	"github.com/spf13/cobra"
+
+	"github.com/vdyalex/lens-daemon/src/utils/buildinfo"
 )
 
 var rootCmd = &cobra.Command{
-	Use:          "lensd",
+	Use:          buildinfo.BinaryName,
 	Short:        "Background screenshot daemon with CLI interface",
-	Long:         `lensd - a detached daemon that captures screenshots, extracts text, processes with Claude AI, and broadcasts to Telegram.`,
+	Long:         buildinfo.BinaryName + ` - a detached daemon that captures screenshots, extracts text, processes with Claude AI, and broadcasts to Telegram.`,
 	SilenceUsage: true, // Don't print usage on errors
 }
 
