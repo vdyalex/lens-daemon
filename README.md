@@ -160,6 +160,7 @@ All start/daemon/restart commands accept optional flags to override configuratio
 --system-prompt        AI system prompt
 --max-tokens           Max response tokens
 --log-level            Log level (debug/info/warn/error)
+--store-path           Subscriber store file path
 ```
 
 ### Manually

@@ -42,5 +42,6 @@ func init() {
 		cmd.Flags().StringVar(&flags.LogLevel, "log-level", "", "Log level: debug/info/warn/error (env: LOG_LEVEL)")
 		cmd.Flags().StringVar(&flags.APIKey, "api-key", "", "Anthropic API key (env: ANTHROPIC_API_KEY)")
 		cmd.Flags().StringVar(&flags.BotToken, "bot-token", "", "Telegram bot token (env: TELEGRAM_BOT_TOKEN)")
+		cmd.Flags().StringVar(&flags.StorePath, "store-path", "", "Subscriber store file path (env: SUBSCRIBER_STORE_PATH)")
 	}
 }

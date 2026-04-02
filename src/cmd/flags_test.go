@@ -51,7 +51,7 @@ func TestFlagEnvPairs_maxTokensConverted(t *testing.T) {
 	})
 }
 
-// TestFlagEnvPairs_allFlagsSet tests that all six flags produce six pairs in order.
+// TestFlagEnvPairs_allFlagsSet tests that all seven flags produce seven pairs in order.
 func TestFlagEnvPairs_allFlagsSet(t *testing.T) {
 	flags := cmd.GlobalFlags{
 		Model:        "claude-3",
@@ -60,14 +60,15 @@ func TestFlagEnvPairs_allFlagsSet(t *testing.T) {
 		LogLevel:     "debug",
 		APIKey:       "sk-test",
 		BotToken:     "123:ABC",
+		StorePath:    "/tmp/subscribers",
 	}
 	cmd.WithFlags(flags, func() {
 		pairs := cmd.FlagEnvPairs()
-		if len(pairs) != 6 {
-			t.Errorf("expected 6 pairs, got %d", len(pairs))
+		if len(pairs) != 7 {
+			t.Errorf("expected 7 pairs, got %d", len(pairs))
 		}
 
-		expectedKeys := []string{"ANTHROPIC_MODEL", "ANTHROPIC_SYSTEM_PROMPT", "ANTHROPIC_MAX_RESPONSE_TOKENS", "LOG_LEVEL", "ANTHROPIC_API_KEY", "TELEGRAM_BOT_TOKEN"}
+		expectedKeys := []string{"ANTHROPIC_MODEL", "ANTHROPIC_SYSTEM_PROMPT", "ANTHROPIC_MAX_RESPONSE_TOKENS", "LOG_LEVEL", "ANTHROPIC_API_KEY", "TELEGRAM_BOT_TOKEN", "SUBSCRIBER_STORE_PATH"}
 		for i, expected := range expectedKeys {
 			if pairs[i].Key != expected {
 				t.Errorf("pair %d: expected key %s, got %s", i, expected, pairs[i].Key)

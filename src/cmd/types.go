@@ -8,6 +8,7 @@ type GlobalFlags struct {
 	LogLevel     string
 	APIKey       string
 	BotToken     string
+	StorePath    string
 }
 
 var flags GlobalFlags

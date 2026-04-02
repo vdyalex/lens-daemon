@@ -32,6 +32,9 @@ func FlagEnvPairs() []FlagEnvPair {
 	if flags.BotToken != "" {
 		pairs = append(pairs, FlagEnvPair{"TELEGRAM_BOT_TOKEN", flags.BotToken})
 	}
+	if flags.StorePath != "" {
+		pairs = append(pairs, FlagEnvPair{"SUBSCRIBER_STORE_PATH", flags.StorePath})
+	}
 
 	return pairs
 }
