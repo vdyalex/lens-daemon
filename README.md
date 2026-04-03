@@ -1,5 +1,3 @@
-![Lens](.github/header.png)
-
 # Lens
 
 [![Build Status](https://img.shields.io/github/actions/workflow/status/vdyalex/lens-daemon/pipeline.yml?branch=main&style=flat-square)](https://github.com/vdyalex/lens-daemon/actions)
