@@ -100,8 +100,6 @@ func TestPoller_stopCommand(t *testing.T) {
 	}
 
 	callCount := 0
-	done := make(chan struct{})
-	once := &sync.Once{}
 	mockClient := &mocks.MockIMHTTPClient{
 		DoFunc: func(req *http.Request) (*http.Response, error) {
 			callCount++
@@ -125,9 +123,6 @@ func TestPoller_stopCommand(t *testing.T) {
 				Result: []im.Update{update},
 			}
 			body, _ := json.Marshal(result)
-			once.Do(func() {
-				close(done)
-			})
 			return mocks.NewJSONResponse(200, string(body)), nil
 		},
 	}
@@ -139,16 +134,19 @@ func TestPoller_stopCommand(t *testing.T) {
 
 	go client.Run(ctx)
 
-	select {
-	case <-done:
-		// First poll completed; store.Remove has been called
-	case <-ctx.Done():
-		t.Fatal("timed out waiting for poller to process the update")
-	}
-
-	all := store.All()
-	if len(all) != 0 {
-		t.Errorf("expected empty store after /stop, got %v", all)
+	// Wait until the store is empty: the HTTP response is returned before
+	// handleUpdate calls store.Remove, so we poll the store to avoid a race.
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			if len(store.All()) == 0 {
+				return
+			}
+		case <-ctx.Done():
+			t.Fatalf("timed out waiting for store to become empty, got %v", store.All())
+		}
 	}
 }
 

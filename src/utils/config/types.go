@@ -45,5 +45,5 @@ type Config struct {
 	HotkeyBoundsKeycode  int           // Resolved from HOTKEY_BOUNDS_KEYNAME env var (default: RightOption)
 
 	// Pipeline phase settings
-	AnalyseQueueCapacity int // ANALYSE_QUEUE_CAPACITY: analyse channel buffer (default: 16)
+	AnalyseQueueCapacity int // ANALYSE_QUEUE_CAPACITY: analyse channel buffer (default: 5)
 }

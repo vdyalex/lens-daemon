@@ -4,10 +4,10 @@
 
 - **CLI interface**: Provide Cobra-based CLI with subcommands for daemon control: `daemon` (run pipeline with IPC), `start` (daemonize), `stop` (shutdown), `status` (check status), `logs` (stream logs), `restart` (stop + start).
 - **Daemonization**: Implement safe macOS-compatible process detachment via re-exec with `syscall.SysProcAttr{Setsid: true}`. The parent process exits after child process starts; child runs in a new session fully detached from the terminal.
-- **PID file**: Store daemon PID at `$TMPDIR/lensd-<uid>.pid` for status checks and graceful shutdown. PID file is removed on daemon exit.
-- **Startup confirmation**: CLI `start` command polls for PID file to confirm daemon has started within a timeout (default: 5 seconds).
-- **IPC socket**: Create Unix domain socket at `$TMPDIR/lensd-<uid>.sock` with permissions `0600` for inter-process communication.
-- **Config flags**: Accept command-line flags on `daemon`, `start`, and `restart` commands (--api-key, --bot-token, --model, --system-prompt, --max-tokens, --log-level) and forward them as environment variables to child processes.
+- **PID file**: Store daemon PID at `$TMPDIR/<binary>-<uid>.pid` for status checks and graceful shutdown. PID file is removed on daemon exit.
+- **Startup confirmation**: CLI `start` command polls for PID file to confirm daemon has started within a timeout (default: 3 seconds).
+- **IPC socket**: Create Unix domain socket at `$TMPDIR/<binary>-<uid>.sock` with permissions `0600` for inter-process communication.
+- **Config flags**: Accept command-line flags on `daemon`, `start`, and `restart` commands (--api-key, --bot-token, --model, --system-prompt, --max-tokens, --log-level, --store-path) and forward them as environment variables to child processes.
 - **Graceful shutdown**: Handle `SIGINT` and `SIGTERM` signals from `lensd stop` command or direct signals. Cleanly shut down the event tap, poller, extractor, and IPC server before exiting.
 
 ## IPC Communication

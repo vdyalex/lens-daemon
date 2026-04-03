@@ -35,7 +35,7 @@ Hotkey → Capture    ↓ (queue)    OCR → AI → Telegram
 
 1. **Hotkey** — global keyboard listener via MacOS `CGEventTap`. Default: `RightShift` key. Customizable via `HOTKEY_TRIGGER_KEYNAME` environment variable
 2. **Capture** — grabs the entire active window via AppleScript and CoreGraphics (direct Objective-C bridge via `src/bridges/core_graphics`, no external libraries). Default: hold `RightOption` key to define custom bounds. Customizable via `HOTKEY_BOUNDS_KEYNAME`
-3. **Queue** — captured images are enqueued for Phase 2 analysis (queue capacity: 16 by default, configurable via `ANALYSE_QUEUE_CAPACITY`)
+3. **Queue** — captured images are enqueued for Phase 2 analysis (queue capacity: 5 by default, configurable via `ANALYSE_QUEUE_CAPACITY`)
 4. **OCR** — extracts text from the image using Apple Vision framework, entirely in-memory
 5. **AI** — sends extracted text to Claude with a configurable system prompt (max 1024 response tokens)
 6. **Notify** — broadcasts Claude's response to all Telegram subscribers, auto-chunking messages exceeding 4096 runes
@@ -102,8 +102,10 @@ All configuration is done through environment variables. Copy `.env.example` to 
 | `TIMEOUT_OCR_EXTRACT` | `30s` | Deadline for OCR text extraction via Vision framework |
 | `TIMEOUT_AI_PROCESS` | `60s` | Deadline for Claude AI API call and response |
 | `TELEGRAM_BROADCAST_TIMEOUT` | `30s` | Deadline for broadcasting to all subscribers |
+| `TIMEOUT_CAPTURE_PHASE` | `40s` | Total deadline for Phase 1 (window detection + screenshot) |
+| `TIMEOUT_ANALYSE_PHASE` | `5m` | Total deadline for Phase 2 (OCR + AI + broadcast) |
 | `EVENT_TAP_POLL_INTERVAL` | `500ms` | CFRunLoop polling interval for keyboard event detection |
-| `ANALYSE_QUEUE_CAPACITY` | `16` | Buffer size for Phase 2 analyse queue (captures are queued when analyse is slower than capture) |
+| `ANALYSE_QUEUE_CAPACITY` | `5` | Buffer size for Phase 2 analyse queue (captures are queued when analyse is slower than capture) |
 | `LOG_LEVEL` | `info` | Minimum log level (`debug`, `info`, `warn`, `error`) |
 | `VISION_LANG` | `en-US` | Vision language (BCP 47 code, e.g., `en-US`, `fr-FR`, `de-DE`, `zh-Hans`, `ja`, `ko`) |
 | `ANTHROPIC_MODEL` | `claude-sonnet-4-6` | Anthropic model ID to use for AI processing |
@@ -189,7 +191,7 @@ Once running:
 1. **Subscribe**: Send `/start` to your Telegram bot to begin receiving responses
 2. **Capture**: Press the configured trigger hotkey (default: `RightShift`) at any time to trigger a capture
    - Multiple rapid captures are queued and processed concurrently
-   - If the queue is full (16 items by default), the newest capture is dropped with a warning log
+   - If the queue is full (5 items by default), the newest capture is dropped with a warning log
 3. **Custom bounds** (optional): Hold the configured bounds hotkey (default: `RightOption`), move your mouse to define a region, then release
 4. The daemon captures the screen, enqueues for analysis, then processes OCR, sends the text to Claude, and broadcasts the response to all subscribers
 
