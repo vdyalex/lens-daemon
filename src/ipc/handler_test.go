@@ -1,6 +1,7 @@
 package ipc_test
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
 	"time"
@@ -28,7 +29,7 @@ func TestHandleStatus_subscribers(t *testing.T) {
 	handler := ipc.NewCommandHandler(pipeline, broker, func() {}, mocks.NopLogger(), subscribers)
 
 	request := ipc.Request{Command: ipc.CommandStatus}
-	response, err := handler.Handle(nil, nil, request)
+	response, err := handler.Handle(context.TODO(), nil, request)
 	if err != nil {
 		t.Fatalf("Handle() error: %v", err)
 	}
@@ -57,7 +58,7 @@ func TestHandleStatus_zeroSubscribers(t *testing.T) {
 	handler := ipc.NewCommandHandler(pipeline, broker, func() {}, mocks.NopLogger(), subscribers)
 
 	request := ipc.Request{Command: ipc.CommandStatus}
-	response, err := handler.Handle(nil, nil, request)
+	response, err := handler.Handle(context.TODO(), nil, request)
 	if err != nil {
 		t.Fatalf("Handle() error: %v", err)
 	}
