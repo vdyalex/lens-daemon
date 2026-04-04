@@ -37,7 +37,7 @@ This separation decouples fast Phase 1 captures from slow Phase 2 analysis, prev
 
 **Modules** handle MacOS-specific operations:
 
-- **Listener** -- global hotkey detection, bounds tracking, teleprompter toggle, and arrow key position changes via `CGEventTap` (cgo)
+- **Listener** -- global hotkey detection, bounds tracking, teleprompter toggle, position rotation, and opacity adjustment via `CGEventTap` (cgo)
 - **Capturer** -- foreground window detection (AppleScript) and screenshot capture, using `src/bridges/core_graphics` for CoreGraphics calls
 - **Extractor** -- OCR text extraction interface consumed by the pipeline
 - **Teleprompter** -- stealth overlay management (visibility toggle, text display) delegating to the appkit bridge
@@ -226,7 +226,7 @@ By default, the daemon captures the entire active window. You can override this 
 3. **Release the bounds hotkey** to lock in the bounds — bounds are only recorded if the mouse actually moved (arrow-only presses are ignored)
 4. All subsequent captures will use the custom bounds instead of capturing the full window
 
-While the bounds key is held, **arrow keys** reposition the teleprompter overlay: Left/Right rotate through left-center-right alignment.
+While the bounds key is held, **arrow keys** reposition the teleprompter overlay: Left/Right rotate through left-center-right alignment. **Minus/plus keys** adjust the text opacity by ±0.025 per step (clamped to 0.0–1.0).
 
 For fullscreen windows (width and height >= screen dimensions), the daemon captures the entire display.
 
@@ -237,9 +237,12 @@ The teleprompter is a stealth macOS overlay window positioned at the bottom of t
 - **Excluded from screen sharing** via `NSWindowSharingNone` — invisible to Zoom, QuickTime, and all capture pipelines
 - **Excluded from Mission Control, Cmd+Tab, and Dock** via accessory activation policy and collection behavior flags
 - **Click-through** — does not intercept mouse events
-- **Configurable appearance** — font family, weight, size, opacity, and position via environment variables
+- **Configurable appearance** — font family, weight, size, opacity, position, adaptive color, and fade duration via environment variables
+- **Adaptive text color** — when enabled (`TELEPROMPTER_ADAPTIVE_COLOR=true`), the overlay periodically captures the background behind the text strip, inverts every pixel via `kCGBlendModeDifference`, and uses the result as the text color pattern so each glyph pixel contrasts with whatever is beneath it
+- **Fade animations** — show, hide, and text updates cross-fade with configurable duration (`TELEPROMPTER_FADE_DURATION`). Animation cancellation uses a generation counter to avoid stale completions
 - **Runtime repositioning** — hold bounds key + arrow keys to rotate alignment (left/center/right)
-- **Toggle visibility** — press the configured toggle hotkey (default: `RightCommand`) to show/hide
+- **Runtime opacity adjustment** — hold bounds key + minus/plus keys to decrease/increase text opacity by 0.025 per step. Press 0 to reset to the configured default
+- **Toggle visibility** — press the configured toggle hotkey (default: `RightCommand`) to show/hide with fade animation
 
 The AppKit run loop runs on the main OS thread (pinned via `runtime.LockOSThread`). All daemon logic runs in background goroutines. Window operations are dispatched to the main thread via a channel-based work queue pumped at ~60 Hz.
 

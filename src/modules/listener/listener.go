@@ -10,6 +10,7 @@ extern void goHotkeyCallback(void);
 extern void goRecordBounds(CGFloat minX, CGFloat minY, CGFloat maxX, CGFloat maxY);
 extern void goTeleprompterToggle(void);
 extern void goPositionChange(int alignment);
+extern void goOpacityChange(int direction);
 
 // Global tap reference so the callback can re-enable it on timeout.
 static CFMachPortRef gTap = NULL;
@@ -101,8 +102,11 @@ static CGEventRef eventCallback(CGEventTapProxy proxy, CGEventType type,
     // 0x7B=Left (backward), 0x7C=Right (forward)
     else if (type == kCGEventKeyDown && gOptionHeld) {
         CGKeyCode key = (CGKeyCode)CGEventGetIntegerValueField(event, kCGKeyboardEventKeycode);
-        if (key == 0x7B) goPositionChange(-1);      // rotate backward
-        else if (key == 0x7C) goPositionChange(1);   // rotate forward
+        if (key == 0x7B) goPositionChange(-1);      // move left
+        else if (key == 0x7C) goPositionChange(1);   // move right
+        else if (key == 0x1B) goOpacityChange(-1);   // minus: decrease opacity
+        else if (key == 0x18) goOpacityChange(1);    // plus: increase opacity
+        else if (key == 0x1D) goOpacityChange(0);    // zero: reset to default
     }
 
     return event;
@@ -194,6 +198,16 @@ func goPositionChange(alignment C.int) {
 	}
 }
 
+//export goOpacityChange
+func goOpacityChange(direction C.int) {
+	if current != nil {
+		select {
+		case current.opacityCh <- int(direction):
+		default:
+		}
+	}
+}
+
 // New creates a new listener instance.
 func New() *Listener {
 	return &Listener{
@@ -201,6 +215,7 @@ func New() *Listener {
 		boundsCh:       make(chan image.Rectangle, 1),
 		teleprompterCh: make(chan struct{}, constants.ListenerTriggerChannelBuffer),
 		positionCh:     make(chan int, 1),
+		opacityCh:      make(chan int, 1),
 	}
 }
 
@@ -214,7 +229,7 @@ func New() *Listener {
 // pollInterval is the CFRunLoop polling timeout; smaller values increase responsiveness but use more CPU.
 // triggerKeycode, boundsKeycode, and teleprompterKeycode are the MacOS virtual keycodes for the hotkeys.
 // Listen can only be called once per Listener instance; subsequent calls return the same channels.
-func (l *Listener) Listen(parentCtx context.Context, logger *slog.Logger, pollInterval time.Duration, triggerKeycode, boundsKeycode, teleprompterKeycode int) (<-chan struct{}, <-chan image.Rectangle, <-chan struct{}, <-chan int, error) {
+func (l *Listener) Listen(parentCtx context.Context, logger *slog.Logger, pollInterval time.Duration, triggerKeycode, boundsKeycode, teleprompterKeycode int) (*Channels, error) {
 	var listenErr error
 
 	l.startOnce.Do(func() {
@@ -258,7 +273,7 @@ func (l *Listener) Listen(parentCtx context.Context, logger *slog.Logger, pollIn
 	})
 
 	if listenErr != nil {
-		return nil, nil, nil, nil, listenErr
+		return nil, listenErr
 	}
 
 	// Drain residual events on shutdown so nothing leaks.
@@ -276,7 +291,16 @@ func (l *Listener) Listen(parentCtx context.Context, logger *slog.Logger, pollIn
 		for len(l.positionCh) > 0 {
 			<-l.positionCh
 		}
+		for len(l.opacityCh) > 0 {
+			<-l.opacityCh
+		}
 	}()
 
-	return l.triggerCh, l.boundsCh, l.teleprompterCh, l.positionCh, nil
+	return &Channels{
+		Triggers:  l.triggerCh,
+		Bounds:    l.boundsCh,
+		Toggles:   l.teleprompterCh,
+		Positions: l.positionCh,
+		Opacities: l.opacityCh,
+	}, nil
 }

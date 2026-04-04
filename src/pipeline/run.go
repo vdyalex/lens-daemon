@@ -28,7 +28,7 @@ import (
 // Returns the listener setup error, or ctx.Err() on normal shutdown.
 func (p *Pipeline) Run(ctx context.Context) error {
 	hotkeyListener := p.listener
-	triggers, bounds, toggles, positions, err := hotkeyListener.Listen(
+	channels, err := hotkeyListener.Listen(
 		ctx,
 		p.logger,
 		p.settings.EventTapPollInterval,
@@ -41,9 +41,10 @@ func (p *Pipeline) Run(ctx context.Context) error {
 	}
 
 	go p.poller.Run(ctx)
-	go p.trackBounds(bounds)
-	go p.trackVisibility(toggles)
-	go p.trackPosition(positions)
+	go p.trackBounds(channels.Bounds)
+	go p.trackVisibility(channels.Toggles)
+	go p.trackPosition(channels.Positions)
+	go p.trackOpacity(channels.Opacities)
 
 	p.logger.Info("pipeline ready — set bounds and press capture key")
 
@@ -63,7 +64,8 @@ func (p *Pipeline) Run(ctx context.Context) error {
 				p.logger.Error("extractor close error", "error", closeErr)
 			}
 			return ctx.Err()
-		case <-triggers:
+		case <-channels.Triggers:
+			p.teleprompter.Display("")
 			captureGroup.Add(1)
 			go func() {
 				defer captureGroup.Done()
@@ -111,6 +113,24 @@ func (p *Pipeline) trackPosition(directions <-chan int) {
 		current = (current + direction + 3) % 3
 		appkit.SetOverlayPosition(names[current])
 		p.logger.Debug("teleprompter position changed", "position", names[current])
+	}
+}
+
+// trackOpacity receives direction events from +/- keys and adjusts the teleprompter
+// text opacity by 0.025 per step. direction: -1 = decrease (minus), +1 = increase (plus),
+// 0 = reset to configured default.
+// Exits when the channel is closed.
+func (p *Pipeline) trackOpacity(directions <-chan int) {
+	const step = 0.025
+	for direction := range directions {
+		if direction == 0 {
+			appkit.ResetOverlayOpacity()
+			p.logger.Debug("teleprompter text opacity reset to default")
+			continue
+		}
+		delta := step * float64(direction)
+		appkit.SetOverlayOpacity(delta)
+		p.logger.Debug("teleprompter text opacity adjusted", "delta", delta)
 	}
 }
 

@@ -68,10 +68,12 @@ See `.env.example` for the complete list with descriptions and defaults. Common 
 - `HOTKEY_TOGGLE_KEYNAME` — Teleprompter toggle hotkey name (default: "RightCommand")
 - `TELEPROMPTER_FONT_FAMILY` — Font family name (default: system font)
 - `TELEPROMPTER_FONT_WEIGHT` — Font weight: ultralight, thin, light, regular, medium, semibold, bold, heavy, black (default: "ultralight")
-- `TELEPROMPTER_FONT_SIZE` — Font size in points (default: 12.0)
-- `TELEPROMPTER_OPACITY` — Text opacity 0.0-1.0 (default: 0.3)
+- `TELEPROMPTER_FONT_SIZE` — Font size in points (default: 16.0)
+- `TELEPROMPTER_OPACITY` — Text opacity 0.0-1.0 (default: 0.075). Adjustable at runtime via bounds hotkey + minus/plus keys (±0.025 per step). Press bounds hotkey + 0 to reset to default
 - `TELEPROMPTER_VISIBLE` — Initial visibility on startup (default: false)
-- `TELEPROMPTER_POSITION` — Window alignment: left, center, right (default: "right")
+- `TELEPROMPTER_POSITION` — Window alignment: left, center, right (default: "center")
+- `TELEPROMPTER_ADAPTIVE_COLOR` — Per-pixel adaptive text color via background inversion (default: true)
+- `TELEPROMPTER_FADE_DURATION` — Fade animation duration in seconds for show/hide/text updates (default: 0.75)
 - Various timeout settings for pipeline stages and Telegram communication
 
 See the `Config` struct in `src/utils/config/config.go` for a complete list with defaults.

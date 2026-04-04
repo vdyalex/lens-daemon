@@ -52,10 +52,12 @@ type Config struct {
 	AnalyseQueueCapacity int // ANALYSE_QUEUE_CAPACITY: analyse channel buffer (default: 5)
 
 	// Teleprompter appearance
-	TeleprompterFontFamily string  // TELEPROMPTER_FONT_FAMILY: font family name (default: "" = system font)
-	TeleprompterFontWeight string  // TELEPROMPTER_FONT_WEIGHT: font weight name (default: "ultralight")
-	TeleprompterFontSize   float64 // TELEPROMPTER_FONT_SIZE: font size in points (default: 16.0)
-	TeleprompterOpacity    float64 // TELEPROMPTER_OPACITY: text opacity 0.0-1.0 (default: 0.075)
-	TeleprompterVisible    bool    // TELEPROMPTER_VISIBLE: initial visibility (default: false)
-	TeleprompterPosition   string  // TELEPROMPTER_POSITION: "left", "center", or "right" (default: "center")
+	TeleprompterFontFamily    string  // TELEPROMPTER_FONT_FAMILY: font family name (default: "" = system font)
+	TeleprompterFontWeight    string  // TELEPROMPTER_FONT_WEIGHT: font weight name (default: "ultralight")
+	TeleprompterFontSize      float64 // TELEPROMPTER_FONT_SIZE: font size in points (default: 16.0)
+	TeleprompterOpacity       float64 // TELEPROMPTER_OPACITY: text opacity 0.0-1.0 (default: 0.075)
+	TeleprompterVisible       bool    // TELEPROMPTER_VISIBLE: initial visibility (default: false)
+	TeleprompterPosition      string  // TELEPROMPTER_POSITION: "left", "center", or "right" (default: "center")
+	TeleprompterAdaptiveColor bool    // TELEPROMPTER_ADAPTIVE_COLOR: enable background-adaptive text color (default: true)
+	TeleprompterFadeDuration  float64 // TELEPROMPTER_FADE_DURATION: fade animation duration in seconds (default: 0.75)
 }

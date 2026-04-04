@@ -101,11 +101,13 @@ func New(settings *config.Config, logger *slog.Logger) (*Pipeline, im.Store, err
 		pollerService,
 		listener.New(),
 		teleprompter.New(appkit.OverlayConfig{
-			FontFamily: settings.TeleprompterFontFamily,
-			FontWeight: settings.TeleprompterFontWeight,
-			FontSize:   settings.TeleprompterFontSize,
-			Opacity:    settings.TeleprompterOpacity,
-			Position:   settings.TeleprompterPosition,
+			FontFamily:    settings.TeleprompterFontFamily,
+			FontWeight:    settings.TeleprompterFontWeight,
+			FontSize:      settings.TeleprompterFontSize,
+			Opacity:       settings.TeleprompterOpacity,
+			Position:      settings.TeleprompterPosition,
+			AdaptiveColor: settings.TeleprompterAdaptiveColor,
+			FadeDuration:  settings.TeleprompterFadeDuration,
 		}, settings.TeleprompterVisible),
 	)
 	return pipeline, subscriberStore, nil
