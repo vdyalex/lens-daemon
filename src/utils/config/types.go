@@ -39,11 +39,23 @@ type Config struct {
 	TimeoutCapturePhase      time.Duration // TIMEOUT_CAPTURE_PHASE: Phase 1 total budget (default: 40s)
 	TimeoutAnalysePhase      time.Duration // TIMEOUT_ANALYSE_PHASE: Phase 2 total budget (default: 5m)
 
+	// Telegram feature toggle
+	TelegramEnabled bool // true when TELEGRAM_BOT_TOKEN is set; false disables Telegram entirely
+
 	// Event listener settings
 	EventTapPollInterval time.Duration // EVENT_TAP_POLL_INTERVAL: CFRunLoop polling interval (default: 500ms)
 	HotkeyTriggerKeycode int           // Resolved from HOTKEY_TRIGGER_KEYNAME env var (default: RightShift)
 	HotkeyBoundsKeycode  int           // Resolved from HOTKEY_BOUNDS_KEYNAME env var (default: RightOption)
+	HotkeyToggleKeycode  int           // Resolved from HOTKEY_TOGGLE_KEYNAME env var (default: RightCommand)
 
 	// Pipeline phase settings
 	AnalyseQueueCapacity int // ANALYSE_QUEUE_CAPACITY: analyse channel buffer (default: 5)
+
+	// Teleprompter appearance
+	TeleprompterFontFamily string  // TELEPROMPTER_FONT_FAMILY: font family name (default: "" = system font)
+	TeleprompterFontWeight string  // TELEPROMPTER_FONT_WEIGHT: font weight name (default: "ultralight")
+	TeleprompterFontSize   float64 // TELEPROMPTER_FONT_SIZE: font size in points (default: 16.0)
+	TeleprompterOpacity    float64 // TELEPROMPTER_OPACITY: text opacity 0.0-1.0 (default: 0.075)
+	TeleprompterVisible    bool    // TELEPROMPTER_VISIBLE: initial visibility (default: false)
+	TeleprompterPosition   string  // TELEPROMPTER_POSITION: "left", "center", or "right" (default: "center")
 }

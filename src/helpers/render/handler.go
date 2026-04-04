@@ -16,7 +16,7 @@ import (
 // NewDaemonHandler creates a slog.Handler appropriate for the current environment.
 // If stderr is a terminal (interactive), it writes slog lines to the broker only
 // and starts a pterm rendering goroutine so log events are colorized — the same
-// rendering path used by 'lensd logs'. Otherwise (daemonized, stderr redirected
+// rendering path used by the 'logs' command. Otherwise (daemonized, stderr redirected
 // to a log file), it writes plain text to both stderr and the broker.
 func NewDaemonHandler(ctx context.Context, broker *ipc.LogBroker, options *slog.HandlerOptions) slog.Handler {
 	if !term.IsTerminal(int(os.Stderr.Fd())) {

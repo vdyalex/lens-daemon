@@ -44,17 +44,19 @@ func (m *MockListenerService) EXPECT() *MockListenerServiceMockRecorder {
 }
 
 // Listen mocks base method.
-func (m *MockListenerService) Listen(ctx context.Context, logger *slog.Logger, pollInterval time.Duration, triggerKeycode, boundsKeycode int) (<-chan struct{}, <-chan image.Rectangle, error) {
+func (m *MockListenerService) Listen(ctx context.Context, logger *slog.Logger, pollInterval time.Duration, triggerKeycode, boundsKeycode, teleprompterKeycode int) (<-chan struct{}, <-chan image.Rectangle, <-chan struct{}, <-chan int, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Listen", ctx, logger, pollInterval, triggerKeycode, boundsKeycode)
+	ret := m.ctrl.Call(m, "Listen", ctx, logger, pollInterval, triggerKeycode, boundsKeycode, teleprompterKeycode)
 	ret0, _ := ret[0].(<-chan struct{})
 	ret1, _ := ret[1].(<-chan image.Rectangle)
-	ret2, _ := ret[2].(error)
-	return ret0, ret1, ret2
+	ret2, _ := ret[2].(<-chan struct{})
+	ret3, _ := ret[3].(<-chan int)
+	ret4, _ := ret[4].(error)
+	return ret0, ret1, ret2, ret3, ret4
 }
 
 // Listen indicates an expected call of Listen.
-func (mr *MockListenerServiceMockRecorder) Listen(ctx, logger, pollInterval, triggerKeycode, boundsKeycode any) *gomock.Call {
+func (mr *MockListenerServiceMockRecorder) Listen(ctx, logger, pollInterval, triggerKeycode, boundsKeycode, teleprompterKeycode any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Listen", reflect.TypeOf((*MockListenerService)(nil).Listen), ctx, logger, pollInterval, triggerKeycode, boundsKeycode)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Listen", reflect.TypeOf((*MockListenerService)(nil).Listen), ctx, logger, pollInterval, triggerKeycode, boundsKeycode, teleprompterKeycode)
 }

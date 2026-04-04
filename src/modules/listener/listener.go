@@ -8,22 +8,30 @@ package listener
 // Forward declarations – implemented in Go via export.
 extern void goHotkeyCallback(void);
 extern void goRecordBounds(CGFloat minX, CGFloat minY, CGFloat maxX, CGFloat maxY);
+extern void goTeleprompterToggle(void);
+extern void goPositionChange(int alignment);
 
 // Global tap reference so the callback can re-enable it on timeout.
 static CFMachPortRef gTap = NULL;
 
 // Configurable hotkey keycodes.
-static CGKeyCode gTriggerKeycode = 0x3C;  // Right Shift by default
-static CGKeyCode gBoundsKeycode = 0x3D;   // Right Option by default
+static CGKeyCode gTriggerKeycode       = 0x3C;  // Right Shift by default
+static CGKeyCode gBoundsKeycode        = 0x3D;  // Right Option by default
+static CGKeyCode gTeleprompterKeycode  = 0x36;  // Right Command by default
 
 // Right Option bounds tracking state.
 static bool gOptionHeld = false;
+static bool gMouseMoved = false;
 static CGFloat gMinX, gMinY, gMaxX, gMaxY;
 
-// setKeycodes sets the trigger and bounds hotkey keycodes.
-static inline void setKeycodes(int trigger, int bounds) {
-    gTriggerKeycode = (CGKeyCode)trigger;
-    gBoundsKeycode = (CGKeyCode)bounds;
+// Right Command teleprompter toggle edge detection state.
+static bool gCommandHeld = false;
+
+// setKeycodes sets the trigger, bounds, and teleprompter hotkey keycodes.
+static inline void setKeycodes(int trigger, int bounds, int teleprompter) {
+    gTriggerKeycode      = (CGKeyCode)trigger;
+    gBoundsKeycode       = (CGKeyCode)bounds;
+    gTeleprompterKeycode = (CGKeyCode)teleprompter;
 }
 
 // CGEventTap callback: fires on every flagsChanged event.
@@ -51,13 +59,16 @@ static CGEventRef eventCallback(CGEventTapProxy proxy, CGEventType type,
             if (optionNowHeld && !gOptionHeld) {
                 // Bounds key pressed: start tracking.
                 gOptionHeld = true;
+                gMouseMoved = false;
                 CGPoint loc = CGEventGetLocation(event);
                 gMinX = gMaxX = loc.x;
                 gMinY = gMaxY = loc.y;
             } else if (!optionNowHeld && gOptionHeld) {
-                // Bounds key released: record bounds.
+                // Bounds key released: record bounds only if cursor moved.
                 gOptionHeld = false;
-                goRecordBounds(gMinX, gMinY, gMaxX, gMaxY);
+                if (gMouseMoved) {
+                    goRecordBounds(gMinX, gMinY, gMaxX, gMaxY);
+                }
             }
         }
 
@@ -65,14 +76,33 @@ static CGEventRef eventCallback(CGEventTapProxy proxy, CGEventType type,
         if (keycode == gTriggerKeycode && (flags & kCGEventFlagMaskShift)) {
             goHotkeyCallback();
         }
+
+        // Detect teleprompter toggle on configured keycode (press edge only).
+        if (keycode == gTeleprompterKeycode) {
+            bool commandNowHeld = (flags & kCGEventFlagMaskCommand) != 0;
+            if (commandNowHeld && !gCommandHeld) {
+                gCommandHeld = true;
+                goTeleprompterToggle();
+            } else if (!commandNowHeld && gCommandHeld) {
+                gCommandHeld = false;
+            }
+        }
     }
     // Handle mouse movement while Right Option is held.
     else if ((type == kCGEventMouseMoved || type == kCGEventLeftMouseDragged || type == kCGEventRightMouseDragged) && gOptionHeld) {
+        gMouseMoved = true;
         CGPoint loc = CGEventGetLocation(event);
         if (loc.x < gMinX) gMinX = loc.x;
         if (loc.y < gMinY) gMinY = loc.y;
         if (loc.x > gMaxX) gMaxX = loc.x;
         if (loc.y > gMaxY) gMaxY = loc.y;
+    }
+    // Handle arrow keys while bounds key is held for position rotation.
+    // 0x7B=Left (backward), 0x7C=Right (forward)
+    else if (type == kCGEventKeyDown && gOptionHeld) {
+        CGKeyCode key = (CGKeyCode)CGEventGetIntegerValueField(event, kCGKeyboardEventKeycode);
+        if (key == 0x7B) goPositionChange(-1);      // rotate backward
+        else if (key == 0x7C) goPositionChange(1);   // rotate forward
     }
 
     return event;
@@ -82,7 +112,8 @@ static inline CFMachPortRef createTap(void) {
     CGEventMask mask = CGEventMaskBit(kCGEventFlagsChanged)
                      | CGEventMaskBit(kCGEventMouseMoved)
                      | CGEventMaskBit(kCGEventLeftMouseDragged)
-                     | CGEventMaskBit(kCGEventRightMouseDragged);
+                     | CGEventMaskBit(kCGEventRightMouseDragged)
+                     | CGEventMaskBit(kCGEventKeyDown);
     gTap = CGEventTapCreate(
         kCGSessionEventTap,
         kCGHeadInsertEventTap,
@@ -137,29 +168,59 @@ func goRecordBounds(minX, minY, maxX, maxY float64) {
 	}
 }
 
+//export goTeleprompterToggle
+func goTeleprompterToggle() {
+	if current != nil {
+		// Non-blocking send so the run-loop is never stalled.
+		select {
+		case current.teleprompterCh <- struct{}{}:
+		default:
+		}
+	}
+}
+
+//export goPositionChange
+func goPositionChange(alignment C.int) {
+	if current != nil {
+		// Drain and replace: always keep the latest position.
+		select {
+		case <-current.positionCh:
+		default:
+		}
+		select {
+		case current.positionCh <- int(alignment):
+		default:
+		}
+	}
+}
+
 // New creates a new listener instance.
 func New() *Listener {
 	return &Listener{
-		triggerCh: make(chan struct{}, constants.ListenerTriggerChannelBuffer),
-		boundsCh:  make(chan image.Rectangle, 1),
+		triggerCh:      make(chan struct{}, constants.ListenerTriggerChannelBuffer),
+		boundsCh:       make(chan image.Rectangle, 1),
+		teleprompterCh: make(chan struct{}, constants.ListenerTriggerChannelBuffer),
+		positionCh:     make(chan int, 1),
 	}
 }
 
 // Listen starts the event tap on a dedicated OS thread and returns channels:
-// - triggers: receives a value each time the trigger hotkey is pressed
-// - bounds: receives updated screen-coordinate bounds when the bounds hotkey is released
-// The caller must have Accessibility permission (System Settings → Privacy &
-// Security → Accessibility). The event tap runs until parentCtx is cancelled.
+//   - triggers: receives a value each time the trigger hotkey is pressed
+//   - bounds: receives updated screen-coordinate bounds when the bounds hotkey is released
+//   - teleprompter: receives a value each time the teleprompter toggle hotkey is pressed
+//
+// The caller must have Accessibility permission (System Settings > Privacy &
+// Security > Accessibility). The event tap runs until parentCtx is cancelled.
 // pollInterval is the CFRunLoop polling timeout; smaller values increase responsiveness but use more CPU.
-// triggerKeycode and boundsKeycode are the MacOS virtual keycodes for the hotkeys.
+// triggerKeycode, boundsKeycode, and teleprompterKeycode are the MacOS virtual keycodes for the hotkeys.
 // Listen can only be called once per Listener instance; subsequent calls return the same channels.
-func (l *Listener) Listen(parentCtx context.Context, logger *slog.Logger, pollInterval time.Duration, triggerKeycode, boundsKeycode int) (<-chan struct{}, <-chan image.Rectangle, error) {
+func (l *Listener) Listen(parentCtx context.Context, logger *slog.Logger, pollInterval time.Duration, triggerKeycode, boundsKeycode, teleprompterKeycode int) (<-chan struct{}, <-chan image.Rectangle, <-chan struct{}, <-chan int, error) {
 	var listenErr error
 
 	l.startOnce.Do(func() {
 		current = l // Register this listener as the active one for CGo callbacks
 
-		C.setKeycodes(C.int(triggerKeycode), C.int(boundsKeycode))
+		C.setKeycodes(C.int(triggerKeycode), C.int(boundsKeycode), C.int(teleprompterKeycode))
 
 		tap := C.createTap()
 		if tap == 0 {
@@ -175,7 +236,11 @@ func (l *Listener) Listen(parentCtx context.Context, logger *slog.Logger, pollIn
 			C.CFRunLoopAddSource(rl, source, C.kCFRunLoopCommonModes)
 			C.CGEventTapEnable(tap, C.bool(true))
 
-			logger.Info("hotkey listener started", "trigger_keycode", triggerKeycode, "bounds_keycode", boundsKeycode)
+			logger.Info("hotkey listener started",
+				"trigger_keycode", triggerKeycode,
+				"bounds_keycode", boundsKeycode,
+				"teleprompter_keycode", teleprompterKeycode,
+			)
 
 			// Poll the run loop with a short timeout to check context cancellation responsively.
 			// EventTapRunLoopTimeout ensures graceful shutdown within ~50ms of context cancellation.
@@ -193,10 +258,10 @@ func (l *Listener) Listen(parentCtx context.Context, logger *slog.Logger, pollIn
 	})
 
 	if listenErr != nil {
-		return nil, nil, listenErr
+		return nil, nil, nil, nil, listenErr
 	}
 
-	// Drain residual triggers and bounds on shutdown so nothing leaks.
+	// Drain residual events on shutdown so nothing leaks.
 	go func() {
 		<-parentCtx.Done()
 		for len(l.triggerCh) > 0 {
@@ -205,7 +270,13 @@ func (l *Listener) Listen(parentCtx context.Context, logger *slog.Logger, pollIn
 		for len(l.boundsCh) > 0 {
 			<-l.boundsCh
 		}
+		for len(l.teleprompterCh) > 0 {
+			<-l.teleprompterCh
+		}
+		for len(l.positionCh) > 0 {
+			<-l.positionCh
+		}
 	}()
 
-	return l.triggerCh, l.boundsCh, nil
+	return l.triggerCh, l.boundsCh, l.teleprompterCh, l.positionCh, nil
 }

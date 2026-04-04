@@ -20,14 +20,17 @@
 ## Hotkey and Capture
 
 - **Global hotkey detection**: Listen for a configurable trigger hotkey system-wide (default: `RightShift`, customizable via `HOTKEY_TRIGGER_KEYNAME`) using MacOS `CGEventTap` in listen-only mode. The event tap runs on a dedicated OS thread with its own `CFRunLoop` and automatically re-enables itself if the system disables it due to timeout or user input.
-- **Custom bounds selection**: Track mouse movement while a configurable bounds hotkey is held (default: `RightOption`, customizable via `HOTKEY_BOUNDS_KEYNAME`) to define a custom capture rectangle. The bounds persist until the daemon is restarted or new bounds are set.
+- **Custom bounds selection**: Track mouse movement while a configurable bounds hotkey is held (default: `RightOption`, customizable via `HOTKEY_BOUNDS_KEYNAME`) to define a custom capture rectangle. Bounds are only recorded when the mouse actually moves while the key is held (arrow-only presses are ignored). The bounds persist until the daemon is restarted or new bounds are set.
+- **Teleprompter toggle**: Toggle the stealth overlay visibility via a configurable hotkey (default: `RightCommand`, customizable via `HOTKEY_TOGGLE_KEYNAME`).
+- **Teleprompter repositioning**: While the bounds hotkey is held, arrow keys rotate the teleprompter alignment: Left/Right cycle through left-center-right positions.
 - **Active window detection**: Identify the frontmost application window (name, position, size) via AppleScript and `System Events`. Unparseable coordinates in the AppleScript output are treated as errors and surface through the pipeline's non-fatal error path (logged, hotkey listener continues).
 - **Screen capture**: Capture the entire active window, or use custom bounds if set. For fullscreen windows (width >= screen width AND height >= screen height), capture the entire display instead.
 
 ## Processing Pipeline
 
 - **OCR text extraction**: Convert the captured image to text using Apple Vision framework. The image is PNG-encoded in memory and passed directly to the Vision API via byte buffer -- no intermediate files touch the disk.
-- **AI processing**: Send extracted text to Claude AI with a configurable system prompt. Empty OCR results are silently skipped (no API call made).
-- **Telegram delivery**: Broadcast Claude's response to all active subscribers. Messages exceeding Telegram's 4096-character limit are automatically split into sequential chunks. Empty AI responses are silently skipped. The HTTP client enforces a 30-second timeout per request; a non-responsive Telegram API will not stall the pipeline indefinitely.
+- **AI processing**: Send extracted text to Claude AI using structured tool calls that return `short` (concise answer) and `detailed` (answer + reason) branches. Empty OCR results are silently skipped (no API call made).
+- **Teleprompter display**: Show the short answer on a stealth macOS overlay window excluded from screen sharing (`NSWindowSharingNone`). The overlay is configurable via environment variables (font family, weight, size, opacity, position, initial visibility).
+- **Telegram delivery** (optional): Broadcast the detailed response to all active subscribers. When `TELEGRAM_BOT_TOKEN` is not set, Telegram is disabled and the daemon runs in teleprompter-only mode. Messages exceeding Telegram's 4096-character limit are automatically split into sequential chunks. Empty AI responses are silently skipped. The HTTP client enforces a 30-second timeout per request; a non-responsive Telegram API will not stall the pipeline indefinitely.
 - **Subscriber management**: Support dynamic subscriber registration via Telegram `/start` and `/stop` bot commands. Persist the subscriber list to a plain-text file (one chat ID per line) for durability across restarts.
 - **Non-fatal runtime errors**: Pipeline errors (capture failure, OCR failure, API errors) are logged but do not terminate the daemon. The hotkey listener continues running for the next trigger.

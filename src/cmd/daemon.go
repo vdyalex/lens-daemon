@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -10,17 +11,19 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/vdyalex/lens-daemon/src/bridges/appkit"
 	"github.com/vdyalex/lens-daemon/src/daemon"
 	"github.com/vdyalex/lens-daemon/src/helpers/render"
 	"github.com/vdyalex/lens-daemon/src/ipc"
 	"github.com/vdyalex/lens-daemon/src/pipeline"
+	"github.com/vdyalex/lens-daemon/src/utils/buildinfo"
 	"github.com/vdyalex/lens-daemon/src/utils/config"
 )
 
 var daemonCmd = &cobra.Command{
 	Use:   "daemon",
 	Short: "Run the pipeline (used by start command)",
-	Long:  `Runs the pipeline with IPC server. Intended to be called by 'lensd start' via re-exec.`,
+	Long:  fmt.Sprintf("Runs the pipeline with IPC server. Intended to be called by '%s start' via re-exec.", buildinfo.BinaryName),
 	Run: func(cmd *cobra.Command, args []string) {
 		runDaemon()
 	},
@@ -39,6 +42,8 @@ func applyFlags() error {
 }
 
 // runDaemon initializes and runs the daemon: loads config, starts IPC server, and runs the pipeline.
+// The main goroutine is yielded to the AppKit run loop for teleprompter rendering;
+// all daemon logic runs in a background goroutine.
 // Exits with status 1 on configuration or runtime errors.
 func runDaemon() {
 	// Apply flags as environment variables before loading config
@@ -55,6 +60,19 @@ func runDaemon() {
 		os.Exit(1)
 	}
 
+	// Run all daemon logic in a background goroutine so the main goroutine
+	// (pinned to the main OS thread) can run the AppKit event loop.
+	go runPipeline(settings)
+
+	// Block the main OS thread with the Cocoa event loop.
+	// This is required for NSWindow operations in the appkit bridge.
+	// StartRunLoop never returns.
+	appkit.StartRunLoop()
+}
+
+// runPipeline runs the pipeline, IPC server, and signal handling.
+// Intended to run in a background goroutine while the main thread runs AppKit.
+func runPipeline(settings *config.Config) {
 	// Create log broker for IPC fan-out
 	broker := ipc.NewLogBroker()
 
@@ -67,7 +85,7 @@ func runDaemon() {
 	logger := slog.New(render.NewDaemonHandler(ctx, broker, handlerOptions))
 
 	// PID is written inside onReady (after IPC socket is listening).
-	// This makes PID file presence a reliable "daemon ready" signal for lensd start.
+	// This makes PID file presence a reliable "daemon ready" signal for the start command.
 	pidPath := daemon.DefaultPIDPath()
 	var pidWritten bool
 	defer func() {
@@ -85,7 +103,7 @@ func runDaemon() {
 			return
 		}
 		pidWritten = true
-		logger.Info("lensd started", "pid", os.Getpid())
+		logger.Info(fmt.Sprintf("%s started", buildinfo.BinaryName), "pid", os.Getpid())
 	}
 
 	// Create pipeline
@@ -97,7 +115,12 @@ func runDaemon() {
 
 	// Wire IPC handler
 	socketPath := ipc.DefaultSocketPath()
-	subscribers := func() int { return len(subscriberStore.All()) }
+	subscribers := func() int {
+		if subscriberStore == nil {
+			return 0
+		}
+		return len(subscriberStore.All())
+	}
 	ipcHandler := ipc.NewCommandHandler(process, broker, cancel, logger, subscribers)
 	ipcServer := ipc.NewServer(socketPath, ipcHandler, logger)
 
@@ -123,5 +146,6 @@ func runDaemon() {
 		os.Exit(1)
 	}
 
-	logger.Info("lensd stopped")
+	logger.Info(fmt.Sprintf("%s stopped", buildinfo.BinaryName))
+	os.Exit(0)
 }

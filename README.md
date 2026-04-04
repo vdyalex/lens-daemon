@@ -4,7 +4,7 @@
 [![Go Version](https://img.shields.io/github/go-mod/go-version/vdyalex/lens-daemon?style=flat-square)](https://golang.org)
 [![License](https://img.shields.io/github/license/vdyalex/lens-daemon?style=flat-square)](LICENSE)
 
-A MacOS daemon that captures your screen on demand via a global hotkey, extracts text using OCR, processes it through Claude AI (Anthropic), and broadcasts the response to Telegram subscribers. All operations happen in-memory with zero disk writes for screenshots.
+A MacOS daemon that captures your screen on demand via a global hotkey, extracts text using OCR, processes it through Claude AI (Anthropic), and routes the response to a stealth teleprompter overlay and optionally to Telegram subscribers. All operations happen in-memory with zero disk writes for screenshots.
 
 - [Lens](#lens)
   - [⚡ How it works](#-how-it-works)
@@ -29,7 +29,7 @@ The daemon uses a **two-phase pipeline** for low-latency capture and parallel pr
 
 ```
 Phase 1 (Fast)      Phase 2 (Async)
-Hotkey → Capture    ↓ (queue)    OCR → AI → Telegram
+Hotkey → Capture    ↓ (queue)    OCR → AI → Teleprompter + Telegram
                     ↓ (concurrent)
 ```
 
@@ -37,8 +37,9 @@ Hotkey → Capture    ↓ (queue)    OCR → AI → Telegram
 2. **Capture** — grabs the entire active window via AppleScript and CoreGraphics (direct Objective-C bridge via `src/bridges/core_graphics`, no external libraries). Default: hold `RightOption` key to define custom bounds. Customizable via `HOTKEY_BOUNDS_KEYNAME`
 3. **Queue** — captured images are enqueued for Phase 2 analysis (queue capacity: 5 by default, configurable via `ANALYSE_QUEUE_CAPACITY`)
 4. **OCR** — extracts text from the image using Apple Vision framework, entirely in-memory
-5. **AI** — sends extracted text to Claude with a configurable system prompt (max 1024 response tokens)
-6. **Notify** — broadcasts Claude's response to all Telegram subscribers, auto-chunking messages exceeding 4096 runes
+5. **AI** — sends extracted text to Claude with a configurable system prompt (max 1024 response tokens). The response is a JSON object with `short` and `detailed` fields
+6. **Teleprompter** — displays the short answer on a stealth overlay in the bottom-center corner. The overlay is excluded from screen sharing (`NSWindowSharingNone`), invisible to Zoom, Mission Control, Dock, and Cmd+Tab. Toggle visibility with `RightCommand` (configurable via `HOTKEY_TOGGLE_KEYNAME`)
+7. **Notify** (optional) — broadcasts the detailed response to all Telegram subscribers, auto-chunking messages exceeding 4096 runes. Disabled when `TELEGRAM_BOT_TOKEN` is not set
 
 **Key benefit**: Rapid hotkey presses are captured immediately in Phase 1 while Phase 2 processes previous results concurrently. If analysis is slower than capture (typical case), results queue up and are processed in parallel without losing captures.
 
@@ -55,7 +56,7 @@ For detailed documentation, see:
 - **MacOS** (uses CoreGraphics CGEventTap, Vision framework, and AppleScript)
 - **Go 1.25+** (with cgo support)
 - **Anthropic API key** — get one at [console.anthropic.com](https://console.anthropic.com)
-- **Telegram bot** — create one via [@BotFather](https://t.me/BotFather)
+- **Telegram bot** (optional) — create one via [@BotFather](https://t.me/BotFather). When omitted, the daemon runs in teleprompter-only mode
 
 ## 🔧 Installation
 
@@ -82,7 +83,6 @@ All configuration is done through environment variables. Copy `.env.example` to 
 | Variable | Description |
 |---|---|
 | `ANTHROPIC_API_KEY` | Anthropic API key (e.g., `sk-ant-...`) |
-| `TELEGRAM_BOT_TOKEN` | Telegram bot token from @BotFather (e.g., `123456:ABC-DEF...`) |
 
 ### Optional
 
@@ -110,16 +110,22 @@ All configuration is done through environment variables. Copy `.env.example` to 
 | `VISION_LANG` | `en-US` | Vision language (BCP 47 code, e.g., `en-US`, `fr-FR`, `de-DE`, `zh-Hans`, `ja`, `ko`) |
 | `ANTHROPIC_MODEL` | `claude-sonnet-4-6` | Anthropic model ID to use for AI processing |
 | `ANTHROPIC_SYSTEM_PROMPT` | *(built-in)* | System prompt sent to Anthropic with each request |
+| `TELEGRAM_BOT_TOKEN` | *(none)* | Telegram bot token from @BotFather. When absent, Telegram broadcasting is disabled (teleprompter-only mode) |
 | `HOTKEY_TRIGGER_KEYNAME` | `RightShift` | Hotkey to trigger capture (see [Hotkey Configuration](#-hotkey-configuration) below) |
 | `HOTKEY_BOUNDS_KEYNAME` | `RightOption` | Hotkey to define custom capture bounds (see [Hotkey Configuration](#-hotkey-configuration) below) |
+| `HOTKEY_TOGGLE_KEYNAME` | `RightCommand` | Hotkey to toggle teleprompter overlay visibility (see [Hotkey Configuration](#️-hotkey-configuration) below) |
+| `TELEPROMPTER_FONT_FAMILY` | *(system font)* | Font family name (e.g., `Menlo`, `Helvetica Neue`). Empty uses the system font |
+| `TELEPROMPTER_FONT_WEIGHT` | `ultralight` | Font weight: `ultralight`, `thin`, `light`, `regular`, `medium`, `semibold`, `bold`, `heavy`, `black` |
+| `TELEPROMPTER_FONT_SIZE` | `12.0` | Font size in points |
+| `TELEPROMPTER_OPACITY` | `0.3` | Text opacity from `0.0` (invisible) to `1.0` (fully opaque) |
+| `TELEPROMPTER_VISIBLE` | `false` | Initial visibility on startup (`true` to show immediately) |
+| `TELEPROMPTER_POSITION` | `center` | Window alignment: `left`, `center`, or `right` |
 
-The built-in default system prompt is:
-
-> You're a questionnaire assistant. Provide quick, accurate responses with maximum efficiency.
+Claude responds with a structured JSON tool call containing `short` (concise answer for the teleprompter) and `detailed` (answer + reason for Telegram).
 
 ### 🎛️ Hotkey Configuration
 
-Configure which keys trigger captures and bounds selection via `HOTKEY_TRIGGER_KEYNAME` and `HOTKEY_BOUNDS_KEYNAME`.
+Configure which keys trigger captures, bounds selection, and teleprompter visibility via `HOTKEY_TRIGGER_KEYNAME`, `HOTKEY_BOUNDS_KEYNAME`, and `HOTKEY_TOGGLE_KEYNAME`.
 
 **Supported key names:** `LeftShift`, `RightShift`, `LeftControl`, `RightControl`, `LeftCommand`, `RightCommand`, `LeftOption`, `RightOption`, `Fn`
 
@@ -188,12 +194,14 @@ make daemon
 
 Once running:
 
-1. **Subscribe**: Send `/start` to your Telegram bot to begin receiving responses
-2. **Capture**: Press the configured trigger hotkey (default: `RightShift`) at any time to trigger a capture
+1. **Toggle teleprompter**: Press the configured teleprompter hotkey (default: `RightCommand`) to show/hide the overlay
+2. **Subscribe** (optional): Send `/start` to your Telegram bot to begin receiving detailed responses
+3. **Capture**: Press the configured trigger hotkey (default: `RightShift`) at any time to trigger a capture
    - Multiple rapid captures are queued and processed concurrently
    - If the queue is full (5 items by default), the newest capture is dropped with a warning log
-3. **Custom bounds** (optional): Hold the configured bounds hotkey (default: `RightOption`), move your mouse to define a region, then release
-4. The daemon captures the screen, enqueues for analysis, then processes OCR, sends the text to Claude, and broadcasts the response to all subscribers
+4. **Custom bounds** (optional): Hold the configured bounds hotkey (default: `RightOption`), move your mouse to define a region, then release
+5. **Reposition teleprompter** (optional): Hold the bounds hotkey (default: `RightOption`) and press an arrow key: `Left` = left-aligned, `Right` = right-aligned, `Up`/`Down` = centered
+6. The daemon captures the screen, enqueues for analysis, processes OCR, sends the text to Claude, then displays the short answer on the teleprompter and broadcasts the detailed response to Telegram subscribers
 
 Send `/stop` to the Telegram bot to unsubscribe. Run `./bin/lensd stop` to stop the daemon.
 
@@ -214,6 +222,7 @@ Send `/stop` to the Telegram bot to unsubscribe. Run `./bin/lensd stop` to stop 
 | `make generate` | Run go generate on all packages |
 | `make tools` | Install analysis tools (golangci-lint, govulncheck, mockgen) |
 | `make daemon` | Build and run in daemon mode (foreground) |
+| `make develop` | Build, restart daemon, and stream logs (combines build + restart + logs) |
 | `make start` | Build and start daemon in background |
 | `make stop` | Stop the running daemon |
 | `make status` | Check daemon status |

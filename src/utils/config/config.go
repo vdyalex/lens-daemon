@@ -55,6 +55,33 @@ func (l *loader) getLogLevel(key string, fallback slog.Level) slog.Level {
 	return fallback
 }
 
+// getFloat retrieves a float64 environment variable, then fallback.
+// Precedence: env var > fallback
+// Logs a warning if the env var value cannot be parsed as a float.
+func (l *loader) getFloat(key string, fallback float64) float64 {
+	if value := os.Getenv(key); value != "" {
+		if parsed, err := strconv.ParseFloat(value, 64); err == nil {
+			return parsed
+		}
+		l.logger.Warn("invalid float value, using default", "key", key, "value", value, "fallback", fallback)
+	}
+	return fallback
+}
+
+// getBool retrieves a boolean environment variable, then fallback.
+// Accepted values: "true", "false", "1", "0", "t", "f" (see strconv.ParseBool).
+// Precedence: env var > fallback
+// Logs a warning if the env var value cannot be parsed as a boolean.
+func (l *loader) getBool(key string, fallback bool) bool {
+	if value := os.Getenv(key); value != "" {
+		if parsed, err := strconv.ParseBool(value); err == nil {
+			return parsed
+		}
+		l.logger.Warn("invalid boolean value, using default", "key", key, "value", value, "fallback", fallback)
+	}
+	return fallback
+}
+
 // getDuration parses the named environment variable as a time.Duration.
 // Accepted formats: "300ms", "1.5h", "2h45m", etc. (see time.ParseDuration).
 // Precedence: env var > fallback
@@ -76,10 +103,10 @@ func (l *loader) getDuration(key string, fallback time.Duration) time.Duration {
 //  2. .env file variables (loaded via godotenv.Load)
 //  3. Compiled default values
 //
-// Required env vars: ANTHROPIC_API_KEY, TELEGRAM_BOT_TOKEN.
+// Required env vars: ANTHROPIC_API_KEY.
+// Optional env vars: TELEGRAM_BOT_TOKEN (when absent, Telegram broadcasting is disabled).
 // Returns ErrConfigMissingAPIKey if ANTHROPIC_API_KEY is not set.
-// Returns ErrConfigMissingBotToken if TELEGRAM_BOT_TOKEN is not set.
-// Returns ErrConfigInvalidHotkey if HOTKEY_TRIGGER_KEYNAME or HOTKEY_BOUNDS_KEYNAME are invalid.
+// Returns ErrConfigInvalidHotkey if HOTKEY_TRIGGER_KEYNAME, HOTKEY_BOUNDS_KEYNAME, or HOTKEY_TOGGLE_KEYNAME are invalid.
 func Load() (*Config, error) {
 	_ = godotenv.Load() // Load .env if present; no-op if absent or already-set vars are preserved
 
@@ -111,18 +138,24 @@ func Load() (*Config, error) {
 		TimeoutAnalysePhase:        ldr.getDuration("TIMEOUT_ANALYSE_PHASE", constants.TimeoutAnalysePhase),
 		EventTapPollInterval:       ldr.getDuration("EVENT_TAP_POLL_INTERVAL", constants.EventTapPollInterval),
 		AnalyseQueueCapacity:       ldr.getInt("ANALYSE_QUEUE_CAPACITY", constants.AnalyseQueueCapacity),
+		TeleprompterFontFamily:     ldr.getStr("TELEPROMPTER_FONT_FAMILY", ""),
+		TeleprompterFontWeight:     ldr.getStr("TELEPROMPTER_FONT_WEIGHT", constants.DefaultTeleprompterFontWeight),
+		TeleprompterFontSize:       ldr.getFloat("TELEPROMPTER_FONT_SIZE", constants.DefaultTeleprompterFontSize),
+		TeleprompterOpacity:        ldr.getFloat("TELEPROMPTER_OPACITY", constants.DefaultTeleprompterOpacity),
+		TeleprompterVisible:        ldr.getBool("TELEPROMPTER_VISIBLE", false),
+		TeleprompterPosition:       ldr.getStr("TELEPROMPTER_POSITION", constants.DefaultTeleprompterPosition),
 	}
 
 	if cfg.AnthropicAPIKey == "" {
 		return nil, exceptions.ErrConfigMissingAPIKey
 	}
-	if cfg.TelegramBotToken == "" {
-		return nil, exceptions.ErrConfigMissingBotToken
-	}
+
+	cfg.TelegramEnabled = cfg.TelegramBotToken != ""
 
 	// Load and validate hotkey names
 	triggerKeyName := ldr.getStr("HOTKEY_TRIGGER_KEYNAME", constants.HotkeyTriggerKeyName)
 	boundsKeyName := ldr.getStr("HOTKEY_BOUNDS_KEYNAME", constants.HotkeyBoundsKeyName)
+	teleprompterKeyName := ldr.getStr("HOTKEY_TOGGLE_KEYNAME", constants.HotkeyToggleKeyName)
 
 	triggerKeycode, ok := constants.HotkeyKeycodes[triggerKeyName]
 	if !ok {
@@ -132,9 +165,14 @@ func Load() (*Config, error) {
 	if !ok {
 		return nil, exceptions.ErrConfigInvalidHotkey
 	}
+	teleprompterKeycode, ok := constants.HotkeyKeycodes[teleprompterKeyName]
+	if !ok {
+		return nil, exceptions.ErrConfigInvalidHotkey
+	}
 
 	cfg.HotkeyTriggerKeycode = triggerKeycode
 	cfg.HotkeyBoundsKeycode = boundsKeycode
+	cfg.HotkeyToggleKeycode = teleprompterKeycode
 
 	return cfg, nil
 }

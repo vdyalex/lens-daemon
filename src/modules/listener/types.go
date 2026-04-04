@@ -13,12 +13,14 @@ import (
 // Service abstracts the hotkey listener for testability.
 type Service interface {
 	Listen(ctx context.Context, logger *slog.Logger, pollInterval time.Duration,
-		triggerKeycode, boundsKeycode int) (<-chan struct{}, <-chan image.Rectangle, error)
+		triggerKeycode, boundsKeycode, teleprompterKeycode int) (<-chan struct{}, <-chan image.Rectangle, <-chan struct{}, <-chan int, error)
 }
 
-// Listener manages global hotkey detection and bounds tracking.
+// Listener manages global hotkey detection, bounds tracking, teleprompter toggling, and position changes.
 type Listener struct {
-	triggerCh chan struct{}
-	boundsCh  chan image.Rectangle
-	startOnce sync.Once
+	triggerCh      chan struct{}
+	boundsCh       chan image.Rectangle
+	teleprompterCh chan struct{}
+	positionCh     chan int
+	startOnce      sync.Once
 }

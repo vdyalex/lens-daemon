@@ -31,20 +31,21 @@ The application uses a **single binary, multiple subcommands** architecture:
 The pipeline orchestrates the full workflow with a **two-phase design**:
 
 - **Phase 1 (Capture)**: One goroutine per hotkey trigger; captures complete independently and in parallel
-- **Phase 2 (Analyse)**: Results queue up and are processed concurrently (one goroutine per queued result) for OCR-AI-Telegram
+- **Phase 2 (Analyse)**: Results queue up and are processed concurrently (one goroutine per queued result) for OCR-AI-Teleprompter-Telegram
 
 This separation decouples fast Phase 1 captures from slow Phase 2 analysis, preventing missed captures when the pipeline is busy.
 
 **Modules** handle MacOS-specific operations:
 
-- **Listener** -- global hotkey detection and bounds tracking via `CGEventTap` (cgo)
+- **Listener** -- global hotkey detection, bounds tracking, teleprompter toggle, and arrow key position changes via `CGEventTap` (cgo)
 - **Capturer** -- foreground window detection (AppleScript) and screenshot capture, using `src/bridges/core_graphics` for CoreGraphics calls
 - **Extractor** -- OCR text extraction interface consumed by the pipeline
+- **Teleprompter** -- stealth overlay management (visibility toggle, text display) delegating to the appkit bridge
 
 **Adapters** integrate with external services:
 
-- **AI** -- Claude AI client using the official Anthropic Go SDK (package `ai`)
-- **IM** -- Telegram Bot API sender with message chunking and MarkdownV2 formatting (package `im`)
+- **AI** -- Claude AI client using the official Anthropic Go SDK with structured tool calls returning `short` and `detailed` response branches (package `ai`)
+- **IM** -- Telegram Bot API sender with message chunking and MarkdownV2 formatting (package `im`). Optional: when `TELEGRAM_BOT_TOKEN` is absent, a `NoopBroadcaster` and `NoopPoller` are used instead
   - **Poller** -- Telegram long-polling for subscriber management (`/start`, `/stop` commands) (package `im/poller`)
   - **Store** -- plain-text file-backed persistence for subscriber chat IDs (package `im/store`)
 - **OCR** -- Apple Vision framework adapter wrapping `src/bridges/vision` (package `ocr`)
@@ -53,12 +54,13 @@ This separation decouples fast Phase 1 captures from slow Phase 2 analysis, prev
 
 - **`src/bridges/vision`** -- Objective-C wrapper for Apple Vision framework OCR (`visionRecognizeText`)
 - **`src/bridges/core_graphics`** -- Objective-C wrappers for CoreGraphics screen capture and display queries (`captureScreenRect`, `getMainDisplayWidth`, `getMainDisplayHeight`)
+- **`src/bridges/appkit`** -- Objective-C wrappers for AppKit overlay window (NSWindow creation, text rendering, positioning) and NSApplication run loop management
 
 **Pipeline Components** (`src/pipeline/`) orchestrate the workflow:
 
 - **`pipeline.go`** -- constructors and public interface (`New`, `NewWithDependencies`, `Status`, `Run`)
-- **`process.go`** -- implementation of the five sequential process steps (fetch window, capture, extract, process with AI, broadcast)
-- **`run.go`** -- event loop and goroutine orchestration (`Run` method)
+- **`process.go`** -- implementation of the sequential process steps (fetch window, capture, extract, process with AI, display on teleprompter, broadcast to Telegram)
+- **`run.go`** -- event loop and goroutine orchestration (`Run` method), including visibility toggle and position tracking
 
 ## Startup and Daemon Flow
 
@@ -75,11 +77,12 @@ flowchart TD
 
     subgraph Init[Initialization]
         G --> I[extractor.New<br/>Vision OCR extractor]
-        G --> J[store.NewStore<br/>Load subscriber list]
-        G --> K[im.New<br/>Telegram broadcaster]
-        G --> L[poller.New<br/>Telegram subscriber poller]
+        G --> J[store.NewStore<br/>Load subscriber list<br/>skipped if no bot token]
+        G --> K[im.New or NoopBroadcaster<br/>Telegram broadcaster]
+        G --> L[poller.New or NoopPoller<br/>Telegram subscriber poller]
         G --> M[capturer.New<br/>MacOS capturer]
-        G --> N[ai.New<br/>Anthropic SDK client]
+        G --> N[ai.New<br/>Anthropic SDK client<br/>structured tool calls]
+        G --> O2[teleprompter.New<br/>Stealth overlay window]
     end
 
     H --> O[ipc.NewLogBroker<br/>Create log fan-out]
@@ -91,6 +94,8 @@ flowchart TD
         R --> S[listener.Listen<br/>CGEventTap on OS thread]
         R --> T[poller.Run<br/>Telegram subscriber poller]
         R --> U[bounds tracker<br/>Bounds hotkey updates]
+        R --> U2[visibility tracker<br/>Toggle hotkey]
+        R --> U3[position tracker<br/>Arrow key repositioning]
         R --> V{Wait for<br/>trigger hotkey or<br/>IPC commands}
     end
 
@@ -133,6 +138,7 @@ sequenceDiagram
     participant Capturer
     participant Vision
     participant Claude as Claude API
+    participant Teleprompter
     participant Telegram
 
     User->>Listener: press trigger hotkey
@@ -156,13 +162,14 @@ sequenceDiagram
         alt empty OCR text
             Pipeline->>Pipeline: skip
         else
-            Pipeline->>Claude: Process text
-            Claude-->>Pipeline: response
+            Pipeline->>Claude: Process text (structured tool call)
+            Claude-->>Pipeline: {short, detailed}
 
             alt empty response
                 Pipeline->>Pipeline: skip
             else
-                Pipeline->>Telegram: Broadcast message
+                Pipeline->>Teleprompter: Display short answer
+                Pipeline->>Telegram: Broadcast detailed answer
                 Note over Pipeline,Telegram: split if larger than 4096 chars
                 Telegram-->>User: message chunks
             end
@@ -201,7 +208,7 @@ sequenceDiagram
 
 ## Subscriber Management
 
-The daemon supports multiple Telegram subscribers through a dynamic subscription system:
+Telegram integration is optional. When `TELEGRAM_BOT_TOKEN` is not set, the daemon runs in teleprompter-only mode using noop implementations for the broadcaster and poller. When enabled, the daemon supports multiple Telegram subscribers through a dynamic subscription system:
 
 - Users send `/start` to the Telegram bot to subscribe and receive responses
 - Users send `/stop` to unsubscribe
@@ -216,10 +223,25 @@ By default, the daemon captures the entire active window. You can override this 
 
 1. **Hold the configured bounds hotkey** (default: `RightOption`, customizable via `HOTKEY_BOUNDS_KEYNAME`) and move your mouse to define a rectangular region
 2. The daemon tracks the minimum and maximum coordinates of your mouse movement while the key is held
-3. **Release the bounds hotkey** to lock in the bounds
+3. **Release the bounds hotkey** to lock in the bounds — bounds are only recorded if the mouse actually moved (arrow-only presses are ignored)
 4. All subsequent captures will use the custom bounds instead of capturing the full window
 
+While the bounds key is held, **arrow keys** reposition the teleprompter overlay: Left/Right rotate through left-center-right alignment.
+
 For fullscreen windows (width and height >= screen dimensions), the daemon captures the entire display.
+
+## Teleprompter Overlay
+
+The teleprompter is a stealth macOS overlay window positioned at the bottom of the screen:
+
+- **Excluded from screen sharing** via `NSWindowSharingNone` — invisible to Zoom, QuickTime, and all capture pipelines
+- **Excluded from Mission Control, Cmd+Tab, and Dock** via accessory activation policy and collection behavior flags
+- **Click-through** — does not intercept mouse events
+- **Configurable appearance** — font family, weight, size, opacity, and position via environment variables
+- **Runtime repositioning** — hold bounds key + arrow keys to rotate alignment (left/center/right)
+- **Toggle visibility** — press the configured toggle hotkey (default: `RightCommand`) to show/hide
+
+The AppKit run loop runs on the main OS thread (pinned via `runtime.LockOSThread`). All daemon logic runs in background goroutines. Window operations are dispatched to the main thread via a channel-based work queue pumped at ~60 Hz.
 
 ## Key Design Decisions
 

@@ -31,36 +31,38 @@ func createTestConfig() *config.Config {
 
 // testMocks holds all mock services for easier setup
 type testMocks struct {
-	ctrl        *gomock.Controller
-	capturer    *mocks.MockCapturerService
-	extractor   *mocks.MockExtractorService
-	agent       *mocks.MockProcessor
-	broadcaster *mocks.MockIMBroadcaster
-	poller      *mocks.MockPollerService
-	listener    *mocks.MockListenerService
+	ctrl         *gomock.Controller
+	capturer     *mocks.MockCapturerService
+	extractor    *mocks.MockExtractorService
+	agent        *mocks.MockProcessor
+	broadcaster  *mocks.MockIMBroadcaster
+	poller       *mocks.MockPollerService
+	listener     *mocks.MockListenerService
+	teleprompter *mocks.MockTeleprompterService
 }
 
 func createTestMocks(t *testing.T) *testMocks {
 	ctrl := gomock.NewController(t)
 	return &testMocks{
-		ctrl:        ctrl,
-		capturer:    mocks.NewMockCapturerService(ctrl),
-		extractor:   mocks.NewMockExtractorService(ctrl),
-		agent:       mocks.NewMockProcessor(ctrl),
-		broadcaster: &mocks.MockIMBroadcaster{},
-		poller:      mocks.NewMockPollerService(ctrl),
-		listener:    mocks.NewMockListenerService(ctrl),
+		ctrl:         ctrl,
+		capturer:     mocks.NewMockCapturerService(ctrl),
+		extractor:    mocks.NewMockExtractorService(ctrl),
+		agent:        mocks.NewMockProcessor(ctrl),
+		broadcaster:  &mocks.MockIMBroadcaster{},
+		poller:       mocks.NewMockPollerService(ctrl),
+		listener:     mocks.NewMockListenerService(ctrl),
+		teleprompter: mocks.NewMockTeleprompterService(ctrl),
 	}
 }
 
 func createTestPipeline(_ *testing.T, testMocks *testMocks) *pipeline.Pipeline {
 	settings := createTestConfig()
 	logger := mocks.NopLogger()
-	return pipeline.NewWithDependencies(settings, logger, testMocks.capturer, testMocks.extractor, testMocks.agent, testMocks.broadcaster, testMocks.poller, testMocks.listener)
+	return pipeline.NewWithDependencies(settings, logger, testMocks.capturer, testMocks.extractor, testMocks.agent, testMocks.broadcaster, testMocks.poller, testMocks.listener, testMocks.teleprompter)
 }
 
 func createTestPipelineWithSettings(_ *testing.T, settings *config.Config, logger *slog.Logger, testMocks *testMocks) *pipeline.Pipeline {
-	return pipeline.NewWithDependencies(settings, logger, testMocks.capturer, testMocks.extractor, testMocks.agent, testMocks.broadcaster, testMocks.poller, testMocks.listener)
+	return pipeline.NewWithDependencies(settings, logger, testMocks.capturer, testMocks.extractor, testMocks.agent, testMocks.broadcaster, testMocks.poller, testMocks.listener, testMocks.teleprompter)
 }
 
 func containsError(err error, substr string) bool {

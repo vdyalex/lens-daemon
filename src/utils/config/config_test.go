@@ -58,17 +58,31 @@ func TestLoad_missingAPIKey(t *testing.T) {
 	}
 }
 
-func TestLoad_missingBotToken(t *testing.T) {
+func TestLoad_missingBotToken_telegramDisabled(t *testing.T) {
 	t.Setenv("ANTHROPIC_API_KEY", "test-key")
 	// Do NOT set TELEGRAM_BOT_TOKEN
 
-	_, err := config.Load()
+	configuration, err := config.Load()
 
-	if err == nil {
-		t.Errorf("expected ErrConfigMissingBotToken, got no error")
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
 	}
-	if !errors.Is(err, exceptions.ErrConfigMissingBotToken) {
-		t.Errorf("expected ErrConfigMissingBotToken, got %v", err)
+	if configuration.TelegramEnabled {
+		t.Errorf("expected TelegramEnabled to be false when bot token is absent")
+	}
+}
+
+func TestLoad_botTokenPresent_telegramEnabled(t *testing.T) {
+	t.Setenv("ANTHROPIC_API_KEY", "test-key")
+	t.Setenv("TELEGRAM_BOT_TOKEN", "test-token")
+
+	configuration, err := config.Load()
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if !configuration.TelegramEnabled {
+		t.Errorf("expected TelegramEnabled to be true when bot token is set")
 	}
 }
 
@@ -309,5 +323,50 @@ func TestLoad_systemPrompt(t *testing.T) {
 	}
 	if configuration.AnthropicSystemPrompt != "custom prompt" {
 		t.Errorf("expected AnthropicSystemPrompt 'custom prompt', got %q", configuration.AnthropicSystemPrompt)
+	}
+}
+
+func TestLoad_teleprompterHotkeyDefault(t *testing.T) {
+	t.Setenv("ANTHROPIC_API_KEY", "test-key")
+
+	configuration, err := config.Load()
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if configuration.HotkeyToggleKeycode != constants.HotkeyKeycodes[constants.HotkeyToggleKeyName] {
+		t.Errorf("expected default teleprompter keycode %d, got %d",
+			constants.HotkeyKeycodes[constants.HotkeyToggleKeyName],
+			configuration.HotkeyToggleKeycode)
+	}
+}
+
+func TestLoad_teleprompterHotkeyCustom(t *testing.T) {
+	t.Setenv("ANTHROPIC_API_KEY", "test-key")
+	t.Setenv("HOTKEY_TOGGLE_KEYNAME", "LeftCommand")
+
+	configuration, err := config.Load()
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if configuration.HotkeyToggleKeycode != constants.HotkeyKeycodes["LeftCommand"] {
+		t.Errorf("expected LeftCommand keycode %d, got %d",
+			constants.HotkeyKeycodes["LeftCommand"],
+			configuration.HotkeyToggleKeycode)
+	}
+}
+
+func TestLoad_invalidTeleprompterHotkey(t *testing.T) {
+	t.Setenv("ANTHROPIC_API_KEY", "test-key")
+	t.Setenv("HOTKEY_TOGGLE_KEYNAME", "InvalidKey")
+
+	_, err := config.Load()
+
+	if err == nil {
+		t.Errorf("expected ErrConfigInvalidHotkey, got no error")
+	}
+	if !errors.Is(err, exceptions.ErrConfigInvalidHotkey) {
+		t.Errorf("expected ErrConfigInvalidHotkey, got %v", err)
 	}
 }

@@ -130,7 +130,10 @@ func (p *Pipeline) extractAndProcessText(ctx context.Context, img *image.RGBA) (
 	return text, nil
 }
 
-// processWithAIAndBroadcast sends text to Claude AI and broadcasts response.
+// processWithAIAndBroadcast sends text to Claude AI, then routes the response:
+//   - short version to the teleprompter overlay
+//   - detailed version to Telegram subscribers (or noop if disabled)
+//
 // Returns nil if AI produces empty response (non-fatal).
 func (p *Pipeline) processWithAIAndBroadcast(ctx context.Context, text string) error {
 	agentCtx, agentCancel := context.WithTimeout(ctx, p.settings.TimeoutAIProcess)
@@ -140,17 +143,22 @@ func (p *Pipeline) processWithAIAndBroadcast(ctx context.Context, text string) e
 		return err
 	}
 
-	response = strings.TrimSpace(response)
-	if response == "" {
+	if response.Short == "" && response.Detailed.Answer == "" {
 		p.logger.Warn("anthropic returned empty response, skipping")
 		return nil
 	}
-	p.logger.Info("anthropic response received", slog.Int("character_count", len(response)))
-	p.logger.Debug("anthropic response content", slog.String("response", response))
+	p.logger.Info("anthropic response received",
+		slog.Int("short_character_count", len(response.Short)),
+		slog.Int("detailed_character_count", len(response.Detailed.Reason)),
+	)
 
+	p.teleprompter.Display(response.Short)
+	p.logger.Info("teleprompter updated", slog.String("text", response.Short))
+
+	broadcast := fmt.Sprintf("Answer: **%s**\n\nReason:\n%s", response.Detailed.Answer, response.Detailed.Reason)
 	broadcastCtx, broadcastCancel := context.WithTimeout(ctx, p.settings.TelegramBroadcastTimeout)
 	defer broadcastCancel()
-	if err := p.messenger.Broadcast(broadcastCtx, response); err != nil {
+	if err := p.messenger.Broadcast(broadcastCtx, broadcast); err != nil {
 		p.logger.Info("broadcast skipped", "error", err)
 		return nil
 	}

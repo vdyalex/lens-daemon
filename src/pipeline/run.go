@@ -6,6 +6,8 @@ import (
 	"image"
 	"log/slog"
 	"sync"
+
+	"github.com/vdyalex/lens-daemon/src/bridges/appkit"
 )
 
 // Run starts the two-phase pipeline event loop and blocks until ctx is cancelled.
@@ -26,12 +28,13 @@ import (
 // Returns the listener setup error, or ctx.Err() on normal shutdown.
 func (p *Pipeline) Run(ctx context.Context) error {
 	hotkeyListener := p.listener
-	triggers, bounds, err := hotkeyListener.Listen(
+	triggers, bounds, toggles, positions, err := hotkeyListener.Listen(
 		ctx,
 		p.logger,
 		p.settings.EventTapPollInterval,
 		p.settings.HotkeyTriggerKeycode,
 		p.settings.HotkeyBoundsKeycode,
+		p.settings.HotkeyToggleKeycode,
 	)
 	if err != nil {
 		return err
@@ -39,6 +42,8 @@ func (p *Pipeline) Run(ctx context.Context) error {
 
 	go p.poller.Run(ctx)
 	go p.trackBounds(bounds)
+	go p.trackVisibility(toggles)
+	go p.trackPosition(positions)
 
 	p.logger.Info("pipeline ready — set bounds and press capture key")
 
@@ -83,6 +88,29 @@ func (p *Pipeline) trackBounds(bounds <-chan image.Rectangle) {
 			slog.Int("maxX", rect.Max.X),
 			slog.Int("maxY", rect.Max.Y),
 		)
+	}
+}
+
+// trackVisibility receives toggle events from the hotkey listener
+// and calls the teleprompter's Toggle method. Exits when the channel is closed.
+func (p *Pipeline) trackVisibility(toggles <-chan struct{}) {
+	for range toggles {
+		visible := p.teleprompter.Toggle()
+		p.logger.Debug("teleprompter visibility toggled", "visible", visible)
+	}
+}
+
+// trackPosition receives rotation direction events from arrow keys and repositions
+// the teleprompter overlay in a circular rotation: left <-> center <-> right <-> left.
+// direction: -1 = backward (left arrow), +1 = forward (right arrow).
+// Exits when the channel is closed.
+func (p *Pipeline) trackPosition(directions <-chan int) {
+	names := [3]string{"left", "center", "right"}
+	current := appkit.AlignmentFromPosition(p.settings.TeleprompterPosition)
+	for direction := range directions {
+		current = (current + direction + 3) % 3
+		appkit.SetOverlayPosition(names[current])
+		p.logger.Debug("teleprompter position changed", "position", names[current])
 	}
 }
 

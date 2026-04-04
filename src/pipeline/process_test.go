@@ -10,6 +10,7 @@ import (
 
 	"go.uber.org/mock/gomock"
 
+	"github.com/vdyalex/lens-daemon/src/adapters/ai"
 	"github.com/vdyalex/lens-daemon/src/modules/capturer"
 	"github.com/vdyalex/lens-daemon/src/utils/exceptions"
 	"github.com/vdyalex/lens-daemon/tests/mocks"
@@ -190,7 +191,7 @@ func TestProcess_agentEmpty(t *testing.T) {
 
 	mocks.agent.EXPECT().
 		Process(gomock.Any(), "extracted text").
-		Return("", nil)
+		Return(ai.Response{}, nil)
 
 	client := createTestPipeline(t, mocks)
 
@@ -229,7 +230,7 @@ func TestProcess_agentError(t *testing.T) {
 
 	mocks.agent.EXPECT().
 		Process(gomock.Any(), "extracted text").
-		Return("", testErr)
+		Return(ai.Response{}, testErr)
 
 	client := createTestPipeline(t, mocks)
 
@@ -269,7 +270,10 @@ func TestProcess_broadcastError(t *testing.T) {
 
 	mocks.agent.EXPECT().
 		Process(gomock.Any(), "extracted text").
-		Return("agent response", nil)
+		Return(ai.Response{Short: "agent response", Detailed: ai.ResponseDetail{Answer: "agent response", Reason: "because"}}, nil)
+
+	mocks.teleprompter.EXPECT().
+		Display(gomock.Any())
 
 	mocks.broadcaster.BroadcastFunc = func(ctx context.Context, text string) error {
 		return testErr
@@ -312,7 +316,10 @@ func TestProcess_happyPath(t *testing.T) {
 
 	mocks.agent.EXPECT().
 		Process(gomock.Any(), "extracted text").
-		Return("agent response", nil)
+		Return(ai.Response{Short: "agent response", Detailed: ai.ResponseDetail{Answer: "agent response", Reason: "because"}}, nil)
+
+	mocks.teleprompter.EXPECT().
+		Display(gomock.Any())
 
 	mocks.broadcaster.BroadcastFunc = func(ctx context.Context, text string) error {
 		return nil
@@ -356,10 +363,13 @@ func TestProcess_textTrimmed(t *testing.T) {
 	var capturedText string
 	mocks.agent.EXPECT().
 		Process(gomock.Any(), gomock.Any()).
-		DoAndReturn(func(ctx context.Context, text string) (string, error) {
+		DoAndReturn(func(ctx context.Context, text string) (ai.Response, error) {
 			capturedText = text
-			return "response", nil
+			return ai.Response{Short: "response", Detailed: ai.ResponseDetail{Answer: "response", Reason: "because"}}, nil
 		})
+
+	mocks.teleprompter.EXPECT().
+		Display(gomock.Any())
 
 	mocks.broadcaster.BroadcastFunc = func(ctx context.Context, text string) error {
 		return nil
