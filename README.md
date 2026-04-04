@@ -116,10 +116,12 @@ All configuration is done through environment variables. Copy `.env.example` to 
 | `HOTKEY_TOGGLE_KEYNAME` | `RightCommand` | Hotkey to toggle teleprompter overlay visibility (see [Hotkey Configuration](#️-hotkey-configuration) below) |
 | `TELEPROMPTER_FONT_FAMILY` | *(system font)* | Font family name (e.g., `Menlo`, `Helvetica Neue`). Empty uses the system font |
 | `TELEPROMPTER_FONT_WEIGHT` | `ultralight` | Font weight: `ultralight`, `thin`, `light`, `regular`, `medium`, `semibold`, `bold`, `heavy`, `black` |
-| `TELEPROMPTER_FONT_SIZE` | `12.0` | Font size in points |
-| `TELEPROMPTER_OPACITY` | `0.3` | Text opacity from `0.0` (invisible) to `1.0` (fully opaque) |
+| `TELEPROMPTER_FONT_SIZE` | `16.0` | Font size in points |
+| `TELEPROMPTER_OPACITY` | `0.075` | Text opacity from `0.0` (invisible) to `1.0` (fully opaque). Adjustable at runtime with bounds hotkey + `−`/`+` keys (±0.025 per step). Press `0` to reset to default |
 | `TELEPROMPTER_VISIBLE` | `false` | Initial visibility on startup (`true` to show immediately) |
 | `TELEPROMPTER_POSITION` | `center` | Window alignment: `left`, `center`, or `right` |
+| `TELEPROMPTER_ADAPTIVE_COLOR` | `true` | Per-pixel adaptive text color: captures the background behind the overlay, inverts it, and uses the result as the text color so each pixel contrasts with whatever is beneath it |
+| `TELEPROMPTER_FADE_DURATION` | `0.75` | Fade animation duration in seconds for show, hide, and text updates. Set to `0` to disable |
 
 Claude responds with a structured JSON tool call containing `short` (concise answer for the teleprompter) and `detailed` (answer + reason for Telegram).
 
@@ -194,14 +196,16 @@ make daemon
 
 Once running:
 
-1. **Toggle teleprompter**: Press the configured teleprompter hotkey (default: `RightCommand`) to show/hide the overlay
+1. **Toggle teleprompter**: Press the configured teleprompter hotkey (default: `RightCommand`) to show/hide the overlay (fades in/out)
 2. **Subscribe** (optional): Send `/start` to your Telegram bot to begin receiving detailed responses
 3. **Capture**: Press the configured trigger hotkey (default: `RightShift`) at any time to trigger a capture
    - Multiple rapid captures are queued and processed concurrently
    - If the queue is full (5 items by default), the newest capture is dropped with a warning log
+   - The teleprompter text is cleared while the new result is being processed
 4. **Custom bounds** (optional): Hold the configured bounds hotkey (default: `RightOption`), move your mouse to define a region, then release
-5. **Reposition teleprompter** (optional): Hold the bounds hotkey (default: `RightOption`) and press an arrow key: `Left` = left-aligned, `Right` = right-aligned, `Up`/`Down` = centered
-6. The daemon captures the screen, enqueues for analysis, processes OCR, sends the text to Claude, then displays the short answer on the teleprompter and broadcasts the detailed response to Telegram subscribers
+5. **Reposition teleprompter** (optional): Hold the bounds hotkey (default: `RightOption`) and press `Left`/`Right` arrow keys to cycle alignment (left ↔ center ↔ right)
+6. **Adjust text opacity** (optional): Hold the bounds hotkey (default: `RightOption`) and press `−` to decrease or `+` to increase text opacity by 0.025 per step (clamped to 0.0–1.0). Press hotkey + `0` to reset to the configured default
+7. The daemon captures the screen, enqueues for analysis, processes OCR, sends the text to Claude, then displays the short answer on the teleprompter and broadcasts the detailed response to Telegram subscribers
 
 Send `/stop` to the Telegram bot to unsubscribe. Run `./bin/lensd stop` to stop the daemon.
 

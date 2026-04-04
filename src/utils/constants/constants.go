@@ -251,4 +251,10 @@ const (
 	DefaultTeleprompterOpacity = 0.075
 	// DefaultTeleprompterPosition is the window alignment used when unconfigured.
 	DefaultTeleprompterPosition = "center"
+	// DefaultTeleprompterAdaptiveColor enables per-pixel adaptive text color by default.
+	DefaultTeleprompterAdaptiveColor = true
+	// DefaultTeleprompterFadeDuration is the fade animation duration in seconds.
+	DefaultTeleprompterFadeDuration = 0.75
+	// DefaultTeleprompterSamplerInterval is the adaptive color rendering period in seconds.
+	DefaultTeleprompterSamplerInterval = 1.0
 )

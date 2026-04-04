@@ -357,6 +357,62 @@ func TestLoad_teleprompterHotkeyCustom(t *testing.T) {
 	}
 }
 
+func TestLoad_teleprompterAdaptiveColorDefault(t *testing.T) {
+	t.Setenv("ANTHROPIC_API_KEY", "test-key")
+
+	configuration, err := config.Load()
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if !configuration.TeleprompterAdaptiveColor {
+		t.Error("expected TeleprompterAdaptiveColor default to be true")
+	}
+}
+
+func TestLoad_teleprompterAdaptiveColorDisabled(t *testing.T) {
+	t.Setenv("ANTHROPIC_API_KEY", "test-key")
+	t.Setenv("TELEPROMPTER_ADAPTIVE_COLOR", "false")
+
+	configuration, err := config.Load()
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if configuration.TeleprompterAdaptiveColor {
+		t.Error("expected TeleprompterAdaptiveColor to be false when env var is 'false'")
+	}
+}
+
+func TestLoad_teleprompterFadeDurationDefault(t *testing.T) {
+	t.Setenv("ANTHROPIC_API_KEY", "test-key")
+
+	configuration, err := config.Load()
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if configuration.TeleprompterFadeDuration != constants.DefaultTeleprompterFadeDuration {
+		t.Errorf("expected TeleprompterFadeDuration %v, got %v",
+			constants.DefaultTeleprompterFadeDuration, configuration.TeleprompterFadeDuration)
+	}
+}
+
+func TestLoad_teleprompterFadeDurationCustom(t *testing.T) {
+	t.Setenv("ANTHROPIC_API_KEY", "test-key")
+	t.Setenv("TELEPROMPTER_FADE_DURATION", "0.75")
+
+	configuration, err := config.Load()
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if configuration.TeleprompterFadeDuration != 0.75 {
+		t.Errorf("expected TeleprompterFadeDuration 0.75, got %v",
+			configuration.TeleprompterFadeDuration)
+	}
+}
+
 func TestLoad_invalidTeleprompterHotkey(t *testing.T) {
 	t.Setenv("ANTHROPIC_API_KEY", "test-key")
 	t.Setenv("HOTKEY_TOGGLE_KEYNAME", "InvalidKey")

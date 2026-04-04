@@ -144,6 +144,8 @@ func Load() (*Config, error) {
 		TeleprompterOpacity:        ldr.getFloat("TELEPROMPTER_OPACITY", constants.DefaultTeleprompterOpacity),
 		TeleprompterVisible:        ldr.getBool("TELEPROMPTER_VISIBLE", false),
 		TeleprompterPosition:       ldr.getStr("TELEPROMPTER_POSITION", constants.DefaultTeleprompterPosition),
+		TeleprompterAdaptiveColor:  ldr.getBool("TELEPROMPTER_ADAPTIVE_COLOR", constants.DefaultTeleprompterAdaptiveColor),
+		TeleprompterFadeDuration:   ldr.getFloat("TELEPROMPTER_FADE_DURATION", constants.DefaultTeleprompterFadeDuration),
 	}
 
 	if cfg.AnthropicAPIKey == "" {
