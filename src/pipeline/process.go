@@ -155,7 +155,7 @@ func (p *Pipeline) processWithAIAndBroadcast(ctx context.Context, text string) e
 	p.teleprompter.Display(response.Short)
 	p.logger.Info("teleprompter updated", slog.String("text", response.Short))
 
-	broadcast := response.Detailed.Answer + "\n\n" + response.Detailed.Reason
+	broadcast := fmt.Sprintf("Answer: **%s**\n\nReason:\n%s", response.Detailed.Answer, response.Detailed.Reason)
 	broadcastCtx, broadcastCancel := context.WithTimeout(ctx, p.settings.TelegramBroadcastTimeout)
 	defer broadcastCancel()
 	if err := p.messenger.Broadcast(broadcastCtx, broadcast); err != nil {
