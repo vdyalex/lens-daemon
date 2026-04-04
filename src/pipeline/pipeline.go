@@ -11,9 +11,11 @@ import (
 	"github.com/vdyalex/lens-daemon/src/adapters/im"
 	"github.com/vdyalex/lens-daemon/src/adapters/im/poller"
 	"github.com/vdyalex/lens-daemon/src/adapters/im/store"
+	"github.com/vdyalex/lens-daemon/src/bridges/appkit"
 	"github.com/vdyalex/lens-daemon/src/modules/capturer"
 	"github.com/vdyalex/lens-daemon/src/modules/extractor"
 	"github.com/vdyalex/lens-daemon/src/modules/listener"
+	"github.com/vdyalex/lens-daemon/src/modules/teleprompter"
 	"github.com/vdyalex/lens-daemon/src/utils/config"
 )
 
@@ -22,36 +24,65 @@ import (
 func NewWithDependencies(
 	settings *config.Config,
 	logger *slog.Logger,
-	capturer capturer.Service,
-	extractor extractor.Service,
+	capturerService capturer.Service,
+	extractorService extractor.Service,
 	agent ai.Processor,
 	broadcaster im.Broadcaster,
 	pollerService poller.Service,
 	listenerService listener.Service,
+	teleprompterService teleprompter.Service,
 ) *Pipeline {
 	return &Pipeline{
 		settings:     settings,
 		logger:       logger,
-		capturer:     capturer,
-		extractor:    extractor,
+		capturer:     capturerService,
+		extractor:    extractorService,
 		agent:        agent,
 		messenger:    broadcaster,
 		poller:       pollerService,
 		listener:     listenerService,
+		teleprompter: teleprompterService,
 		startTime:    time.Now(),
 		analyseQueue: make(chan CaptureResult, settings.AnalyseQueueCapacity),
 	}
 }
 
 // New creates a fully wired pipeline from settings.
-// Returns the pipeline, the subscriber store (for status reporting), and any error.
+// Returns the pipeline, the subscriber store (nil when Telegram is disabled), and any error.
 // logger must not be nil; pass slog.Default() if no custom logger is required.
 func New(settings *config.Config, logger *slog.Logger) (*Pipeline, im.Store, error) {
 	ocr := extractor.New(settings.VisionLanguage, settings.VisionAccuracy)
 
-	subscriberStore, err := store.New(settings.StorePath, logger)
-	if err != nil {
-		return nil, nil, err
+	var broadcaster im.Broadcaster
+	var pollerService poller.Service
+	var subscriberStore im.Store
+
+	if settings.TelegramEnabled {
+		storeInstance, err := store.New(settings.StorePath, logger)
+		if err != nil {
+			return nil, nil, err
+		}
+		subscriberStore = storeInstance
+		broadcaster = im.New(
+			settings.TelegramBotToken,
+			storeInstance,
+			logger,
+			settings.TelegramMessageChunkSize,
+			settings.TelegramMaxRetries,
+			settings.TelegramHTTPClientTimeout,
+		)
+		pollerService = poller.New(
+			settings.TelegramBotToken,
+			storeInstance,
+			logger,
+			settings.TelegramLongPollTimeout,
+			settings.TelegramPollerTimeout,
+			settings.TelegramHTTPClientTimeout,
+		)
+	} else {
+		logger.Info("telegram disabled (no bot token configured)")
+		broadcaster = &im.NoopBroadcaster{}
+		pollerService = &poller.NoopPoller{}
 	}
 
 	pipeline := NewWithDependencies(
@@ -66,23 +97,16 @@ func New(settings *config.Config, logger *slog.Logger) (*Pipeline, im.Store, err
 			settings.AnthropicMaxResponseTokens,
 			logger,
 		),
-		im.New(
-			settings.TelegramBotToken,
-			subscriberStore,
-			logger,
-			settings.TelegramMessageChunkSize,
-			settings.TelegramMaxRetries,
-			settings.TelegramHTTPClientTimeout,
-		),
-		poller.New(
-			settings.TelegramBotToken,
-			subscriberStore,
-			logger,
-			settings.TelegramLongPollTimeout,
-			settings.TelegramPollerTimeout,
-			settings.TelegramHTTPClientTimeout,
-		),
+		broadcaster,
+		pollerService,
 		listener.New(),
+		teleprompter.New(appkit.OverlayConfig{
+			FontFamily: settings.TeleprompterFontFamily,
+			FontWeight: settings.TeleprompterFontWeight,
+			FontSize:   settings.TeleprompterFontSize,
+			Opacity:    settings.TeleprompterOpacity,
+			Position:   settings.TeleprompterPosition,
+		}, settings.TeleprompterVisible),
 	)
 	return pipeline, subscriberStore, nil
 }

@@ -12,6 +12,7 @@ import (
 
 	"go.uber.org/mock/gomock"
 
+	"github.com/vdyalex/lens-daemon/src/adapters/ai"
 	"github.com/vdyalex/lens-daemon/src/pipeline"
 )
 
@@ -95,7 +96,11 @@ func TestRunAnalyseWorker_processesItemsConcurrently(t *testing.T) {
 	// Mock the AI and broadcast to succeed without blocking.
 	testMocks.agent.EXPECT().
 		Process(gomock.Any(), gomock.Any()).
-		Return("response", nil).
+		Return(ai.Response{Short: "response", Detailed: ai.ResponseDetail{Answer: "response", Reason: "because"}}, nil).
+		Times(2)
+
+	testMocks.teleprompter.EXPECT().
+		Display(gomock.Any()).
 		Times(2)
 
 	testMocks.broadcaster.BroadcastFunc = func(_ context.Context, _ string) error {
@@ -149,7 +154,11 @@ func TestRunAnalyseWorker_drainsAllBeforeClosingDone(t *testing.T) {
 	// Mock the AI and broadcast to succeed.
 	testMocks.agent.EXPECT().
 		Process(gomock.Any(), gomock.Any()).
-		Return("response", nil).
+		Return(ai.Response{Short: "response", Detailed: ai.ResponseDetail{Answer: "response", Reason: "because"}}, nil).
+		Times(3)
+
+	testMocks.teleprompter.EXPECT().
+		Display(gomock.Any()).
 		Times(3)
 
 	testMocks.broadcaster.BroadcastFunc = func(_ context.Context, _ string) error {
@@ -200,6 +209,7 @@ func TestRunAnalyseWorker_logsErrorOnFatalAnalyseFailure(t *testing.T) {
 		settings, logger,
 		testMocks.capturer, testMocks.extractor, testMocks.agent,
 		testMocks.broadcaster, testMocks.poller, testMocks.listener,
+		testMocks.teleprompter,
 	)
 
 	fatalErr := fmt.Errorf("ocr hardware failure")
@@ -218,7 +228,11 @@ func TestRunAnalyseWorker_logsErrorOnFatalAnalyseFailure(t *testing.T) {
 
 	testMocks.agent.EXPECT().
 		Process(gomock.Any(), "text").
-		Return("response", nil).
+		Return(ai.Response{Short: "response", Detailed: ai.ResponseDetail{Answer: "response", Reason: "because"}}, nil).
+		Times(1)
+
+	testMocks.teleprompter.EXPECT().
+		Display(gomock.Any()).
 		Times(1)
 
 	testMocks.broadcaster.BroadcastFunc = func(_ context.Context, _ string) error {

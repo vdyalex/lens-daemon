@@ -140,6 +140,9 @@ const (
 
 	// HotkeyBoundsKeyName is the default key name for the bounds-selection hotkey.
 	HotkeyBoundsKeyName = "RightOption"
+
+	// HotkeyToggleKeyName is the default key name for the teleprompter toggle hotkey.
+	HotkeyToggleKeyName = "RightCommand"
 )
 
 // Hotkey keycode mappings (MacOS virtual keycodes).
@@ -236,4 +239,16 @@ const (
 	DefaultAnthropicSystemPrompt = "You're a questionnaire assistant. Provide quick, accurate responses with maximum efficiency."
 	// DefaultStorePath is the subscriber store file path used when unconfigured.
 	DefaultStorePath = "tmp/subscribers"
+)
+
+// Teleprompter appearance defaults.
+const (
+	// DefaultTeleprompterFontWeight is the NSFontWeight name used when unconfigured.
+	DefaultTeleprompterFontWeight = "ultralight"
+	// DefaultTeleprompterFontSize is the font size in points used when unconfigured.
+	DefaultTeleprompterFontSize = 16.0
+	// DefaultTeleprompterOpacity is the text opacity (0.0–1.0) used when unconfigured.
+	DefaultTeleprompterOpacity = 0.075
+	// DefaultTeleprompterPosition is the window alignment used when unconfigured.
+	DefaultTeleprompterPosition = "center"
 )

@@ -12,6 +12,7 @@ import (
 
 	"github.com/vdyalex/lens-daemon/src/daemon"
 	"github.com/vdyalex/lens-daemon/src/ipc"
+	"github.com/vdyalex/lens-daemon/src/utils/buildinfo"
 	"github.com/vdyalex/lens-daemon/src/utils/constants"
 	"github.com/vdyalex/lens-daemon/src/utils/exceptions"
 	"github.com/vdyalex/lens-daemon/src/utils/paths"
@@ -20,7 +21,7 @@ import (
 var startCmd = &cobra.Command{
 	Use:   "start",
 	Short: "Start daemon in background",
-	Long:  `Daemonizes the process by re-execing 'lensd daemon' in a new session.`,
+	Long:  fmt.Sprintf("Daemonizes the process by re-execing '%s daemon' in a new session.", buildinfo.BinaryName),
 	Run: func(cmd *cobra.Command, args []string) {
 		runStart()
 	},
@@ -70,7 +71,7 @@ func runStart() {
 		os.Exit(1)
 	}
 
-	spinner := NewSpinner("Starting lensd…")
+	spinner := NewSpinner(fmt.Sprintf("Starting %s…", buildinfo.BinaryName))
 
 	// Poll for PID file to confirm daemon started
 	deadlineCtx, cancel := context.WithTimeout(context.Background(), constants.TimeoutDaemonStartup)
@@ -88,7 +89,7 @@ func runStart() {
 		case <-ticker.C:
 			pid, err := daemon.ReadPID(pidPath)
 			if err == nil {
-				spinner.Success(fmt.Sprintf("lensd started (pid %d)", pid))
+				spinner.Success(fmt.Sprintf("%s started (pid %d)", buildinfo.BinaryName, pid))
 				pterm.Info.Printfln("Socket: %s", socketPath)
 				pterm.Info.Printfln("Logs:   %s", logPath)
 				return

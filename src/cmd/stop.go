@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/vdyalex/lens-daemon/src/daemon"
+	"github.com/vdyalex/lens-daemon/src/utils/buildinfo"
 	"github.com/vdyalex/lens-daemon/src/utils/exceptions"
 )
 
@@ -30,7 +31,7 @@ var stopCmd = &cobra.Command{
 func runStop() error {
 	pid, err := daemon.ReadPID(daemon.DefaultPIDPath())
 	if errors.Is(err, exceptions.ErrDaemonNotRunning) || errors.Is(err, exceptions.ErrPIDFileStale) {
-		return errors.New("lensd is not running")
+		return fmt.Errorf("%s is not running", buildinfo.BinaryName)
 	}
 	if err != nil {
 		return fmt.Errorf("stop failed: %w", err)
@@ -45,6 +46,6 @@ func runStop() error {
 		return fmt.Errorf("signal failed: %w", err)
 	}
 
-	pterm.Success.Printfln("sent SIGTERM to lensd (pid %d)", pid)
+	pterm.Success.Printfln("sent SIGTERM to %s (pid %d)", buildinfo.BinaryName, pid)
 	return nil
 }

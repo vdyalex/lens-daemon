@@ -6,7 +6,8 @@
 - **In-memory processing**: No screenshots, intermediate images, or temporary files are written to disk at any point in the pipeline.
 - **CLI and daemon operation**: Single binary with Cobra subcommands (daemon, start, stop, status, logs, restart). The `start` command daemonizes via process re-exec with `syscall.SysProcAttr{Setsid: true}`. Does not appear in Dock or Cmd-Tab (pure CLI process).
 - **Event-driven**: Idle until hotkey pressed or IPC command received. No polling, no timers, no periodic screen checks.
-- **Two-phase pipeline**: Each hotkey press triggers a capture (Phase 1) that enqueues results for concurrent analysis (Phase 2: OCR -> AI -> Telegram). Multiple captures and analyses run concurrently; triggers are only dropped when the analyse queue is full.
+- **Two-phase pipeline**: Each hotkey press triggers a capture (Phase 1) that enqueues results for concurrent analysis (Phase 2: OCR -> AI -> Teleprompter + Telegram). Multiple captures and analyses run concurrently; triggers are only dropped when the analyse queue is full.
+- **Stealth overlay**: A macOS overlay window (teleprompter) displays the short answer. Excluded from screen sharing via `NSWindowSharingNone`. The AppKit run loop runs on the main OS thread; all daemon logic runs in background goroutines.
 - **Language**: Go 1.25+ with cgo (for `CoreGraphics`/`CoreFoundation` bindings and Vision framework).
 - **Configuration**: All settings via environment variables. CLI flags on start/daemon/restart commands are forwarded as env vars to child processes. No config files.
 - **IPC communication**: Unix domain socket with length-prefixed JSON for inter-process communication. Enables remote status checks, log streaming, and graceful shutdown.
@@ -53,17 +54,24 @@ Environment variables injected before process start → godotenv.Load() (no-op i
 ### Required Environment Variables
 
 - `ANTHROPIC_API_KEY` — Anthropic API key (required, no default)
-- `TELEGRAM_BOT_TOKEN` — Telegram bot token (required, no default)
 
 ### Optional Environment Variables
 
 See `.env.example` for the complete list with descriptions and defaults. Common variables:
 
+- `TELEGRAM_BOT_TOKEN` — Telegram bot token. When absent, Telegram is disabled (teleprompter-only mode)
 - `LOG_LEVEL` — Minimum log level: "debug", "info", "warn", "error" (default: "info")
 - `ANTHROPIC_MODEL` — Anthropic model to use (default: "claude-sonnet-4-6")
 - `ANTHROPIC_SYSTEM_PROMPT` — Custom system prompt for Claude (default: generic questionnaire assistant)
 - `HOTKEY_TRIGGER_KEYNAME` — Trigger hotkey name (default: "RightShift")
 - `HOTKEY_BOUNDS_KEYNAME` — Bounds hotkey name (default: "RightOption")
+- `HOTKEY_TOGGLE_KEYNAME` — Teleprompter toggle hotkey name (default: "RightCommand")
+- `TELEPROMPTER_FONT_FAMILY` — Font family name (default: system font)
+- `TELEPROMPTER_FONT_WEIGHT` — Font weight: ultralight, thin, light, regular, medium, semibold, bold, heavy, black (default: "ultralight")
+- `TELEPROMPTER_FONT_SIZE` — Font size in points (default: 12.0)
+- `TELEPROMPTER_OPACITY` — Text opacity 0.0-1.0 (default: 0.3)
+- `TELEPROMPTER_VISIBLE` — Initial visibility on startup (default: false)
+- `TELEPROMPTER_POSITION` — Window alignment: left, center, right (default: "right")
 - Various timeout settings for pipeline stages and Telegram communication
 
 See the `Config` struct in `src/utils/config/config.go` for a complete list with defaults.

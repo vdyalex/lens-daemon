@@ -146,7 +146,7 @@ func (s *Server) handleConnection(ctx context.Context, connection net.Conn) {
 	}
 }
 
-// DefaultSocketPath returns $TMPDIR/lensd-<uid>.sock
+// DefaultSocketPath returns $TMPDIR/<binary>-<uid>.sock
 func DefaultSocketPath() string {
 	return paths.DaemonPath("sock")
 }

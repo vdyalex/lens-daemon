@@ -13,6 +13,7 @@ import (
 	"github.com/vdyalex/lens-daemon/src/modules/capturer"
 	"github.com/vdyalex/lens-daemon/src/modules/extractor"
 	"github.com/vdyalex/lens-daemon/src/modules/listener"
+	"github.com/vdyalex/lens-daemon/src/modules/teleprompter"
 	"github.com/vdyalex/lens-daemon/src/utils/config"
 )
 
@@ -37,6 +38,7 @@ type Pipeline struct {
 	messenger       im.Broadcaster
 	poller          poller.Service
 	listener        listener.Service
+	teleprompter    teleprompter.Service
 	boundsMu        sync.RWMutex
 	captureBounds   *image.Rectangle
 	startTime       time.Time

@@ -2,6 +2,7 @@ package ai_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"testing"
 
@@ -17,59 +18,81 @@ type mockMessages struct {
 	err    error
 }
 
-func (m *mockMessages) New(ctx context.Context, params anthropic.MessageNewParams, opts ...option.RequestOption) (*anthropic.Message, error) {
+func (m *mockMessages) New(_ context.Context, _ anthropic.MessageNewParams, _ ...option.RequestOption) (*anthropic.Message, error) {
 	return m.result, m.err
 }
 
 func TestProcess_emptyInput(t *testing.T) {
-	m := &mockMessages{
-		result: &anthropic.Message{},
-	}
+	m := &mockMessages{result: &anthropic.Message{}}
 	agent := ai.NewWithMessages(m, "claude-test", "prompt", 1024, mocks.NopLogger())
 
-	text, err := agent.Process(context.Background(), "")
+	response, err := agent.Process(context.Background(), "")
 
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	if text != "" {
-		t.Errorf("expected empty string, got %q", text)
+	if response.Short != "" || response.Detailed.Answer != "" {
+		t.Errorf("expected empty response, got short=%q answer=%q", response.Short, response.Detailed.Answer)
 	}
 }
 
 func TestProcess_apiError(t *testing.T) {
 	apiErr := errors.New("api failure")
-	m := &mockMessages{
-		err: apiErr,
-	}
+	m := &mockMessages{err: apiErr}
 	agent := ai.NewWithMessages(m, "claude-test", "prompt", 1024, mocks.NopLogger())
 
-	text, err := agent.Process(context.Background(), "hello")
+	response, err := agent.Process(context.Background(), "hello")
 
 	if err == nil {
 		t.Errorf("expected error, got nil")
 	}
-	if text != "" {
-		t.Errorf("expected empty text on error, got %q", text)
+	if response.Short != "" || response.Detailed.Answer != "" {
+		t.Errorf("expected empty response on error, got short=%q answer=%q", response.Short, response.Detailed.Answer)
 	}
 }
 
-func TestProcess_singleTextBlock(t *testing.T) {
-	// Create a message with a text block response.
-	// The message implementation may vary, so we create it generically.
+func TestProcess_noToolUseBlock(t *testing.T) {
 	msg := &anthropic.Message{}
-	// Note: Due to SDK complexity with ContentBlockUnion, we verify through behavior.
-	// When no content blocks are present, the concatenation should result in empty string.
 	m := &mockMessages{result: msg}
 	agent := ai.NewWithMessages(m, "claude-test", "prompt", 1024, mocks.NopLogger())
 
-	text, err := agent.Process(context.Background(), "input")
+	_, err := agent.Process(context.Background(), "input")
+
+	if err == nil {
+		t.Errorf("expected error when no tool_use block, got nil")
+	}
+}
+
+// buildToolUseMessage creates an anthropic.Message with a tool_use content block
+// containing the given Response as its JSON input.
+func buildToolUseMessage(response ai.Response) *anthropic.Message {
+	input, _ := json.Marshal(response)
+	raw := `{"content":[{"type":"tool_use","id":"test","name":"answer","input":` + string(input) + `}],"id":"msg_test","model":"claude-test","role":"assistant","stop_reason":"tool_use","type":"message","usage":{"input_tokens":10,"output_tokens":20}}`
+	var message anthropic.Message
+	_ = json.Unmarshal([]byte(raw), &message)
+	return &message
+}
+
+func TestProcess_validToolUseBlock(t *testing.T) {
+	expected := ai.Response{
+		Short:    "B",
+		Detailed: ai.ResponseDetail{Answer: "B", Reason: "Because X and Y."},
+	}
+	m := &mockMessages{result: buildToolUseMessage(expected)}
+	agent := ai.NewWithMessages(m, "claude-test", "prompt", 1024, mocks.NopLogger())
+
+	response, err := agent.Process(context.Background(), "input")
 
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	// With empty content, result should be empty string
-	if text != "" {
-		t.Errorf("expected empty result with no content blocks, got %q", text)
+	if response.Short != expected.Short {
+		t.Errorf("expected short %q, got %q", expected.Short, response.Short)
+	}
+	if response.Detailed.Answer != expected.Detailed.Answer {
+		t.Errorf("expected detailed answer %q, got %q", expected.Detailed.Answer, response.Detailed.Answer)
+	}
+	if response.Detailed.Reason != expected.Detailed.Reason {
+		t.Errorf("expected detailed reason %q, got %q", expected.Detailed.Reason, response.Detailed.Reason)
 	}
 }
