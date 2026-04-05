@@ -7,14 +7,14 @@ import (
 	"unsafe"
 
 	"github.com/vdyalex/lens-daemon/src/bridges/appkit"
-	"github.com/vdyalex/lens-daemon/src/utils/constants"
 )
 
 // New creates a teleprompter overlay window with the given appearance config.
 // The window is positioned according to config.Position and starts with visibility
-// set to visible. When config.AdaptiveColor is true, a periodic renderer is started
-// that captures the background behind the overlay strip, inverts it per-pixel, and
-// uses the result as the text color pattern. Call Toggle() to change visibility at runtime.
+// set to visible. When config.AdaptiveColor is true, the text color is recomputed
+// from the inverted background on each Display call — event-gated, not periodic —
+// to keep screen-recording captures co-timed with OCR hotkey presses.
+// Call Toggle() to change visibility at runtime.
 //
 // Must be called after appkit.StartRunLoop() has been invoked on the main thread.
 func New(config appkit.OverlayConfig, visible bool) *Teleprompter {
@@ -22,10 +22,6 @@ func New(config appkit.OverlayConfig, visible bool) *Teleprompter {
 	appkit.RunOnMainThread(func() unsafe.Pointer {
 		return appkit.CreateOverlayWindow()
 	})
-
-	if config.AdaptiveColor {
-		appkit.StartAdaptiveColorTimer(constants.DefaultTeleprompterSamplerInterval)
-	}
 
 	teleprompter := &Teleprompter{visible: visible}
 	if visible {
