@@ -246,7 +246,7 @@ const (
 	// DefaultTeleprompterFontWeight is the NSFontWeight name used when unconfigured.
 	DefaultTeleprompterFontWeight = "ultralight"
 	// DefaultTeleprompterFontSize is the font size in points used when unconfigured.
-	DefaultTeleprompterFontSize = 16.0
+	DefaultTeleprompterFontSize = 14.0
 	// DefaultTeleprompterOpacity is the text opacity (0.0–1.0) used when unconfigured.
 	DefaultTeleprompterOpacity = 0.075
 	// DefaultTeleprompterPosition is the window alignment used when unconfigured.
