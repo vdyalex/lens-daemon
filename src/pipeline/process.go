@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"strings"
 
+	"github.com/vdyalex/lens-daemon/src/helpers/latex"
 	"github.com/vdyalex/lens-daemon/src/modules/capturer"
 	"github.com/vdyalex/lens-daemon/src/utils/exceptions"
 )
@@ -152,10 +153,13 @@ func (p *Pipeline) processWithAIAndBroadcast(ctx context.Context, text string) e
 		slog.Int("detailed_character_count", len(response.Detailed.Reason)),
 	)
 
-	p.teleprompter.Display(response.Short)
-	p.logger.Info("teleprompter updated", slog.String("text", response.Short))
+	short := latex.ToUnicode(response.Short)
+	p.teleprompter.Display(short)
+	p.logger.Info("teleprompter updated", slog.String("text", short))
 
-	broadcast := fmt.Sprintf("Answer: **%s**\n\nReason:\n%s", response.Detailed.Answer, response.Detailed.Reason)
+	answer := latex.ToUnicode(response.Detailed.Answer)
+	reason := latex.ToUnicode(response.Detailed.Reason)
+	broadcast := fmt.Sprintf("Answer: **%s**\n\nReason:\n%s", answer, reason)
 	broadcastCtx, broadcastCancel := context.WithTimeout(ctx, p.settings.TelegramBroadcastTimeout)
 	defer broadcastCancel()
 	if err := p.messenger.Broadcast(broadcastCtx, broadcast); err != nil {
