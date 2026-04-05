@@ -255,6 +255,4 @@ const (
 	DefaultTeleprompterAdaptiveColor = true
 	// DefaultTeleprompterFadeDuration is the fade animation duration in seconds.
 	DefaultTeleprompterFadeDuration = 0.75
-	// DefaultTeleprompterSamplerInterval is the adaptive color rendering period in seconds.
-	DefaultTeleprompterSamplerInterval = 1.0
 )

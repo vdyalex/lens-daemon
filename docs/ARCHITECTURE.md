@@ -238,7 +238,7 @@ The teleprompter is a stealth macOS overlay window positioned at the bottom of t
 - **Excluded from Mission Control, Cmd+Tab, and Dock** via accessory activation policy and collection behavior flags
 - **Click-through** — does not intercept mouse events
 - **Configurable appearance** — font family, weight, size, opacity, position, adaptive color, and fade duration via environment variables
-- **Adaptive text color** — when enabled (`TELEPROMPTER_ADAPTIVE_COLOR=true`), the overlay periodically captures the background behind the text strip, inverts every pixel via `kCGBlendModeDifference`, and uses the result as the text color pattern so each glyph pixel contrasts with whatever is beneath it
+- **Adaptive text color** — when enabled (`TELEPROMPTER_ADAPTIVE_COLOR=true`), the overlay captures the background behind the text strip on each text update, inverts every pixel via `kCGBlendModeDifference`, and uses the result as the text color pattern so each glyph pixel contrasts with whatever is beneath it. Sampling is event-gated (on `Display(text)` calls, which co-time with the OCR hotkey) rather than periodic, so the macOS screen-recording privacy indicator is only lit during the ~60s debounce window following each hotkey press — the same exposure the OCR capture already incurs
 - **Fade animations** — show, hide, and text updates cross-fade with configurable duration (`TELEPROMPTER_FADE_DURATION`). Animation cancellation uses a generation counter to avoid stale completions
 - **Runtime repositioning** — hold bounds key + arrow keys to rotate alignment (left/center/right)
 - **Runtime opacity adjustment** — hold bounds key + minus/plus keys to decrease/increase text opacity by 0.025 per step. Press 0 to reset to the configured default

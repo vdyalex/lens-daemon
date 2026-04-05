@@ -27,9 +27,6 @@ static NSString* gCurrentText = nil;
 // background behind the overlay strip. When NO, text is flat black.
 static BOOL gAdaptiveColor = NO;
 
-// Adaptive color timer reference.
-static NSTimer* gAdaptiveTimer = nil;
-
 // fontWeightFromName maps a weight name to an NSFontWeight value.
 static CGFloat fontWeightFromName(const char* name) {
     if (strcmp(name, "ultralight") == 0) return NSFontWeightUltraLight;
@@ -435,27 +432,6 @@ void resetOverlayOpacity(void) {
                              waitUntilDone:NO];
 }
 
-// startAdaptiveColorTimer begins periodic per-pixel adaptive color rendering.
-// Fires every intervalSeconds on the main thread.
-// MUST be called on the main thread.
-void startAdaptiveColorTimer(double intervalSeconds) {
-    if (gAdaptiveTimer != nil) return; // Already running.
-    if (gDelegate == nil) return;      // Window not created yet.
-
-    gAdaptiveTimer = [NSTimer scheduledTimerWithTimeInterval:intervalSeconds
-                                                      target:gDelegate
-                                                    selector:@selector(renderAdaptiveColor:)
-                                                    userInfo:nil
-                                                     repeats:YES];
-}
-
-// stopAdaptiveColorTimer stops the periodic adaptive color timer.
-// MUST be called on the main thread.
-void stopAdaptiveColorTimer(void) {
-    if (gAdaptiveTimer == nil) return;
-    [gAdaptiveTimer invalidate];
-    gAdaptiveTimer = nil;
-}
 */
 import "C"
 
@@ -554,27 +530,4 @@ func SetOverlayOpacity(delta float64) {
 // Safe to call from any goroutine; dispatched to the main thread internally.
 func ResetOverlayOpacity() {
 	C.resetOverlayOpacity()
-}
-
-// StartAdaptiveColorTimer begins periodic per-pixel adaptive color rendering.
-// Captures the background behind the overlay strip, inverts it, and uses the
-// inverted image as a pattern color so each text pixel contrasts with the
-// background pixel directly beneath it.
-//
-// intervalSeconds: rendering period in seconds (e.g. 1.0 for 1Hz).
-// Safe to call from any goroutine; dispatched to the main thread via RunOnMainThread.
-func StartAdaptiveColorTimer(intervalSeconds float64) {
-	RunOnMainThread(func() unsafe.Pointer {
-		C.startAdaptiveColorTimer(C.double(intervalSeconds))
-		return nil
-	})
-}
-
-// StopAdaptiveColorTimer stops the periodic adaptive color rendering timer.
-// Safe to call from any goroutine; dispatched to the main thread via RunOnMainThread.
-func StopAdaptiveColorTimer() {
-	RunOnMainThread(func() unsafe.Pointer {
-		C.stopAdaptiveColorTimer()
-		return nil
-	})
 }
