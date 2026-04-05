@@ -11,7 +11,7 @@ package appkit
 #include <string.h>
 
 // Configurable appearance globals (set before createOverlayWindow).
-static CGFloat gFontSize   = 16.0;
+static CGFloat gFontSize   = 14.0;
 static CGFloat gOpacity        = 0.075;
 static CGFloat gDefaultOpacity = 0.075;
 static CGFloat gFontWeight = -0.8; // NSFontWeightUltraLight

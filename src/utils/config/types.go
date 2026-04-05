@@ -54,7 +54,7 @@ type Config struct {
 	// Teleprompter appearance
 	TeleprompterFontFamily    string  // TELEPROMPTER_FONT_FAMILY: font family name (default: "" = system font)
 	TeleprompterFontWeight    string  // TELEPROMPTER_FONT_WEIGHT: font weight name (default: "ultralight")
-	TeleprompterFontSize      float64 // TELEPROMPTER_FONT_SIZE: font size in points (default: 16.0)
+	TeleprompterFontSize      float64 // TELEPROMPTER_FONT_SIZE: font size in points (default: 14.0)
 	TeleprompterOpacity       float64 // TELEPROMPTER_OPACITY: text opacity 0.0-1.0 (default: 0.075)
 	TeleprompterVisible       bool    // TELEPROMPTER_VISIBLE: initial visibility (default: false)
 	TeleprompterPosition      string  // TELEPROMPTER_POSITION: "left", "center", or "right" (default: "center")

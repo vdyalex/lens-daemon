@@ -116,7 +116,7 @@ All configuration is done through environment variables. Copy `.env.example` to 
 | `HOTKEY_TOGGLE_KEYNAME` | `RightCommand` | Hotkey to toggle teleprompter overlay visibility (see [Hotkey Configuration](#️-hotkey-configuration) below) |
 | `TELEPROMPTER_FONT_FAMILY` | *(system font)* | Font family name (e.g., `Menlo`, `Helvetica Neue`). Empty uses the system font |
 | `TELEPROMPTER_FONT_WEIGHT` | `ultralight` | Font weight: `ultralight`, `thin`, `light`, `regular`, `medium`, `semibold`, `bold`, `heavy`, `black` |
-| `TELEPROMPTER_FONT_SIZE` | `16.0` | Font size in points |
+| `TELEPROMPTER_FONT_SIZE` | `14.0` | Font size in points |
 | `TELEPROMPTER_OPACITY` | `0.075` | Text opacity from `0.0` (invisible) to `1.0` (fully opaque). Adjustable at runtime with bounds hotkey + `−`/`+` keys (±0.025 per step). Press `0` to reset to default |
 | `TELEPROMPTER_VISIBLE` | `false` | Initial visibility on startup (`true` to show immediately) |
 | `TELEPROMPTER_POSITION` | `center` | Window alignment: `left`, `center`, or `right` |
