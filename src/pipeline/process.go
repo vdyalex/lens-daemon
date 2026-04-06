@@ -50,6 +50,13 @@ func (p *Pipeline) fetchWindow(ctx context.Context) (*capturer.WindowInfo, *imag
 	p.capturedWindowPID = core_graphics.CapturedWindowPID()
 	p.boundsMu.Unlock()
 
+	// Always store the raw window bounds so gridSpotFrame has an outer reference
+	// for per-side margin calculation regardless of whether a canvas is active.
+	appkit.SetOverlayWindowBounds(
+		float64(window.X), float64(window.Y),
+		float64(window.Width), float64(window.Height),
+	)
+
 	if canvas != nil {
 		p.logger.Debug("canvas bounds detected",
 			slog.Int("minX", canvas.Min.X),
@@ -61,13 +68,8 @@ func (p *Pipeline) fetchWindow(ctx context.Context) (*capturer.WindowInfo, *imag
 			float64(canvas.Min.X), float64(canvas.Min.Y),
 			float64(canvas.Dx()), float64(canvas.Dy()),
 		)
-		appkit.SetOverlayWindowBounds(0, 0, 0, 0)
 	} else {
 		appkit.SetOverlayCanvasBounds(0, 0, 0, 0)
-		appkit.SetOverlayWindowBounds(
-			float64(window.X), float64(window.Y),
-			float64(window.Width), float64(window.Height),
-		)
 	}
 
 	return window, canvas, nil
