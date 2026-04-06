@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/vdyalex/lens-daemon/src/bridges/appkit"
+	"github.com/vdyalex/lens-daemon/src/utils/constants"
 )
 
 // trackTeleprompterGridPosition receives 2-D direction events from the hotkey listener and
@@ -47,7 +48,7 @@ func (p *Pipeline) trackTeleprompterGridPosition(directions <-chan [2]int) {
 	}
 
 	for direction := range directions {
-		if !p.isTeleprompterActive() {
+		if !p.isMethodActive(constants.OutputMethodTeleprompter) {
 			continue
 		}
 

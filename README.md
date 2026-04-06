@@ -123,14 +123,14 @@ All configuration is done through environment variables. Copy `.env.example` to 
 | `TELEPROMPTER_OPACITY` | `0.05` | Text opacity from `0.0` (invisible) to `1.0` (fully opaque). Adjustable at runtime with bounds hotkey + `−`/`+` keys (±0.01 per step). Press `0` to reset to default |
 | `TELEPROMPTER_VISIBLE` | `false` | Initial visibility on startup (`true` to show immediately) |
 | `TELEPROMPTER_ALIGNMENT` | `dynamic` | Text alignment: `left`, `center`, `right`, or `dynamic` (adapts to grid column position) |
-| `TELEPROMPTER_GRID_STEP` | `0.01` | Percentage increment per arrow-key press (0.0–1.0) |
+| `TELEPROMPTER_GRID_STEP` | `0.005` | Percentage increment per arrow-key press (0.0–1.0) |
 | `TELEPROMPTER_GRID_INITIAL_COL` | `0.5` | Initial horizontal grid position (0.0 = left, 1.0 = right) |
 | `TELEPROMPTER_GRID_INITIAL_ROW` | `0.5` | Initial vertical grid position (0.0 = top, 1.0 = bottom) |
 | `TELEPROMPTER_GRID_MOVE_DEBOUNCE_DURATION` | `300ms` | Idle delay before teleprompter repositions after arrow presses |
 | `TELEPROMPTER_WINDOW_MONITOR_INTERVAL` | `200ms` | How often to check if the captured window moved/resized |
 | `TELEPROMPTER_WINDOW_STABILIZE_DELAY` | `500ms` | How long window must stay still before teleprompter restores |
 | `TELEPROMPTER_ADAPTIVE_COLOR` | `true` | Per-pixel adaptive text color: captures the background behind the overlay, inverts it, and uses the result as the text color so each pixel contrasts with whatever is beneath it. Sampling is event-gated (runs once on each text update, co-timed with the OCR hotkey) rather than periodic |
-| `TELEPROMPTER_FADE_DURATION` | `0.75` | Fade animation duration in seconds for show, hide, and text updates. Set to `0` to disable |
+| `TELEPROMPTER_FADE_DURATION` | `0.8` | Fade animation duration in seconds for show, hide, and text updates. Set to `0` to disable |
 
 Claude responds with a structured JSON tool call containing `short` (concise answer for the teleprompter) and `detailed` (answer + reason for Telegram).
 
@@ -227,8 +227,7 @@ Send `/stop` to the Telegram bot to unsubscribe. Run `./bin/lensd stop` to stop 
 |---|---|
 | `make build` | Compile the binary to `bin/` |
 | `make test` | Run all unit tests |
-| `make test-integration` | Run integration tests (daemon + IPC tests) |
-| `make check` | Run all static checks and tests (format + validate + lint + vulnerabilities + test + test-integration) |
+| `make check` | Run all static checks and tests (format + validate + lint + vulnerabilities + test) |
 | `make clean` | Remove build artifacts from `bin/` |
 | `make format` | Format source files with gofmt |
 | `make validate` | Run go vet static analysis |

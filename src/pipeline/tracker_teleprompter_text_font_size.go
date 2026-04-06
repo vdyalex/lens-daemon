@@ -1,6 +1,7 @@
 package pipeline
 
 import "github.com/vdyalex/lens-daemon/src/bridges/appkit"
+import "github.com/vdyalex/lens-daemon/src/utils/constants"
 
 // trackTeleprompterTextFontSize receives direction events from comma/period keys and adjusts the
 // teleprompter font size by 0.5pt per step. direction: -1 = decrease (comma),
@@ -9,7 +10,7 @@ import "github.com/vdyalex/lens-daemon/src/bridges/appkit"
 func (p *Pipeline) trackTeleprompterTextFontSize(directions <-chan int) {
 	const step = 0.5
 	for direction := range directions {
-		if !p.isTeleprompterActive() {
+		if !p.isMethodActive(constants.OutputMethodTeleprompter) {
 			continue
 		}
 		delta := step * float64(direction)

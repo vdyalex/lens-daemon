@@ -399,15 +399,15 @@ func TestLoad_teleprompterFadeDurationDefault(t *testing.T) {
 
 func TestLoad_teleprompterFadeDurationCustom(t *testing.T) {
 	t.Setenv("ANTHROPIC_API_KEY", "test-key")
-	t.Setenv("TELEPROMPTER_FADE_DURATION", "0.75")
+	t.Setenv("TELEPROMPTER_FADE_DURATION", "0.8")
 
 	configuration, err := config.Load()
 
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	if configuration.TeleprompterFadeDuration != 0.75 {
-		t.Errorf("expected TeleprompterFadeDuration 0.75, got %v",
+	if configuration.TeleprompterFadeDuration != 0.8 {
+		t.Errorf("expected TeleprompterFadeDuration 0.8, got %v",
 			configuration.TeleprompterFadeDuration)
 	}
 }

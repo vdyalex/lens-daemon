@@ -69,7 +69,7 @@ This separation decouples fast Phase 1 captures from slow Phase 2 analysis, prev
 - **`pipeline.go`** -- constructors and public interface (`New`, `Status`, `Run`); wires all components using `NewBuilder`
 - **`builder.go`** -- Builder pattern for pipeline construction; injectable dependencies via `With*` methods and `Build()`
 - **`process.go`** -- implementation of the sequential process steps (fetch window, derive canvas bounds, capture with overlay hide/restore, crop to canvas in Go, extract, process with AI, route output to teleprompter or Telegram based on `OUTPUT_METHOD`)
-- **`output.go`** -- runtime output method switching (`SetOutputMethod`, `OutputMethod`, `isTeleprompterActive`); hides/shows overlay on switch; activates/deactivates the poller via `SetActive`
+- **`output.go`** -- runtime output method switching (`SetOutputMethod`, `OutputMethod`, `isMethodActive`); hides/shows overlay on switch; activates/deactivates the poller via `SetActive`
 - **`run.go`** -- event loop and goroutine orchestration (`Run` method)
 - **`tracker_bounds.go`** -- capture bounds tracker (hotkey-driven rectangle updates)
 - **`tracker_toggles.go`** -- teleprompter visibility toggle tracker

@@ -1,4 +1,4 @@
-.PHONY: build clean generate validate format lint vulnerabilities test coverage check tools daemon develop start stop status restart logs test-integration
+.PHONY: build clean generate validate format lint vulnerabilities test coverage check tools daemon develop start stop status restart logs
 
 -include .env
 export
@@ -34,16 +34,13 @@ test:
 coverage:
 	unset ANTHROPIC_API_KEY TELEGRAM_BOT_TOKEN; go test -count=1 -p 1 -coverprofile=coverage/coverage.out ./... && go tool cover -html=coverage/coverage.out -o coverage/coverage.html && echo "Coverage report generated: coverage/coverage.html"
 
-test-integration:
-	unset ANTHROPIC_API_KEY TELEGRAM_BOT_TOKEN; go test -count=1 -p 1 -run Integration ./src/ipc/... ./src/daemon/...
-
-check: format validate lint vulnerabilities test test-integration
+check: format validate lint vulnerabilities test
 
 # Daemon management convenience targets
 daemon:
 	$(BINARY_PATH) daemon
 
-develop: build
+develop: generate format validate lint build
 	$(BINARY_PATH) restart
 	$(BINARY_PATH) logs
 

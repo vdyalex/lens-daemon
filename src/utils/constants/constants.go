@@ -271,7 +271,7 @@ const (
 	// TeleprompterAdaptiveColor enables per-pixel adaptive text color.
 	TeleprompterAdaptiveColor = true
 	// TeleprompterFadeDuration is the fade animation duration in seconds.
-	TeleprompterFadeDuration = 0.75
+	TeleprompterFadeDuration = 0.8
 )
 
 // Teleprompter grid positioning and window tracking defaults.
@@ -290,8 +290,8 @@ const (
 	// bounds before the teleprompter repositions and fades back in after a move/resize.
 	TeleprompterWindowStabilizeDelay = 500 * time.Millisecond
 
-	// TeleprompterGridStep is the percentage increment per arrow-key press (1% = 0.01).
-	TeleprompterGridStep = 0.01
+	// TeleprompterGridStep is the percentage increment per arrow-key press (1% = 0.005).
+	TeleprompterGridStep = 0.005
 
 	// TeleprompterGridInitialCol is the initial horizontal position as a percentage (0.0–1.0).
 	TeleprompterGridInitialCol = 0.5

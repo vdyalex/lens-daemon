@@ -42,11 +42,11 @@ type Config struct {
 	TeleprompterVisible       bool    // TELEPROMPTER_VISIBLE: initial visibility (default: false)
 	TeleprompterAlignment     string  // TELEPROMPTER_ALIGNMENT: "left", "center", "right", or "dynamic" (default: "dynamic")
 	TeleprompterAdaptiveColor bool    // TELEPROMPTER_ADAPTIVE_COLOR: enable background-adaptive text color (default: true)
-	TeleprompterFadeDuration  float64 // TELEPROMPTER_FADE_DURATION: fade animation duration in seconds (default: 0.75)
+	TeleprompterFadeDuration  float64 // TELEPROMPTER_FADE_DURATION: fade animation duration in seconds (default: 0.8)
 
 	// Teleprompter grid positioning and window tracking
 	TeleprompterGridMoveDebounceDuration time.Duration // TELEPROMPTER_GRID_MOVE_DEBOUNCE_DURATION: idle delay before snap commit (default: 300ms)
-	TeleprompterGridStep                 float64       // TELEPROMPTER_GRID_STEP: percentage per arrow press, 0.0–1.0 (default: 0.01)
+	TeleprompterGridStep                 float64       // TELEPROMPTER_GRID_STEP: percentage per arrow press, 0.0–1.0 (default: 0.005)
 	TeleprompterGridInitialCol           float64       // TELEPROMPTER_GRID_INITIAL_COL: initial horizontal position, 0.0–1.0 (default: 0.5)
 	TeleprompterGridInitialRow           float64       // TELEPROMPTER_GRID_INITIAL_ROW: initial vertical position, 0.0–1.0 (default: 0.5)
 	TeleprompterWindowMonitorInterval    time.Duration // TELEPROMPTER_WINDOW_MONITOR_INTERVAL: window-bounds poll interval (default: 200ms)

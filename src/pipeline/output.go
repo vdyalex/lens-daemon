@@ -40,12 +40,8 @@ func (p *Pipeline) OutputMethod() string {
 	return p.settings.OutputMethod
 }
 
-// isTeleprompterActive reports whether the current output method is teleprompter.
-func (p *Pipeline) isTeleprompterActive() bool {
-	return p.OutputMethod() == constants.OutputMethodTeleprompter
-}
-
-// isTelegramActive reports whether the current output method is telegram.
-func (p *Pipeline) isTelegramActive() bool {
-	return p.OutputMethod() == constants.OutputMethodTelegram
+// isMethodActive reports whether the current output method equals method.
+// method: one of constants.OutputMethodTeleprompter or constants.OutputMethodTelegram.
+func (p *Pipeline) isMethodActive(method string) bool {
+	return p.OutputMethod() == method
 }

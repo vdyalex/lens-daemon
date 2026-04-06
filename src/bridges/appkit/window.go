@@ -19,7 +19,7 @@ static CGFloat gOverlayInterpolation    = 0.0;   // overlay window alpha: 0.0 = 
 static CGFloat gFontWeight = -0.8; // NSFontWeightUltraLight
 static int     gAlignment  = 3;    // 0=left, 1=center, 2=right, 3=dynamic
 static CGFloat gMargin       = 20.0;
-static CGFloat gFadeDuration = 0.75;
+static CGFloat gFadeDuration = 0.8;
 static char    gFontFamily[256] = "";
 
 // Current text for repositioning without a new Display call.

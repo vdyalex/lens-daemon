@@ -77,8 +77,8 @@ See `.env.example` for the complete list with descriptions and defaults. Common 
 - `TELEPROMPTER_VISIBLE` — Initial visibility on startup (default: false)
 - `TELEPROMPTER_ALIGNMENT` — Text alignment: left, center, right, dynamic (default: "dynamic"). Dynamic adapts based on grid column position
 - `TELEPROMPTER_ADAPTIVE_COLOR` — Per-pixel adaptive text color via background inversion (default: true)
-- `TELEPROMPTER_FADE_DURATION` — Fade animation duration in seconds for show/hide/text updates (default: 0.75)
-- `TELEPROMPTER_GRID_STEP` — Percentage increment per arrow-key press, 0.0–1.0 (default: 0.01)
+- `TELEPROMPTER_FADE_DURATION` — Fade animation duration in seconds for show/hide/text updates (default: 0.8)
+- `TELEPROMPTER_GRID_STEP` — Percentage increment per arrow-key press, 0.0–1.0 (default: 0.005)
 - `TELEPROMPTER_GRID_INITIAL_COL` — Initial horizontal position, 0.0–1.0 (default: 0.5)
 - `TELEPROMPTER_GRID_INITIAL_ROW` — Initial vertical position, 0.0–1.0 (default: 0.5)
 - `TELEPROMPTER_GRID_MOVE_DEBOUNCE_DURATION` — Idle delay before snap commit (default: 300ms)
