@@ -18,7 +18,8 @@ type Config struct {
 	AnthropicAPIKey            string
 	AnthropicModel             string
 	AnthropicSystemPrompt      string
-	AnthropicMaxResponseTokens int // ANTHROPIC_MAX_RESPONSE_TOKENS: max tokens per Anthropic API call (default: 1024)
+	AnthropicMaxResponseTokens int    // ANTHROPIC_MAX_RESPONSE_TOKENS: max tokens per Anthropic API call (default: 1024)
+	AnthropicCacheTTL          string // ANTHROPIC_CACHE_TTL: prompt caching TTL for system prompt and tools ("5m" or "1h", default: "1h")
 
 	// Telegram settings
 	TelegramBotToken          string

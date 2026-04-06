@@ -14,17 +14,19 @@ import (
 )
 
 type mockMessages struct {
-	result *anthropic.Message
-	err    error
+	result     *anthropic.Message
+	err        error
+	lastParams anthropic.MessageNewParams
 }
 
-func (m *mockMessages) New(_ context.Context, _ anthropic.MessageNewParams, _ ...option.RequestOption) (*anthropic.Message, error) {
+func (m *mockMessages) New(_ context.Context, params anthropic.MessageNewParams, _ ...option.RequestOption) (*anthropic.Message, error) {
+	m.lastParams = params
 	return m.result, m.err
 }
 
 func TestProcess_emptyInput(t *testing.T) {
 	m := &mockMessages{result: &anthropic.Message{}}
-	agent := ai.NewWithMessages(m, "claude-test", "prompt", 1024, mocks.NopLogger())
+	agent := ai.NewWithMessages(m, "claude-test", "prompt", 1024, anthropic.CacheControlEphemeralTTLTTL1h, mocks.NopLogger())
 
 	response, err := agent.Process(context.Background(), "")
 
@@ -39,7 +41,7 @@ func TestProcess_emptyInput(t *testing.T) {
 func TestProcess_apiError(t *testing.T) {
 	apiErr := errors.New("api failure")
 	m := &mockMessages{err: apiErr}
-	agent := ai.NewWithMessages(m, "claude-test", "prompt", 1024, mocks.NopLogger())
+	agent := ai.NewWithMessages(m, "claude-test", "prompt", 1024, anthropic.CacheControlEphemeralTTLTTL1h, mocks.NopLogger())
 
 	response, err := agent.Process(context.Background(), "hello")
 
@@ -54,7 +56,7 @@ func TestProcess_apiError(t *testing.T) {
 func TestProcess_noToolUseBlock(t *testing.T) {
 	msg := &anthropic.Message{}
 	m := &mockMessages{result: msg}
-	agent := ai.NewWithMessages(m, "claude-test", "prompt", 1024, mocks.NopLogger())
+	agent := ai.NewWithMessages(m, "claude-test", "prompt", 1024, anthropic.CacheControlEphemeralTTLTTL1h, mocks.NopLogger())
 
 	_, err := agent.Process(context.Background(), "input")
 
@@ -79,7 +81,7 @@ func TestProcess_validToolUseBlock(t *testing.T) {
 		Detailed: ai.ResponseDetail{Answer: "B", Reason: "Because X and Y."},
 	}
 	m := &mockMessages{result: buildToolUseMessage(expected)}
-	agent := ai.NewWithMessages(m, "claude-test", "prompt", 1024, mocks.NopLogger())
+	agent := ai.NewWithMessages(m, "claude-test", "prompt", 1024, anthropic.CacheControlEphemeralTTLTTL1h, mocks.NopLogger())
 
 	response, err := agent.Process(context.Background(), "input")
 
@@ -94,5 +96,78 @@ func TestProcess_validToolUseBlock(t *testing.T) {
 	}
 	if response.Detailed.Reason != expected.Detailed.Reason {
 		t.Errorf("expected detailed reason %q, got %q", expected.Detailed.Reason, response.Detailed.Reason)
+	}
+}
+
+func TestProcess_systemPromptHasCacheControl(t *testing.T) {
+	expected := ai.Response{
+		Short:    "E",
+		Detailed: ai.ResponseDetail{Answer: "E", Reason: "OK."},
+	}
+	m := &mockMessages{result: buildToolUseMessage(expected)}
+	agent := ai.NewWithMessages(m, "claude-test", "my prompt", 1024, anthropic.CacheControlEphemeralTTLTTL1h, mocks.NopLogger())
+
+	_, err := agent.Process(context.Background(), "input")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(m.lastParams.System) != 1 {
+		t.Fatalf("expected 1 system block, got %d", len(m.lastParams.System))
+	}
+	systemBlock := m.lastParams.System[0]
+	if systemBlock.Text != "my prompt" {
+		t.Errorf("expected system text %q, got %q", "my prompt", systemBlock.Text)
+	}
+	if systemBlock.CacheControl.Type != "ephemeral" {
+		t.Errorf("expected cache_control type ephemeral, got %q", systemBlock.CacheControl.Type)
+	}
+}
+
+func TestProcess_toolHasCacheControl(t *testing.T) {
+	expected := ai.Response{
+		Short:    "F",
+		Detailed: ai.ResponseDetail{Answer: "F", Reason: "OK."},
+	}
+	m := &mockMessages{result: buildToolUseMessage(expected)}
+	agent := ai.NewWithMessages(m, "claude-test", "prompt", 1024, anthropic.CacheControlEphemeralTTLTTL1h, mocks.NopLogger())
+
+	_, err := agent.Process(context.Background(), "input")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(m.lastParams.Tools) != 1 {
+		t.Fatalf("expected 1 tool, got %d", len(m.lastParams.Tools))
+	}
+	tool := m.lastParams.Tools[0].OfTool
+	if tool == nil {
+		t.Fatal("expected tool definition")
+	}
+	if tool.CacheControl.Type != "ephemeral" {
+		t.Errorf("expected tool cache_control type ephemeral, got %q", tool.CacheControl.Type)
+	}
+}
+
+func TestProcess_cacheTTLPropagated(t *testing.T) {
+	expected := ai.Response{
+		Short:    "G",
+		Detailed: ai.ResponseDetail{Answer: "G", Reason: "OK."},
+	}
+	m := &mockMessages{result: buildToolUseMessage(expected)}
+	agent := ai.NewWithMessages(m, "claude-test", "prompt", 1024, anthropic.CacheControlEphemeralTTLTTL5m, mocks.NopLogger())
+
+	_, err := agent.Process(context.Background(), "input")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	systemTTL := m.lastParams.System[0].CacheControl.TTL
+	if systemTTL != anthropic.CacheControlEphemeralTTLTTL5m {
+		t.Errorf("expected system TTL 5m, got %q", systemTTL)
+	}
+	toolTTL := m.lastParams.Tools[0].OfTool.CacheControl.TTL
+	if toolTTL != anthropic.CacheControlEphemeralTTLTTL5m {
+		t.Errorf("expected tool TTL 5m, got %q", toolTTL)
 	}
 }

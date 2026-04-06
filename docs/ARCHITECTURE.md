@@ -44,7 +44,7 @@ This separation decouples fast Phase 1 captures from slow Phase 2 analysis, prev
 
 **Adapters** integrate with external services:
 
-- **AI** -- Claude AI client using the official Anthropic Go SDK with structured tool calls returning `short` and `detailed` response branches (package `ai`)
+- **AI** -- Claude AI client using the official Anthropic Go SDK with structured tool calls returning `short` and `detailed` response branches. System prompt and tool definition use ephemeral prompt caching (configurable TTL via `ANTHROPIC_CACHE_TTL`, default 1h) to reduce cost and latency on repeated calls (package `ai`)
 - **IM** -- Telegram Bot API sender with message chunking and MarkdownV2 formatting (package `im`). Optional: when `TELEGRAM_BOT_TOKEN` is absent, a `NoopBroadcaster` and `NoopPoller` are used instead
   - **Poller** -- Telegram long-polling for subscriber management (`/start`, `/stop` commands) (package `im/poller`)
   - **Store** -- plain-text file-backed persistence for subscriber chat IDs (package `im/store`)
