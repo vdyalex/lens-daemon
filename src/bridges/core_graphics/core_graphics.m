@@ -22,34 +22,37 @@ int getMainDisplayHeight(void) {
 // and does not trigger the screen-recording indicator.
 //
 // Returns the PID on success, or -1 if the application cannot be determined.
-int capturedWindowPID(void) {
+static int capturedWindowPID(void) {
     NSRunningApplication* app = [[NSWorkspace sharedWorkspace] frontmostApplication];
     if (app == nil) return -1;
     return (int)[app processIdentifier];
 }
 
-// capturedWindowRect returns the bounding rect of the front window belonging to the
-// given PID. Searches the on-screen window list for the first layer-0 window owned
-// by the PID.
+// capturedWindowID returns the CGWindowID of the first layer-0 on-screen window
+// owned by the frontmost application. Returns kCGNullWindowID (0) when no
+// matching window is found.
 //
-// Returns 1 on success and populates *outX, *outY, *outW, *outH.
-// Returns 0 if no matching window is found.
-int capturedWindowRect(int targetPID, int* outX, int* outY, int* outW, int* outH) {
+// Uses CGWindowListCopyWindowInfo — a pure metadata query that does not capture
+// screen pixels and does not trigger the screen-recording indicator.
+int capturedWindowID(void) {
+    int processID = capturedWindowPID();
+    if (processID <= 0) return 0;
+
     CFArrayRef windowList = CGWindowListCopyWindowInfo(
         kCGWindowListOptionOnScreenOnly | kCGWindowListExcludeDesktopElements,
         kCGNullWindowID);
     if (windowList == NULL) return 0;
 
-    int found = 0;
+    int windowID = 0;
     CFIndex count = CFArrayGetCount(windowList);
-    for (CFIndex i = 0; i < count; i++) {
+    for (CFIndex i = 0; i < count && windowID == 0; i++) {
         CFDictionaryRef info = (CFDictionaryRef)CFArrayGetValueAtIndex(windowList, i);
 
         CFNumberRef pidRef = (CFNumberRef)CFDictionaryGetValue(info, kCGWindowOwnerPID);
         if (pidRef == NULL) continue;
         int windowPID = 0;
         CFNumberGetValue(pidRef, kCFNumberIntType, &windowPID);
-        if (windowPID != targetPID) continue;
+        if (windowPID != processID) continue;
 
         CFNumberRef layerRef = (CFNumberRef)CFDictionaryGetValue(info, kCGWindowLayer);
         if (layerRef != NULL) {
@@ -57,6 +60,43 @@ int capturedWindowRect(int targetPID, int* outX, int* outY, int* outW, int* outH
             CFNumberGetValue(layerRef, kCFNumberIntType, &layer);
             if (layer != 0) continue;
         }
+
+        CFNumberRef numRef = (CFNumberRef)CFDictionaryGetValue(info, kCGWindowNumber);
+        if (numRef == NULL) continue;
+        int32_t windowNumber = 0;
+        if (CFNumberGetValue(numRef, kCGWindowIDCFNumberType, &windowNumber)) {
+            windowID = (int)windowNumber;
+        }
+    }
+
+    CFRelease(windowList);
+    return windowID;
+}
+
+// capturedWindowRectByID returns the bounding rect of the window identified by
+// windowID. Matches on kCGWindowNumber — no layer filter needed with a fixed ID.
+//
+// Returns 1 on success and populates *outX, *outY, *outW, *outH.
+// Returns 0 when windowID is 0 or when no matching window is found (closed,
+// off-screen, or application terminated).
+int capturedWindowRectByID(int windowID, int* outX, int* outY, int* outW, int* outH) {
+    if (windowID == 0) return 0;
+
+    CFArrayRef windowList = CGWindowListCopyWindowInfo(
+        kCGWindowListOptionOnScreenOnly | kCGWindowListExcludeDesktopElements,
+        kCGNullWindowID);
+    if (windowList == NULL) return 0;
+
+    int found = 0;
+    CFIndex count = CFArrayGetCount(windowList);
+    for (CFIndex i = 0; i < count && !found; i++) {
+        CFDictionaryRef info = (CFDictionaryRef)CFArrayGetValueAtIndex(windowList, i);
+
+        CFNumberRef numRef = (CFNumberRef)CFDictionaryGetValue(info, kCGWindowNumber);
+        if (numRef == NULL) continue;
+        int32_t windowNumber = 0;
+        if (!CFNumberGetValue(numRef, kCGWindowIDCFNumberType, &windowNumber)) continue;
+        if ((int)windowNumber != windowID) continue;
 
         CFDictionaryRef boundsRef = (CFDictionaryRef)CFDictionaryGetValue(info, kCGWindowBounds);
         if (boundsRef == NULL) continue;
@@ -68,7 +108,6 @@ int capturedWindowRect(int targetPID, int* outX, int* outY, int* outW, int* outH
         *outW = (int)rect.size.width;
         *outH = (int)rect.size.height;
         found = 1;
-        break;
     }
 
     CFRelease(windowList);

@@ -14,6 +14,7 @@ package appkit
 // These are non-static so they are visible at link time across CGo translation units.
 extern void setOverlayWindowBounds(double x, double y, double width, double height);
 extern void fadeOutForMove(void);
+extern void hideForWindowChange(void);
 extern void commitMoveToGridSpot(double col, double row);
 extern void fadeInAfterMove(void);
 */
@@ -32,6 +33,15 @@ func SetOverlayWindowBounds(x, y, width, height float64) {
 // Safe to call from any goroutine; dispatched to the main thread internally.
 func FadeOutForMove() {
 	C.fadeOutForMove()
+}
+
+// HideForWindowChange immediately sets the overlay alpha to zero without animation.
+// Used for window move/resize evasion — the interpolation jumps to zero instantly
+// so the overlay does not linger while the captured window is in motion.
+// Idempotent if a move is already in progress.
+// Safe to call from any goroutine; dispatched to the main thread internally.
+func HideForWindowChange() {
+	C.hideForWindowChange()
 }
 
 // CommitMoveToGridSpot repositions the overlay window at the given (col, row)
