@@ -16,7 +16,7 @@ import (
 // canvas bounds, updates the grid spot, and fades the teleprompter back in (if
 // it was visible before the move).
 //
-// Uses CapturedWindowRect — a pure CGWindowListCopyWindowInfo metadata query —
+// Uses CapturedWindowRectByID — a pure CGWindowListCopyWindowInfo metadata query —
 // so it does not capture screen pixels and does not trigger the screen-capture
 // indicator.
 //
@@ -40,16 +40,16 @@ func (p *Pipeline) trackWindowChanges(ctx context.Context) {
 
 		case <-ticker.C:
 			p.boundsMu.RLock()
-			pid := p.capturedWindowPID
+			windowID := p.capturedWindowID
 			last := p.lastWindowBounds
 			p.boundsMu.RUnlock()
 
 			// No captured window yet — nothing to track.
-			if pid == 0 {
+			if windowID == 0 {
 				continue
 			}
 
-			bounds := core_graphics.CapturedWindowRect(pid)
+			bounds := core_graphics.CapturedWindowRectByID(windowID)
 			if bounds == nil {
 				continue
 			}
@@ -66,8 +66,8 @@ func (p *Pipeline) trackWindowChanges(ctx context.Context) {
 
 			if !unstable {
 				unstable = true
-				appkit.FadeOutForMove()
-				p.logger.Debug("window moved/resized, teleprompter fading out")
+				appkit.HideForWindowChange()
+				p.logger.Debug("window moved/resized, teleprompter hidden")
 			}
 
 			// Reset the stability timer: the window must be stable for

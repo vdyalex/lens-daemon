@@ -34,25 +34,25 @@ type CaptureResult struct {
 
 // Pipeline orchestrates the full screen-monitor workflow.
 type Pipeline struct {
-	settings          *config.Config
-	logger            *slog.Logger
-	capturer          capturer.Service
-	extractor         extractor.Service
-	agent             ai.Processor
-	messenger         im.Broadcaster
-	poller            poller.Service
-	listener          listener.Service
-	teleprompter      teleprompter.Service
-	boundsMu          sync.RWMutex
-	captureBounds     *image.Rectangle
-	canvasBounds      *image.Rectangle // content area excluding browser chrome; nil for non-browsers
-	lastWindowBounds  image.Rectangle  // raw foreground-window bounds for non-browser grid fallback
-	capturedWindowPID int              // PID of the app from the last capture; monitor ignores other apps
-	startTime         time.Time
-	lastCaptureMu     sync.RWMutex
-	lastCaptureTime   time.Time
-	lastWindowTitle   string
-	analyseQueue      chan CaptureResult
+	settings         *config.Config
+	logger           *slog.Logger
+	capturer         capturer.Service
+	extractor        extractor.Service
+	agent            ai.Processor
+	messenger        im.Broadcaster
+	poller           poller.Service
+	listener         listener.Service
+	teleprompter     teleprompter.Service
+	boundsMu         sync.RWMutex
+	captureBounds    *image.Rectangle
+	canvasBounds     *image.Rectangle // content area excluding browser chrome; nil for non-browsers
+	lastWindowBounds image.Rectangle  // raw foreground-window bounds for non-browser grid fallback
+	capturedWindowID int              // CGWindowID of the window from the last capture; 0 = no window captured
+	startTime        time.Time
+	lastCaptureMu    sync.RWMutex
+	lastCaptureTime  time.Time
+	lastWindowTitle  string
+	analyseQueue     chan CaptureResult
 
 	// Grid positioning state.
 	gridMu  sync.Mutex

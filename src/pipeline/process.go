@@ -45,10 +45,13 @@ func (p *Pipeline) fetchWindow(ctx context.Context) (*capturer.WindowInfo, *imag
 
 	windowRect := image.Rect(window.X, window.Y, window.X+window.Width, window.Y+window.Height)
 
+	windowID := core_graphics.CapturedWindowID()
+	p.logger.Debug("captured window id", slog.Int("windowID", windowID))
+
 	p.boundsMu.Lock()
 	p.canvasBounds = canvas
 	p.lastWindowBounds = windowRect
-	p.capturedWindowPID = core_graphics.CapturedWindowPID()
+	p.capturedWindowID = windowID
 	p.boundsMu.Unlock()
 
 	// Always store the raw window bounds so gridSpotFrame has an outer reference

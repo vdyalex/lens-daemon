@@ -709,6 +709,7 @@ static NSRect gridSpotFrame(NSWindow* window, NSTextField* label, double col, do
 // These run on the main thread and have full access to the delegate's ivars.
 @interface OverlayDelegate (GridMove)
 - (void)doFadeOutForMove;
+- (void)doHideForWindowChange;
 - (void)doCommitMoveFromArray:(NSArray*)args;
 - (void)doFadeInAfterMove;
 @end
@@ -727,6 +728,17 @@ static NSRect gridSpotFrame(NSWindow* window, NSTextField* label, double col, do
         [context setDuration:gFadeDuration];
         [[_window animator] setAlphaValue:0.0];
     }];
+}
+
+// doHideForWindowChange immediately sets the window alpha to zero without animation.
+// Used for window move/resize evasion where instant hiding is required.
+// Sets gMoveInProgress=YES so subsequent show/hide calls defer to the move.
+- (void)doHideForWindowChange {
+    if (gMoveInProgress) return;
+    gMoveInProgress = YES;
+    gOverlayInterpolation = 0.0;
+    _generation++;
+    [_window setAlphaValue:0.0];
 }
 
 // doCommitMoveFromArray: unpacks the [col, row] NSArray and repositions the window
@@ -773,6 +785,14 @@ static NSRect gridSpotFrame(NSWindow* window, NSTextField* label, double col, do
 // fadeOutForMove dispatches the move-start fade-out to the main thread.
 void fadeOutForMove(void) {
     [gDelegate performSelectorOnMainThread:@selector(doFadeOutForMove)
+                                withObject:nil
+                             waitUntilDone:NO];
+}
+
+// hideForWindowChange dispatches an immediate alpha=0 hide to the main thread.
+// Used for window move/resize evasion — no animation, instant interpolation drop.
+void hideForWindowChange(void) {
+    [gDelegate performSelectorOnMainThread:@selector(doHideForWindowChange)
                                 withObject:nil
                              waitUntilDone:NO];
 }
