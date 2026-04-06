@@ -43,31 +43,25 @@ var responseSchema = anthropic.ToolInputSchemaParam{
 	Required: []string{"short", "detailed"},
 }
 
-// responseTool is the tool definition sent with every request.
-var responseTool = anthropic.ToolUnionParam{
-	OfTool: &anthropic.ToolParam{
-		Name:        toolName,
-		Description: anthropic.String("Return a short distinguishing fragment for the teleprompter and a detailed answer with explanation for broadcast"),
-		InputSchema: responseSchema,
-	},
-}
-
 // New creates a new Claude AI agent.
+// cacheTTL controls the prompt caching TTL for system prompt and tool definitions
+// (e.g. CacheControlEphemeralTTLTTL1h). Pass empty string to disable caching.
 // logger must not be nil; pass slog.Default() if no custom logger is required.
-func New(apiKey, model, prompt string, maxResponseTokens int, logger *slog.Logger) *AI {
+func New(apiKey, model, prompt string, maxResponseTokens int, cacheTTL anthropic.CacheControlEphemeralTTL, logger *slog.Logger) *AI {
 	client := anthropic.NewClient(option.WithAPIKey(apiKey))
-	return NewWithMessages(&client.Messages, model, prompt, maxResponseTokens, logger)
+	return NewWithMessages(&client.Messages, model, prompt, maxResponseTokens, cacheTTL, logger)
 }
 
 // NewWithMessages creates a Claude AI agent with an injectable messages service.
 // This is primarily used for testing with mock implementations.
 // logger must not be nil; pass slog.Default() if no custom logger is required.
-func NewWithMessages(messages MessagesService, model, prompt string, maxResponseTokens int, logger *slog.Logger) *AI {
+func NewWithMessages(messages MessagesService, model, prompt string, maxResponseTokens int, cacheTTL anthropic.CacheControlEphemeralTTL, logger *slog.Logger) *AI {
 	return &AI{
 		messages:          messages,
 		model:             model,
 		prompt:            prompt,
 		maxResponseTokens: maxResponseTokens,
+		cacheTTL:          cacheTTL,
 		logger:            logger,
 	}
 }
@@ -75,6 +69,10 @@ func NewWithMessages(messages MessagesService, model, prompt string, maxResponse
 // Process sends the extracted text to Claude and returns a structured Response
 // with Short and Detailed fields. Claude is forced to use the "answer" tool via
 // tool_choice, guaranteeing structured JSON output.
+//
+// The system prompt and tool definition use ephemeral cache control so repeated
+// calls within the TTL window read those tokens from cache (90% cheaper, faster
+// time-to-first-token). Each call is independent — no conversation history.
 //
 // Returns an empty Response without calling the API when text is empty.
 // Logs request parameters, response metadata (token usage, latency), and errors.
@@ -89,19 +87,33 @@ func (a *AI) Process(ctx context.Context, text string) (Response, error) {
 		slog.Int("max_response_tokens", a.maxResponseTokens),
 	)
 
+	cacheControl := anthropic.NewCacheControlEphemeralParam()
+	cacheControl.TTL = a.cacheTTL
+	tool := anthropic.ToolUnionParam{
+		OfTool: &anthropic.ToolParam{
+			Name:         toolName,
+			Description:  anthropic.String("Return a short distinguishing fragment for the teleprompter and a detailed answer with explanation for broadcast"),
+			InputSchema:  responseSchema,
+			CacheControl: cacheControl,
+		},
+	}
+
 	start := time.Now()
 	message, err := a.messages.New(ctx, anthropic.MessageNewParams{
 		Model:     anthropic.Model(a.model),
 		MaxTokens: int64(a.maxResponseTokens),
 		System: []anthropic.TextBlockParam{
-			{Text: a.prompt},
+			{
+				Text:         a.prompt,
+				CacheControl: cacheControl,
+			},
 		},
 		Messages: []anthropic.MessageParam{
 			anthropic.NewUserMessage(
 				anthropic.NewTextBlock(text),
 			),
 		},
-		Tools:      []anthropic.ToolUnionParam{responseTool},
+		Tools:      []anthropic.ToolUnionParam{tool},
 		ToolChoice: anthropic.ToolChoiceParamOfTool(toolName),
 	})
 	if err != nil {

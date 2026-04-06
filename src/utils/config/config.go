@@ -121,6 +121,7 @@ func Load() (*Config, error) {
 		AnthropicModel:             ldr.getStr("ANTHROPIC_MODEL", constants.AnthropicModel),
 		AnthropicSystemPrompt:      ldr.getStr("ANTHROPIC_SYSTEM_PROMPT", constants.AnthropicSystemPrompt),
 		AnthropicMaxResponseTokens: ldr.getInt("ANTHROPIC_MAX_RESPONSE_TOKENS", constants.AnthropicMaxResponseTokens),
+		AnthropicCacheTTL:          ldr.getStr("ANTHROPIC_CACHE_TTL", constants.AnthropicCacheTTL),
 		TelegramBotToken:           ldr.getStr("TELEGRAM_BOT_TOKEN", ""),
 		StorePath:                  ldr.getStr("SUBSCRIBER_STORE_PATH", constants.StorePath),
 		TelegramMessageChunkSize:   ldr.getInt("TELEGRAM_MESSAGE_CHUNK_SIZE", constants.TelegramMessageChunkSize),
