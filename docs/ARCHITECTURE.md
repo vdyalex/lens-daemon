@@ -45,7 +45,7 @@ This separation decouples fast Phase 1 captures from slow Phase 2 analysis, prev
 
 **Adapters** integrate with external services:
 
-- **AI** -- Claude AI client using the official Anthropic Go SDK with structured tool calls returning `short` and `detailed` response branches. System prompt and tool definition use ephemeral prompt caching (configurable TTL via `ANTHROPIC_CACHE_TTL`, default 1h) to reduce cost and latency on repeated calls (package `ai`)
+- **AI** -- Claude AI client using the official Anthropic Go SDK with structured tool calls returning `deterministic`, `short`, and `detailed` response fields. `deterministic` gates teleprompter display — only factually certain answers are shown on screen; uncertain responses are suppressed from the overlay. System prompt and tool definition use ephemeral prompt caching (configurable TTL via `ANTHROPIC_CACHE_TTL`, default 1h) to reduce cost and latency on repeated calls (package `ai`)
 - **IM** -- Telegram Bot API sender with message chunking and MarkdownV2 formatting (package `im`). When `TELEGRAM_BOT_TOKEN` is absent, a `NoopBroadcaster` and `NoopPoller` are used. Output is routed to Telegram only when `OUTPUT_METHOD=telegram`
   - **Poller** -- Telegram long-polling for subscriber management (`/start`, `/stop` commands) (package `im/poller`)
   - **Store** -- plain-text file-backed persistence for subscriber chat IDs (package `im/store`)
@@ -68,7 +68,7 @@ This separation decouples fast Phase 1 captures from slow Phase 2 analysis, prev
 
 - **`pipeline.go`** -- constructors and public interface (`New`, `Status`, `Run`); wires all components using `NewBuilder`
 - **`builder.go`** -- Builder pattern for pipeline construction; injectable dependencies via `With*` methods and `Build()`
-- **`process.go`** -- implementation of the sequential process steps (fetch window, derive canvas bounds, capture with overlay hide/restore, crop to canvas in Go, extract, process with AI, route output to teleprompter or Telegram based on `OUTPUT_METHOD`)
+- **`process.go`** -- implementation of the sequential process steps (fetch window, derive canvas bounds, capture with overlay hide/restore, crop to canvas in Go, extract, process with AI, route output to teleprompter or Telegram based on `OUTPUT_METHOD`). Logs end-to-end latency from hotkey trigger to committed display or broadcast at `debug` level (`trigger to display latency` / `trigger to broadcast latency`)
 - **`output.go`** -- runtime output method switching (`SetOutputMethod`, `OutputMethod`, `isMethodActive`); hides/shows overlay on switch; activates/deactivates the poller via `SetActive`
 - **`run.go`** -- event loop and goroutine orchestration (`Run` method)
 - **`tracker_bounds.go`** -- capture bounds tracker (hotkey-driven rectangle updates)
@@ -193,13 +193,17 @@ sequenceDiagram
             Pipeline->>Pipeline: skip
         else
             Pipeline->>Claude: Process text (structured tool call)
-            Claude-->>Pipeline: {short, detailed}
+            Claude-->>Pipeline: {deterministic, short, detailed}
 
             alt empty response
                 Pipeline->>Pipeline: skip
             else
                 alt OUTPUT_METHOD = teleprompter
-                Pipeline->>Teleprompter: Display short answer
+                    alt deterministic = true
+                        Pipeline->>Teleprompter: Display short answer
+                    else deterministic = false
+                        Pipeline->>Pipeline: suppress display
+                    end
             else OUTPUT_METHOD = telegram
                 Pipeline->>Telegram: Broadcast detailed answer
                 Note over Pipeline,Telegram: split if larger than 4096 chars
@@ -277,7 +281,7 @@ The teleprompter is a stealth macOS overlay window positioned within the capture
 - **Percentage-based grid positioning** — hold bounds key + arrow keys to move the teleprompter by `TELEPROMPTER_GRID_STEP` (default 0.5%) per press. Position wraps circularly. Initial position configurable via `TELEPROMPTER_GRID_INITIAL_COL`/`TELEPROMPTER_GRID_INITIAL_ROW`. Rapid presses debounce: first press fades out, subsequent presses extend the timer, timer fires repositions and fades in. Grid always distributes over the canvas (browser content area), or raw window when no canvas is detected; custom capture bounds do not affect grid positioning
 - **Grid area and margin** — the active area for grid spot calculation is the browser canvas when available, otherwise the raw window. A per-side margin inset (`TELEPROMPTER_MARGIN`) is applied only where needed: each side's inset is `MAX(0, margin − clearance_from_outer_boundary)`, where the outer boundary is the raw window (for canvas) or the screen (for raw window). This ensures the teleprompter always has at least `TELEPROMPTER_MARGIN` clearance from the outermost edge, while interior spots are unaffected. All grid spots are then uniformly distributed over this effective inset area
 - **Text alignment** — `TELEPROMPTER_ALIGNMENT=dynamic` (default) adapts alignment based on grid column: left-aligned at the left edge, right-aligned at the right edge, centered elsewhere. Also accepts `left`, `center`, `right` for fixed alignment. Fixed alignments pin the corresponding edge of the frame to the computed grid spot: `left` places the frame's left edge at the spot, `right` places the frame's right edge at the spot, `center` centers the frame on the spot
-- **Window evasion** — polls the captured window's bounds via `CGWindowListCopyWindowInfo` (metadata only, no screen-capture indicator) at `TELEPROMPTER_WINDOW_MONITOR_INTERVAL` (default 200ms). When the window moves or resizes, the teleprompter fades out. After the window stabilises for `TELEPROMPTER_WINDOW_STABILIZE_DELAY` (default 500ms), the teleprompter recalculates canvas bounds, repositions at the current grid spot, and fades back in. Tracks by PID so switching to a different app does not affect the teleprompter
+- **Window evasion** — polls the last-captured app's window bounds via `CGWindowListCopyWindowInfo` (metadata only, no screen-capture indicator) at `TELEPROMPTER_WINDOW_MONITOR_INTERVAL` (default 200ms). When the bounds change, the teleprompter fades out. After the window stabilises for `TELEPROMPTER_WINDOW_STABILIZE_DELAY` (default 500ms), the teleprompter recalculates canvas bounds, repositions at the current grid spot, and fades back in. The overlay is a free-floating window — it is not parented to or ordered relative to the captured window
 - **Opacity model** — text opacity (`gTextOpacity`, controlled by hotkey +/−) and overlay visibility (`gOverlayInterpolation`, controlled by animations) are independent. Text opacity is baked into the text color alpha / adaptive color pattern. Window alpha is driven by the interpolation (0→1 for fade-in, 1→0 for fade-out)
 - **Runtime opacity adjustment** — hold bounds key + minus/plus keys to decrease/increase text opacity by 0.01 per step. Press 0 to reset to the configured default
 - **Runtime font size adjustment** — hold bounds key + comma/period keys to decrease/increase font size by 0.5pt per step (clamped to 5–48pt)

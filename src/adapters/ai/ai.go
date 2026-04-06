@@ -17,9 +17,14 @@ const toolName = "answer"
 
 // responseSchema defines the JSON schema for the structured response tool.
 // Claude is forced to call this tool via tool_choice, producing a validated
-// JSON object with "short" (raw answer) and "detailed" (answer + reason) fields.
+// JSON object with "short" (raw answer), "detailed" (answer + reason), and
+// "deterministic" (confidence flag) fields.
 var responseSchema = anthropic.ToolInputSchemaParam{
 	Properties: map[string]any{
+		"deterministic": map[string]any{
+			"type":        "boolean",
+			"description": "Set true only when the answer is factually certain and unambiguous. Set false when providing incompatible content, caveats, disclaimers, or errors.",
+		},
 		"short": map[string]any{
 			"type":        "string",
 			"description": "The shortest distinguishing fragment of the correct option — just enough to identify it among the alternatives without reproducing the full text. No formatting or explanation.",
@@ -40,7 +45,7 @@ var responseSchema = anthropic.ToolInputSchemaParam{
 			"required": []string{"answer", "reason"},
 		},
 	},
-	Required: []string{"short", "detailed"},
+	Required: []string{"deterministic", "short", "detailed"},
 }
 
 // New creates a new Claude AI agent.
@@ -67,8 +72,10 @@ func NewWithMessages(messages MessagesService, model, prompt string, maxResponse
 }
 
 // Process sends the extracted text to Claude and returns a structured Response
-// with Short and Detailed fields. Claude is forced to use the "answer" tool via
-// tool_choice, guaranteeing structured JSON output.
+// with Deterministic, Short, and Detailed fields. Claude is forced to use the
+// "answer" tool via tool_choice, guaranteeing structured JSON output.
+// Deterministic indicates factual certainty; the pipeline uses it to gate
+// teleprompter display — only certain answers are shown on screen.
 //
 // The system prompt and tool definition use ephemeral cache control so repeated
 // calls within the TTL window read those tokens from cache (90% cheaper, faster
@@ -92,7 +99,7 @@ func (a *AI) Process(ctx context.Context, text string) (Response, error) {
 	tool := anthropic.ToolUnionParam{
 		OfTool: &anthropic.ToolParam{
 			Name:         toolName,
-			Description:  anthropic.String("Return a short distinguishing fragment for the teleprompter and a detailed answer with explanation for broadcast"),
+			Description:  anthropic.String("Return a short distinguishing fragment for the teleprompter, a detailed answer with explanation for broadcast, and a deterministic flag indicating factual certainty"),
 			InputSchema:  responseSchema,
 			CacheControl: cacheControl,
 		},
@@ -144,7 +151,10 @@ func (a *AI) Process(ctx context.Context, text string) (Response, error) {
 
 	a.logger.Debug("anthropic response content",
 		slog.Int("content_blocks", len(message.Content)),
+		slog.Bool("deterministic", response.Deterministic),
 		slog.String("short", response.Short),
+		slog.String("detailed_answer", response.Detailed.Answer),
+		slog.String("detailed_reason", response.Detailed.Reason),
 		slog.Int("detailed_character_count", len(response.Detailed.Reason)),
 	)
 

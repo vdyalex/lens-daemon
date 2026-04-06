@@ -19,8 +19,10 @@ import (
 // and returns nil. If analyseQueue is full, the result is dropped with a warning log.
 //
 // ctx: parent context; capture wraps it with TimeoutCapturePhase internally.
+// triggerTime: wall-clock time the hotkey trigger was received; propagated to Phase 2
+// for end-to-end latency logging.
 // Returns a non-nil error only for fatal capture failures.
-func (p *Pipeline) capture(ctx context.Context) error {
+func (p *Pipeline) capture(ctx context.Context, triggerTime time.Time) error {
 	captureCtx, cancel := context.WithTimeout(ctx, p.settings.TimeoutCapturePhase)
 	defer cancel()
 
@@ -45,6 +47,7 @@ func (p *Pipeline) capture(ctx context.Context) error {
 		Image:       img,
 		WindowTitle: window.Title,
 		Timestamp:   now,
+		TriggerTime: triggerTime,
 	}
 
 	select {
@@ -78,7 +81,7 @@ func (p *Pipeline) analyse(ctx context.Context, result CaptureResult) error {
 		return err
 	}
 
-	return p.processWithAIAndBroadcast(analyseCtx, text)
+	return p.processWithAIAndBroadcast(analyseCtx, text, result.TriggerTime)
 }
 
 // isFatalError reports whether err should be logged as a pipeline error.

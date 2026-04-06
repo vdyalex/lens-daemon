@@ -27,6 +27,9 @@ type CaptureResult struct {
 	WindowTitle string
 	// Timestamp is the wall-clock time of the screenshot.
 	Timestamp time.Time
+	// TriggerTime is the wall-clock time the hotkey trigger was received.
+	// Used to measure end-to-end latency from trigger to display or broadcast.
+	TriggerTime time.Time
 }
 
 // Pipeline orchestrates the full screen-monitor workflow.

@@ -63,6 +63,8 @@ func New(settings *config.Config, logger *slog.Logger) (*Pipeline, im.Store, err
 // Retained for tests and tooling only.
 // Returns nil on success; logs warnings for non-fatal conditions (empty OCR/response).
 func (p *Pipeline) Process(ctx context.Context) error {
+	triggerTime := time.Now()
+
 	window, canvas, err := p.fetchWindow(ctx)
 	if window == nil || err != nil {
 		return err
@@ -78,7 +80,7 @@ func (p *Pipeline) Process(ctx context.Context) error {
 		return err
 	}
 
-	return p.processWithAIAndBroadcast(ctx, text)
+	return p.processWithAIAndBroadcast(ctx, text, triggerTime)
 }
 
 // Status returns a snapshot of the pipeline's current runtime state.

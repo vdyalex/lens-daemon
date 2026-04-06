@@ -37,7 +37,7 @@ Hotkey → Capture    ↓ (queue)    OCR → AI → Route (Teleprompter | Telegr
 2. **Capture** — grabs the active window via AppleScript and CoreGraphics (direct Objective-C bridge via `src/bridges/core_graphics`, no external libraries). When the focused app is a recognised browser (Safari, Chrome, Firefox), the capture is automatically clipped to the page content area, excluding the browser toolbar. Hold `RightOption` to define explicit custom bounds (overrides automatic canvas detection). Customizable via `HOTKEY_BOUNDS_KEYNAME`
 3. **Queue** — captured images are enqueued for Phase 2 analysis (queue capacity: 5 by default, configurable via `ANALYSE_QUEUE_CAPACITY`)
 4. **OCR** — extracts text from the image using Apple Vision framework, entirely in-memory
-5. **AI** — sends extracted text to Claude with a configurable system prompt (max 1024 response tokens). The system prompt and tool definition use ephemeral prompt caching (configurable TTL, default 1h) to reduce cost and latency on repeated calls. The response is a JSON object with `short` and `detailed` fields
+5. **AI** — sends extracted text to Claude with a configurable system prompt (max 1024 response tokens). The system prompt and tool definition use ephemeral prompt caching (configurable TTL, default 1h) to reduce cost and latency on repeated calls. The response is a JSON object with `deterministic` (confidence flag), `short`, and `detailed` fields
 6. **Route** — routes the AI response based on `OUTPUT_METHOD` (default: `teleprompter`, switchable at runtime via `lensd set output-method`):
    - **Teleprompter** — displays the short answer on a stealth overlay excluded from screen sharing (`NSWindowSharingNone`), invisible to Zoom, Mission Control, Dock, and Cmd+Tab. Toggle visibility with `RightCommand` (configurable via `HOTKEY_TOGGLE_KEYNAME`)
    - **Telegram** — broadcasts the detailed response to all subscribers, auto-chunking messages exceeding 4096 runes. Requires `TELEGRAM_BOT_TOKEN`
@@ -107,7 +107,7 @@ All configuration is done through environment variables. Copy `.env.example` to 
 | `TIMEOUT_ANALYSE_PHASE` | `5m` | Total deadline for Phase 2 (OCR + AI + broadcast) |
 | `EVENT_TAP_POLL_INTERVAL` | `500ms` | CFRunLoop polling interval for keyboard event detection |
 | `ANALYSE_QUEUE_CAPACITY` | `5` | Buffer size for Phase 2 analyse queue (captures are queued when analyse is slower than capture) |
-| `LOG_LEVEL` | `info` | Minimum log level (`debug`, `info`, `warn`, `error`) |
+| `LOG_LEVEL` | `info` | Minimum log level (`debug`, `info`, `warn`, `error`). At `debug` level, end-to-end latency from hotkey trigger to display or broadcast is logged |
 | `VISION_LANG` | *(auto-detect)* | Vision language hint (BCP 47 code, e.g., `en-US`, `fr-FR`). Empty enables auto-detection |
 | `ANTHROPIC_MODEL` | `claude-sonnet-4-6` | Anthropic model ID to use for AI processing |
 | `ANTHROPIC_SYSTEM_PROMPT` | *(built-in)* | System prompt sent to Anthropic with each request |
@@ -132,7 +132,7 @@ All configuration is done through environment variables. Copy `.env.example` to 
 | `TELEPROMPTER_ADAPTIVE_COLOR` | `true` | Per-pixel adaptive text color: captures the background behind the overlay, inverts it, and uses the result as the text color so each pixel contrasts with whatever is beneath it. Sampling is event-gated (runs once on each text update, co-timed with the OCR hotkey) rather than periodic |
 | `TELEPROMPTER_FADE_DURATION` | `0.8` | Fade animation duration in seconds for show, hide, and text updates. Set to `0` to disable |
 
-Claude responds with a structured JSON tool call containing `short` (concise answer for the teleprompter) and `detailed` (answer + reason for Telegram).
+Claude responds with a structured JSON tool call containing `deterministic` (true when the answer is factually certain), `short` (concise answer for the teleprompter, shown only when `deterministic=true`), and `detailed` (answer + reason for Telegram).
 
 ### 🎛️ Hotkey Configuration
 
