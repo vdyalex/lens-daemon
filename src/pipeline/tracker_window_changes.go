@@ -1,74 +1,14 @@
-// Package pipeline trackers: hotkey-driven and polling-based event handlers for
-// capture bounds, visibility, opacity, and window-move/resize evasion.
 package pipeline
 
 import (
 	"context"
 	"image"
-	"log/slog"
 	"time"
 
 	"github.com/vdyalex/lens-daemon/src/bridges/appkit"
 	"github.com/vdyalex/lens-daemon/src/bridges/browser"
 	"github.com/vdyalex/lens-daemon/src/bridges/core_graphics"
 )
-
-// trackBounds receives updated capture rectangles from the hotkey listener
-// and stores them under boundsMu. Exits when the bounds channel is closed.
-func (p *Pipeline) trackBounds(bounds <-chan image.Rectangle) {
-	for rect := range bounds {
-		p.boundsMu.Lock()
-		p.captureBounds = &rect
-		p.boundsMu.Unlock()
-		p.logger.Info("capture bounds updated",
-			slog.Int("minX", rect.Min.X),
-			slog.Int("minY", rect.Min.Y),
-			slog.Int("maxX", rect.Max.X),
-			slog.Int("maxY", rect.Max.Y),
-		)
-	}
-}
-
-// trackVisibility receives toggle events from the hotkey listener and flips the
-// teleprompter visibility. When a grid-move animation is in progress, the toggle
-// updates gIntendedVisible (via Show/HideOverlay) so the move's completion handler
-// applies the correct final state without a visual conflict.
-// Exits when the channel is closed.
-func (p *Pipeline) trackVisibility(toggles <-chan struct{}) {
-	for range toggles {
-		p.visibleMu.Lock()
-		p.intendedVisible = !p.intendedVisible
-		intended := p.intendedVisible
-		p.visibleMu.Unlock()
-
-		// ShowOverlay/HideOverlay update gIntendedVisible and defer the visual change
-		// when gMoveInProgress is YES — the grid commit will handle fade-in/out.
-		if intended {
-			appkit.ShowOverlay()
-		} else {
-			appkit.HideOverlay()
-		}
-		p.logger.Debug("teleprompter visibility toggled", "visible", intended)
-	}
-}
-
-// trackOpacity receives direction events from +/- keys and adjusts the teleprompter
-// text opacity by 0.01 per step. direction: -1 = decrease (minus), +1 = increase (plus),
-// 0 = reset to configured default.
-// Exits when the channel is closed.
-func (p *Pipeline) trackOpacity(directions <-chan int) {
-	const step = 0.01
-	for direction := range directions {
-		if direction == 0 {
-			appkit.ResetTextOpacity()
-			p.logger.Debug("teleprompter text opacity reset to default")
-			continue
-		}
-		delta := step * float64(direction)
-		appkit.SetTextOpacity(delta)
-		p.logger.Debug("teleprompter text opacity adjusted", "delta", delta)
-	}
-}
 
 // trackWindowChanges polls the captured window's bounding rectangle at
 // WindowMonitorInterval. When the bounds change, it fades out the teleprompter.

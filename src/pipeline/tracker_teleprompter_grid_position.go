@@ -1,4 +1,3 @@
-// Package pipeline grid: percentage-based position tracker with debounce animation.
 package pipeline
 
 import (
@@ -8,7 +7,7 @@ import (
 	"github.com/vdyalex/lens-daemon/src/bridges/appkit"
 )
 
-// trackPosition receives 2-D direction events from the hotkey listener and
+// trackTeleprompterGridPosition receives 2-D direction events from the hotkey listener and
 // maintains the (gridCol, gridRow) position as percentages in [0.0, 1.0].
 // Each arrow press moves by p.settings.GridStep (5%). Values wrap circularly.
 //
@@ -22,7 +21,7 @@ import (
 // the next show-toggle reveals it at the correct spot.
 //
 // Exits when the directions channel is closed.
-func (p *Pipeline) trackPosition(directions <-chan [2]int) {
+func (p *Pipeline) trackTeleprompterGridPosition(directions <-chan [2]int) {
 	var (
 		mu            sync.Mutex
 		fading        bool

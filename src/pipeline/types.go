@@ -55,7 +55,7 @@ type Pipeline struct {
 	gridCol float64 // 0.0–1.0 horizontal position (5% steps), default 0.5
 	gridRow float64 // 0.0–1.0 vertical position (5% steps), default 0.5
 
-	// Visibility state shared between trackPosition and trackVisibility.
+	// Visibility state shared between trackTeleprompterGridPosition and trackToggles.
 	// intendedVisible is the user's desired visibility; movingForGrid is true while a
 	// debounce-animation sequence is in progress. Both protected by visibleMu.
 	visibleMu       sync.RWMutex

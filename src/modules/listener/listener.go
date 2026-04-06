@@ -11,6 +11,7 @@ extern void goRecordBounds(CGFloat minX, CGFloat minY, CGFloat maxX, CGFloat max
 extern void goTeleprompterToggle(void);
 extern void goPositionChangeXY(int dx, int dy);
 extern void goOpacityChange(int direction);
+extern void goFontSizeChange(int direction);
 
 // Global tap reference so the callback can re-enable it on timeout.
 static CFMachPortRef gTap = NULL;
@@ -113,6 +114,8 @@ static CGEventRef eventCallback(CGEventTapProxy proxy, CGEventType type,
         else if (key == 0x1B) goOpacityChange(-1);         // Minus: decrease opacity
         else if (key == 0x18) goOpacityChange(1);          // Plus:  increase opacity
         else if (key == 0x1D) goOpacityChange(0);          // Zero:  reset opacity
+        else if (key == 0x2B) goFontSizeChange(-1);        // Comma:  decrease font size
+        else if (key == 0x2F) goFontSizeChange(1);         // Period: increase font size
     }
 
     return event;
@@ -183,7 +186,7 @@ func goTeleprompterToggle() {
 	if current != nil {
 		// Non-blocking send so the run-loop is never stalled.
 		select {
-		case current.teleprompterCh <- struct{}{}:
+		case current.togglesCh <- struct{}{}:
 		default:
 		}
 	}
@@ -195,11 +198,11 @@ func goPositionChangeXY(dx, dy C.int) {
 		direction := [2]int{int(dx), int(dy)}
 		// Drain and replace: always keep the latest direction.
 		select {
-		case <-current.positionCh:
+		case <-current.teleprompterGridPositionCh:
 		default:
 		}
 		select {
-		case current.positionCh <- direction:
+		case current.teleprompterGridPositionCh <- direction:
 		default:
 		}
 	}
@@ -209,7 +212,17 @@ func goPositionChangeXY(dx, dy C.int) {
 func goOpacityChange(direction C.int) {
 	if current != nil {
 		select {
-		case current.opacityCh <- int(direction):
+		case current.teleprompterOverlayOpacityCh <- int(direction):
+		default:
+		}
+	}
+}
+
+//export goFontSizeChange
+func goFontSizeChange(direction C.int) {
+	if current != nil {
+		select {
+		case current.teleprompterTextFontSizeCh <- int(direction):
 		default:
 		}
 	}
@@ -218,11 +231,12 @@ func goOpacityChange(direction C.int) {
 // New creates a new listener instance.
 func New() *Listener {
 	return &Listener{
-		triggerCh:      make(chan struct{}, constants.ListenerTriggerChannelBuffer),
-		boundsCh:       make(chan image.Rectangle, 1),
-		teleprompterCh: make(chan struct{}, constants.ListenerTriggerChannelBuffer),
-		positionCh:     make(chan [2]int, 1),
-		opacityCh:      make(chan int, 1),
+		triggerCh:                    make(chan struct{}, constants.ListenerTriggerChannelBuffer),
+		boundsCh:                     make(chan image.Rectangle, 1),
+		togglesCh:                    make(chan struct{}, constants.ListenerTriggerChannelBuffer),
+		teleprompterGridPositionCh:   make(chan [2]int, 1),
+		teleprompterOverlayOpacityCh: make(chan int, 1),
+		teleprompterTextFontSizeCh:   make(chan int, 1),
 	}
 }
 
@@ -292,22 +306,26 @@ func (l *Listener) Listen(parentCtx context.Context, logger *slog.Logger, pollIn
 		for len(l.boundsCh) > 0 {
 			<-l.boundsCh
 		}
-		for len(l.teleprompterCh) > 0 {
-			<-l.teleprompterCh
+		for len(l.togglesCh) > 0 {
+			<-l.togglesCh
 		}
-		for len(l.positionCh) > 0 {
-			<-l.positionCh
+		for len(l.teleprompterGridPositionCh) > 0 {
+			<-l.teleprompterGridPositionCh
 		}
-		for len(l.opacityCh) > 0 {
-			<-l.opacityCh
+		for len(l.teleprompterOverlayOpacityCh) > 0 {
+			<-l.teleprompterOverlayOpacityCh
+		}
+		for len(l.teleprompterTextFontSizeCh) > 0 {
+			<-l.teleprompterTextFontSizeCh
 		}
 	}()
 
 	return &Channels{
-		Triggers:  l.triggerCh,
-		Bounds:    l.boundsCh,
-		Toggles:   l.teleprompterCh,
-		Positions: l.positionCh,
-		Opacities: l.opacityCh,
+		Triggers:                     l.triggerCh,
+		Bounds:                       l.boundsCh,
+		Toggles:                      l.togglesCh,
+		TeleprompterGridPositions:    l.teleprompterGridPositionCh,
+		TeleprompterOverlayOpacities: l.teleprompterOverlayOpacityCh,
+		TeleprompterTextFontSizes:    l.teleprompterTextFontSizeCh,
 	}, nil
 }

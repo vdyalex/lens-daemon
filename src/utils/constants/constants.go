@@ -245,6 +245,10 @@ const (
 	TeleprompterFontWeight = "ultralight"
 	// TeleprompterFontSize is the font size in points for the overlay text.
 	TeleprompterFontSize = 14.0
+	// TeleprompterFontSizeMin is the minimum allowed font size in points.
+	TeleprompterFontSizeMin = 5.0
+	// TeleprompterFontSizeMax is the maximum allowed font size in points.
+	TeleprompterFontSizeMax = 48.0
 	// TeleprompterOpacity is the text opacity (0.0–1.0) for the overlay.
 	TeleprompterOpacity = 0.05
 	// TeleprompterAlignment is the text alignment for the overlay.
