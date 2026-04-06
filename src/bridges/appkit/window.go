@@ -432,6 +432,22 @@ void resetOverlayOpacity(void) {
                              waitUntilDone:NO];
 }
 
+// Canvas bounds for browser content-area grid positioning.
+// Updated by setOverlayCanvasBounds; read by future grid positioning logic.
+static CGFloat gCanvasX      = 0.0;
+static CGFloat gCanvasY      = 0.0;
+static CGFloat gCanvasWidth  = 0.0;
+static CGFloat gCanvasHeight = 0.0;
+
+// setOverlayCanvasBounds stores the browser canvas rect for future grid positioning.
+// Pass (0,0,0,0) to clear when a non-browser window is focused.
+void setOverlayCanvasBounds(double x, double y, double width, double height) {
+    gCanvasX      = (CGFloat)x;
+    gCanvasY      = (CGFloat)y;
+    gCanvasWidth  = (CGFloat)width;
+    gCanvasHeight = (CGFloat)height;
+}
+
 */
 import "C"
 
@@ -530,4 +546,12 @@ func SetOverlayOpacity(delta float64) {
 // Safe to call from any goroutine; dispatched to the main thread internally.
 func ResetOverlayOpacity() {
 	C.resetOverlayOpacity()
+}
+
+// SetOverlayCanvasBounds stores the browser content-area rectangle for grid positioning.
+// x, y are top-left screen coordinates in logical pixels; w, h are the canvas dimensions.
+// Pass (0, 0, 0, 0) to clear when a non-browser window is focused.
+// Safe to call from any goroutine; C scalar writes only, no Obj-C dispatch required.
+func SetOverlayCanvasBounds(x, y, w, h float64) {
+	C.setOverlayCanvasBounds(C.double(x), C.double(y), C.double(w), C.double(h))
 }

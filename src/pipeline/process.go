@@ -9,6 +9,8 @@ import (
 	"log/slog"
 	"strings"
 
+	"github.com/vdyalex/lens-daemon/src/bridges/appkit"
+	"github.com/vdyalex/lens-daemon/src/bridges/browser"
 	"github.com/vdyalex/lens-daemon/src/modules/capturer"
 	"github.com/vdyalex/lens-daemon/src/utils/exceptions"
 )
@@ -34,6 +36,26 @@ func (p *Pipeline) fetchWindow(ctx context.Context) (*capturer.WindowInfo, error
 		slog.Int("x", window.X),
 		slog.Int("y", window.Y),
 	)
+
+	canvas := browser.CanvasBounds(window.Title, window.X, window.Y, window.Width, window.Height)
+	p.boundsMu.Lock()
+	p.canvasBounds = canvas
+	p.boundsMu.Unlock()
+	if canvas != nil {
+		p.logger.Debug("canvas bounds detected",
+			slog.Int("minX", canvas.Min.X),
+			slog.Int("minY", canvas.Min.Y),
+			slog.Int("maxX", canvas.Max.X),
+			slog.Int("maxY", canvas.Max.Y),
+		)
+		appkit.SetOverlayCanvasBounds(
+			float64(canvas.Min.X), float64(canvas.Min.Y),
+			float64(canvas.Dx()), float64(canvas.Dy()),
+		)
+	} else {
+		appkit.SetOverlayCanvasBounds(0, 0, 0, 0)
+	}
+
 	return window, nil
 }
 
@@ -41,6 +63,9 @@ func (p *Pipeline) fetchWindow(ctx context.Context) (*capturer.WindowInfo, error
 func (p *Pipeline) captureScreenshot(ctx context.Context, window *capturer.WindowInfo) (*image.RGBA, error) {
 	p.boundsMu.RLock()
 	bounds := p.captureBounds
+	if bounds == nil {
+		bounds = p.canvasBounds
+	}
 	p.boundsMu.RUnlock()
 
 	if bounds != nil {

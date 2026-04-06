@@ -34,7 +34,7 @@ Hotkey → Capture    ↓ (queue)    OCR → AI → Teleprompter + Telegram
 ```
 
 1. **Hotkey** — global keyboard listener via MacOS `CGEventTap`. Default: `RightShift` key. Customizable via `HOTKEY_TRIGGER_KEYNAME` environment variable
-2. **Capture** — grabs the entire active window via AppleScript and CoreGraphics (direct Objective-C bridge via `src/bridges/core_graphics`, no external libraries). Default: hold `RightOption` key to define custom bounds. Customizable via `HOTKEY_BOUNDS_KEYNAME`
+2. **Capture** — grabs the active window via AppleScript and CoreGraphics (direct Objective-C bridge via `src/bridges/core_graphics`, no external libraries). When the focused app is a recognised browser (Safari, Chrome, Firefox), the capture is automatically clipped to the page content area, excluding the browser toolbar. Hold `RightOption` to define explicit custom bounds (overrides automatic canvas detection). Customizable via `HOTKEY_BOUNDS_KEYNAME`
 3. **Queue** — captured images are enqueued for Phase 2 analysis (queue capacity: 5 by default, configurable via `ANALYSE_QUEUE_CAPACITY`)
 4. **OCR** — extracts text from the image using Apple Vision framework, entirely in-memory
 5. **AI** — sends extracted text to Claude with a configurable system prompt (max 1024 response tokens). The response is a JSON object with `short` and `detailed` fields

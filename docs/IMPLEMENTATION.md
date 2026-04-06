@@ -4,6 +4,7 @@
 
 - **Platform**: MacOS only. Uses MacOS-specific APIs (`CGEventTap`, `CFRunLoop`, `CoreGraphics`, `CoreFoundation`, `Vision framework`) via cgo and AppleScript via `osascript`.
 - **In-memory processing**: No screenshots, intermediate images, or temporary files are written to disk at any point in the pipeline.
+- **Browser content-area capture**: When the focused application is a recognised browser (Safari, Chrome, Firefox), `browser.CanvasBounds` derives the page content rectangle from the window geometry by subtracting the browser toolbar height. The pipeline stores this as `canvasBounds` and uses it as the capture region so the OCR input excludes the address bar and tab bar. Falls back to the full window for unrecognised apps.
 - **CLI and daemon operation**: Single binary with Cobra subcommands (daemon, start, stop, status, logs, restart). The `start` command daemonizes via process re-exec with `syscall.SysProcAttr{Setsid: true}`. Does not appear in Dock or Cmd-Tab (pure CLI process).
 - **Event-driven**: Idle until hotkey pressed or IPC command received. No polling, no timers, no periodic screen checks.
 - **Two-phase pipeline**: Each hotkey press triggers a capture (Phase 1) that enqueues results for concurrent analysis (Phase 2: OCR -> AI -> Teleprompter + Telegram). Multiple captures and analyses run concurrently; triggers are only dropped when the analyse queue is full.

@@ -55,11 +55,12 @@ This separation decouples fast Phase 1 captures from slow Phase 2 analysis, prev
 - **`src/bridges/vision`** -- Objective-C wrapper for Apple Vision framework OCR (`visionRecognizeText`)
 - **`src/bridges/core_graphics`** -- Objective-C wrappers for CoreGraphics screen capture and display queries (`captureScreenRect`, `getMainDisplayWidth`, `getMainDisplayHeight`)
 - **`src/bridges/appkit`** -- Objective-C wrappers for AppKit overlay window (NSWindow creation, text rendering, positioning) and NSApplication run loop management
+- **`src/bridges/browser`** -- Pure Go package that derives the browser content-area rectangle from window geometry, excluding the browser toolbar (address bar, tab bar). Supports Safari (74 px), Google Chrome (88 px), and Firefox (90 px). Returns nil for unrecognised apps so callers fall back to the full window
 
 **Pipeline Components** (`src/pipeline/`) orchestrate the workflow:
 
 - **`pipeline.go`** -- constructors and public interface (`New`, `NewWithDependencies`, `Status`, `Run`)
-- **`process.go`** -- implementation of the sequential process steps (fetch window, capture, extract, process with AI, display on teleprompter, broadcast to Telegram)
+- **`process.go`** -- implementation of the sequential process steps (fetch window, derive canvas bounds, capture, extract, process with AI, display on teleprompter, broadcast to Telegram)
 - **`run.go`** -- event loop and goroutine orchestration (`Run` method), including visibility toggle and position tracking
 
 ## Startup and Daemon Flow
@@ -104,7 +105,8 @@ flowchart TD
 
     subgraph Phase1[Phase 1: Capture - Sequential per trigger]
         X --> Y[ForegroundWindow<br/>AppleScript - window info<br/>5 s timeout]
-        Y --> Z[CaptureCenter<br/>Full window or custom bounds<br/>30 s timeout]
+        Y --> Y2[browser.CanvasBounds<br/>Derive content-area rect<br/>from app name + window geometry]
+        Y2 --> Z[CaptureCenter<br/>captureBounds or canvasBounds or full window<br/>30 s timeout]
     end
 
     Phase1 --> X2{Enqueue to<br/>analyseQueue}
@@ -135,6 +137,7 @@ sequenceDiagram
     actor User
     participant Listener
     participant Pipeline
+    participant Browser as browser.CanvasBounds
     participant Capturer
     participant Vision
     participant Claude as Claude API
@@ -151,7 +154,15 @@ sequenceDiagram
         Capturer->>Capturer: AppleScript / System Events
         Capturer-->>Pipeline: WindowInfo
 
+        Pipeline->>Browser: CanvasBounds(appName, x, y, w, h)
+        alt recognised browser
+            Browser-->>Pipeline: content-area rect (toolbar excluded)
+        else unrecognised app
+            Browser-->>Pipeline: nil
+        end
+
         Pipeline->>Capturer: CaptureCenter
+        Note over Pipeline,Capturer: bounds priority: captureBounds > canvasBounds > full window
         Capturer->>Capturer: CoreGraphics screenshot
         Capturer-->>Pipeline: image RGBA
 
@@ -219,12 +230,11 @@ The Telegram poller runs in the background, long-polling for updates with a 30-s
 
 ## Custom Capture Bounds
 
-By default, the daemon captures the entire active window. You can override this with custom screen-coordinate bounds:
+Each capture uses the first bounds available in this priority order:
 
-1. **Hold the configured bounds hotkey** (default: `RightOption`, customizable via `HOTKEY_BOUNDS_KEYNAME`) and move your mouse to define a rectangular region
-2. The daemon tracks the minimum and maximum coordinates of your mouse movement while the key is held
-3. **Release the bounds hotkey** to lock in the bounds — bounds are only recorded if the mouse actually moved (arrow-only presses are ignored)
-4. All subsequent captures will use the custom bounds instead of capturing the full window
+1. **Custom bounds** (highest priority) — set by holding the bounds hotkey (default: `RightOption`) and moving the mouse to define a rectangular region. The daemon tracks minimum and maximum mouse coordinates while the key is held; bounds are locked on release (ignored if the mouse did not move).
+2. **Canvas bounds** — when the focused application is a recognised browser (Safari, Chrome, Firefox), the daemon derives the content-area rectangle from the window geometry by subtracting the browser toolbar height (Safari: 74 px, Chrome: 88 px, Firefox: 90 px). This clips the capture to the page content, excluding the address bar and tab bar. Updated automatically on every hotkey press via `browser.CanvasBounds`.
+3. **Full window** (fallback) — when neither custom bounds are set nor a browser is recognised, the entire active window is captured.
 
 While the bounds key is held, **arrow keys** reposition the teleprompter overlay: Left/Right rotate through left-center-right alignment. **Minus/plus keys** adjust the text opacity by ±0.025 per step (clamped to 0.0–1.0).
 

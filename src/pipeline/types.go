@@ -41,6 +41,7 @@ type Pipeline struct {
 	teleprompter    teleprompter.Service
 	boundsMu        sync.RWMutex
 	captureBounds   *image.Rectangle
+	canvasBounds    *image.Rectangle // content area excluding browser chrome; nil for non-browsers
 	startTime       time.Time
 	lastCaptureMu   sync.RWMutex
 	lastCaptureTime time.Time
