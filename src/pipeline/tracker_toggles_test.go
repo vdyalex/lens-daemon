@@ -9,6 +9,7 @@ func TestTrackToggles_flipsVisibility(t *testing.T) {
 	toggles := make(chan struct{}, 3)
 	done := make(chan struct{})
 	pipeline := &Pipeline{logger: slog.Default(), intendedVisible: false}
+	pipeline.outputMethod.Store("teleprompter")
 
 	go func() {
 		pipeline.trackToggles(toggles)
@@ -36,6 +37,7 @@ func TestTrackToggles_startsVisible(t *testing.T) {
 	toggles := make(chan struct{}, 1)
 	done := make(chan struct{})
 	pipeline := &Pipeline{logger: slog.Default(), intendedVisible: true}
+	pipeline.outputMethod.Store("teleprompter")
 
 	go func() {
 		pipeline.trackToggles(toggles)

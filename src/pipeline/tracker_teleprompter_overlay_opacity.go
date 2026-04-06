@@ -9,6 +9,9 @@ import "github.com/vdyalex/lens-daemon/src/bridges/appkit"
 func (p *Pipeline) trackTeleprompterOverlayOpacity(directions <-chan int) {
 	const step = 0.01
 	for direction := range directions {
+		if !p.isTeleprompterActive() {
+			continue
+		}
 		if direction == 0 {
 			appkit.ResetTextOpacity()
 			p.logger.Debug("teleprompter text opacity reset to default")

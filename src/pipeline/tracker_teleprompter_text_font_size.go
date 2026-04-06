@@ -9,6 +9,9 @@ import "github.com/vdyalex/lens-daemon/src/bridges/appkit"
 func (p *Pipeline) trackTeleprompterTextFontSize(directions <-chan int) {
 	const step = 0.5
 	for direction := range directions {
+		if !p.isTeleprompterActive() {
+			continue
+		}
 		delta := step * float64(direction)
 		size := appkit.SetFontSize(delta)
 		p.logger.Debug("teleprompter font size adjusted", "size", size)

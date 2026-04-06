@@ -33,6 +33,7 @@ func init() {
 	rootCmd.AddCommand(statusCmd)
 	rootCmd.AddCommand(logsCmd)
 	rootCmd.AddCommand(restartCmd)
+	rootCmd.AddCommand(setCmd)
 
 	// Define flags for daemon, start, restart
 	for _, cmd := range []*cobra.Command{daemonCmd, startCmd, restartCmd} {
@@ -42,6 +43,7 @@ func init() {
 		cmd.Flags().StringVar(&flags.LogLevel, "log-level", "", "Log level: debug/info/warn/error (env: LOG_LEVEL)")
 		cmd.Flags().StringVar(&flags.APIKey, "api-key", "", "Anthropic API key (env: ANTHROPIC_API_KEY)")
 		cmd.Flags().StringVar(&flags.BotToken, "bot-token", "", "Telegram bot token (env: TELEGRAM_BOT_TOKEN)")
-		cmd.Flags().StringVar(&flags.StorePath, "store-path", "", "Subscriber store file path (env: SUBSCRIBER_STORE_PATH)")
+		cmd.Flags().StringVar(&flags.StorePath, "store-path", "", "Telegram subscriber store file path (env: TELEGRAM_SUBSCRIBER_STORE_PATH)")
+		cmd.Flags().StringVar(&flags.OutputMethod, "output-method", "", "Output method: telegram or teleprompter (env: OUTPUT_METHOD)")
 	}
 }

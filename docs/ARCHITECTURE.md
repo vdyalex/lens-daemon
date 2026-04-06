@@ -9,9 +9,10 @@ The application uses a **single binary, multiple subcommands** architecture:
 - **`daemon`** -- runs the full pipeline with IPC server (called by `start` command)
 - **`start`** -- daemonizes the process by re-execing `<binary> daemon` in a new session (uses `syscall.SysProcAttr{Setsid: true}`)
 - **`stop`** -- sends SIGTERM to the daemon via PID file
-- **`status`** -- queries daemon status (PID, uptime, subscriber count, last window) via IPC, one-shot output
+- **`status`** -- queries daemon status (PID, uptime, subscriber count, output method, last window) via IPC, one-shot output
 - **`logs`** -- subscribes to IPC log stream and streams colorized log output to stdout
 - **`restart`** -- stops and starts the daemon with config flags
+- **`set`** -- updates a runtime setting on the running daemon (e.g., `output-method`)
 
 **Daemon Lifecycle** (`src/daemon/`) handles process management:
 
@@ -24,14 +25,14 @@ The application uses a **single binary, multiple subcommands** architecture:
 - **Unix domain socket** at `$TMPDIR/<binary>-<uid>.sock` with `0600` permissions
 - **Length-prefixed JSON** wire format (4-byte big-endian length + UTF-8 JSON body)
 - **Log broker** -- fan-out io.Writer that distributes slog text lines to subscribed IPC clients
-- **Handler** -- dispatches IPC commands: `status`, `shutdown`, `log.subscribe`
+- **Handler** -- dispatches IPC commands: `status`, `shutdown`, `log.subscribe`, `set` (runtime output method switching)
 
 ## Pipeline Design
 
 The pipeline orchestrates the full workflow with a **two-phase design**:
 
 - **Phase 1 (Capture)**: One goroutine per hotkey trigger; captures complete independently and in parallel
-- **Phase 2 (Analyse)**: Results queue up and are processed concurrently (one goroutine per queued result) for OCR-AI-Teleprompter-Telegram
+- **Phase 2 (Analyse)**: Results queue up and are processed concurrently (one goroutine per queued result) for OCR → AI → output routing (teleprompter or Telegram, based on `OUTPUT_METHOD`)
 
 This separation decouples fast Phase 1 captures from slow Phase 2 analysis, preventing missed captures when the pipeline is busy.
 
@@ -45,7 +46,7 @@ This separation decouples fast Phase 1 captures from slow Phase 2 analysis, prev
 **Adapters** integrate with external services:
 
 - **AI** -- Claude AI client using the official Anthropic Go SDK with structured tool calls returning `short` and `detailed` response branches. System prompt and tool definition use ephemeral prompt caching (configurable TTL via `ANTHROPIC_CACHE_TTL`, default 1h) to reduce cost and latency on repeated calls (package `ai`)
-- **IM** -- Telegram Bot API sender with message chunking and MarkdownV2 formatting (package `im`). Optional: when `TELEGRAM_BOT_TOKEN` is absent, a `NoopBroadcaster` and `NoopPoller` are used instead
+- **IM** -- Telegram Bot API sender with message chunking and MarkdownV2 formatting (package `im`). When `TELEGRAM_BOT_TOKEN` is absent, a `NoopBroadcaster` and `NoopPoller` are used. Output is routed to Telegram only when `OUTPUT_METHOD=telegram`
   - **Poller** -- Telegram long-polling for subscriber management (`/start`, `/stop` commands) (package `im/poller`)
   - **Store** -- plain-text file-backed persistence for subscriber chat IDs (package `im/store`)
 - **OCR** -- Apple Vision framework adapter wrapping `src/bridges/vision` (package `ocr`)
@@ -60,7 +61,8 @@ This separation decouples fast Phase 1 captures from slow Phase 2 analysis, prev
 **Pipeline Components** (`src/pipeline/`) orchestrate the workflow:
 
 - **`pipeline.go`** -- constructors and public interface (`New`, `NewWithDependencies`, `Status`, `Run`)
-- **`process.go`** -- implementation of the sequential process steps (fetch window, derive canvas bounds, capture with overlay hide/restore, crop to canvas in Go, extract, process with AI, display on teleprompter, broadcast to Telegram)
+- **`process.go`** -- implementation of the sequential process steps (fetch window, derive canvas bounds, capture with overlay hide/restore, crop to canvas in Go, extract, process with AI, route output to teleprompter or Telegram based on `OUTPUT_METHOD`)
+- **`toggle.go`** -- runtime output method switching (`SetOutputMethod`, `OutputMethod`, `isTeleprompterActive`); hides/shows overlay on switch
 - **`run.go`** -- event loop and goroutine orchestration (`Run` method)
 - **`tracker_bounds.go`** -- capture bounds tracker (hotkey-driven rectangle updates)
 - **`tracker_toggles.go`** -- teleprompter visibility toggle tracker
@@ -107,7 +109,7 @@ flowchart TD
         R --> V{Wait for<br/>trigger hotkey or<br/>IPC commands}
     end
 
-    V -->|status/logs request| W[ipc.Handler<br/>Query pipeline or stream logs]
+    V -->|status/logs/set request| W[ipc.Handler<br/>Query pipeline, stream logs,<br/>or switch output method]
     V -->|hotkey pressed| X([Phase 1: Capture<br/>5 min overall timeout])
 
     subgraph Phase1[Phase 1: Capture - Sequential per trigger]
@@ -122,10 +124,13 @@ flowchart TD
     subgraph Phase2[Phase 2: Analyse - Concurrent per result]
         X3 --> AA[extractor.Extract<br/>RGBA - PNG - Vision API - text<br/>30 s timeout]
         AA --> AB[agent.Process<br/>Text - Claude API - response<br/>60 s timeout]
-        AB --> AC[messenger.Broadcast<br/>Response - all Telegram subscribers<br/>30 s timeout]
+        AB --> AC{OUTPUT_METHOD?}
+        AC -->|teleprompter| AD[teleprompter.Display<br/>Short answer on overlay]
+        AC -->|telegram| AE[messenger.Broadcast<br/>Detailed answer to subscribers<br/>30 s timeout]
     end
 
-    AC --> V
+    AD --> V
+    AE --> V
     W --> V
 ```
 
@@ -186,10 +191,13 @@ sequenceDiagram
             alt empty response
                 Pipeline->>Pipeline: skip
             else
+                alt OUTPUT_METHOD = teleprompter
                 Pipeline->>Teleprompter: Display short answer
+            else OUTPUT_METHOD = telegram
                 Pipeline->>Telegram: Broadcast detailed answer
                 Note over Pipeline,Telegram: split if larger than 4096 chars
                 Telegram-->>User: message chunks
+            end
             end
         end
     end
@@ -226,14 +234,14 @@ sequenceDiagram
 
 ## Subscriber Management
 
-Telegram integration is optional. When `TELEGRAM_BOT_TOKEN` is not set, the daemon runs in teleprompter-only mode using noop implementations for the broadcaster and poller. When enabled, the daemon supports multiple Telegram subscribers through a dynamic subscription system:
+Telegram integration is optional. When `TELEGRAM_BOT_TOKEN` is not set, noop implementations are used for the broadcaster and poller. The `OUTPUT_METHOD` setting (default: `teleprompter`) controls which adapter receives AI responses; it can be switched at runtime via `lensd set output-method <telegram|teleprompter>`. When Telegram is configured, the daemon supports multiple subscribers through a dynamic subscription system:
 
 - Users send `/start` to the Telegram bot to subscribe and receive responses
 - Users send `/stop` to unsubscribe
-- The subscriber list is persisted to a plain-text file (default: `tmp/subscribers`), with one chat ID per line, and survives daemon restarts
+- The subscriber list is persisted to a plain-text file (default: `tmp/subscribers`, configurable via `TELEGRAM_SUBSCRIBER_STORE_PATH`), with one chat ID per line, and survives daemon restarts
 - All responses are broadcast to every active subscriber
 
-The Telegram poller runs in the background, long-polling for updates with a 30-second timeout and 5-second retry backoff on errors.
+The Telegram poller goroutine runs at startup but only actively polls when `OUTPUT_METHOD=telegram`. When telegram is not the active output method, the poller idles and subscriber commands (`/start`, `/stop`) are ignored. It resumes polling automatically when the output method switches back to telegram.
 
 ## Custom Capture Bounds
 
@@ -245,7 +253,7 @@ Each capture uses the first bounds available in this priority order:
 
 The overlay is hidden synchronously (`orderOut`) before each screen capture and restored after, ensuring the teleprompter does not appear in the captured image.
 
-While the bounds key is held, **arrow keys** navigate the teleprompter on a percentage-based grid (configurable step via `GRID_STEP`, default 1%). **Minus/plus keys** adjust the text opacity by ±0.01 per step (clamped to 0.0–1.0). **0** resets opacity to the configured default. **Comma/period keys** adjust the font size by ±0.5pt per step (clamped to 5–48pt).
+While the bounds key is held, **arrow keys** navigate the teleprompter on a percentage-based grid (configurable step via `TELEPROMPTER_GRID_STEP`, default 1%). **Minus/plus keys** adjust the text opacity by ±0.01 per step (clamped to 0.0–1.0). **0** resets opacity to the configured default. **Comma/period keys** adjust the font size by ±0.5pt per step (clamped to 5–48pt).
 
 For fullscreen windows (width and height >= screen dimensions), the daemon captures the entire display.
 
@@ -259,9 +267,9 @@ The teleprompter is a stealth macOS overlay window positioned within the capture
 - **Configurable appearance** — font family, weight, size, opacity, alignment, adaptive color, and fade duration via environment variables
 - **Adaptive text color** — when enabled (`TELEPROMPTER_ADAPTIVE_COLOR=true`), the overlay captures the background behind the text strip on each text update, inverts every pixel via `kCGBlendModeDifference`, and uses the result as the text color pattern so each glyph pixel contrasts with whatever is beneath it. Sampling is event-gated (on `Display(text)` calls, which co-time with the OCR hotkey) rather than periodic
 - **Fade animations** — show, hide, and text updates cross-fade with configurable duration (`TELEPROMPTER_FADE_DURATION`). Animation cancellation uses a generation counter to avoid stale completions
-- **Percentage-based grid positioning** — hold bounds key + arrow keys to move the teleprompter by `GRID_STEP` (default 1%) per press. Position wraps circularly. Initial position configurable via `GRID_INITIAL_COL`/`GRID_INITIAL_ROW`. Rapid presses debounce: first press fades out, subsequent presses extend the timer, timer fires repositions and fades in
+- **Percentage-based grid positioning** — hold bounds key + arrow keys to move the teleprompter by `TELEPROMPTER_GRID_STEP` (default 1%) per press. Position wraps circularly. Initial position configurable via `TELEPROMPTER_GRID_INITIAL_COL`/`TELEPROMPTER_GRID_INITIAL_ROW`. Rapid presses debounce: first press fades out, subsequent presses extend the timer, timer fires repositions and fades in
 - **Dynamic text alignment** — `TELEPROMPTER_ALIGNMENT=dynamic` (default) adapts alignment based on grid column: left-aligned at left edge, right-aligned at right edge, centered elsewhere. Also accepts `left`, `center`, `right` for fixed alignment
-- **Window evasion** — polls the captured window's bounds via `CGWindowListCopyWindowInfo` (metadata only, no screen-capture indicator) at `WINDOW_MONITOR_INTERVAL` (default 200ms). When the window moves or resizes, the teleprompter fades out. After the window stabilises for `WINDOW_STABILIZE_DELAY` (default 500ms), the teleprompter recalculates canvas bounds, repositions at the current grid spot, and fades back in. Tracks by PID so switching to a different app does not affect the teleprompter
+- **Window evasion** — polls the captured window's bounds via `CGWindowListCopyWindowInfo` (metadata only, no screen-capture indicator) at `TELEPROMPTER_WINDOW_MONITOR_INTERVAL` (default 200ms). When the window moves or resizes, the teleprompter fades out. After the window stabilises for `TELEPROMPTER_WINDOW_STABILIZE_DELAY` (default 500ms), the teleprompter recalculates canvas bounds, repositions at the current grid spot, and fades back in. Tracks by PID so switching to a different app does not affect the teleprompter
 - **Opacity model** — text opacity (`gTextOpacity`, controlled by hotkey +/−) and overlay visibility (`gOverlayInterpolation`, controlled by animations) are independent. Text opacity is baked into the text color alpha / adaptive color pattern. Window alpha is driven by the interpolation (0→1 for fade-in, 1→0 for fade-out)
 - **Runtime opacity adjustment** — hold bounds key + minus/plus keys to decrease/increase text opacity by 0.01 per step. Press 0 to reset to the configured default
 - **Runtime font size adjustment** — hold bounds key + comma/period keys to decrease/increase font size by 0.5pt per step (clamped to 5–48pt)

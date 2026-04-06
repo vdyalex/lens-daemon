@@ -114,57 +114,57 @@ func Load() (*Config, error) {
 	ldr := &loader{logger: logger}
 
 	cfg := &Config{
-		LogLevel:                   ldr.getLogLevel("LOG_LEVEL", slog.LevelInfo),
-		VisionLanguage:             ldr.getStr("VISION_LANG", ""),
-		VisionAccuracy:             ldr.getStr("VISION_ACCURACY", constants.VisionAccuracy),
-		AnthropicAPIKey:            ldr.getStr("ANTHROPIC_API_KEY", ""),
-		AnthropicModel:             ldr.getStr("ANTHROPIC_MODEL", constants.AnthropicModel),
-		AnthropicSystemPrompt:      ldr.getStr("ANTHROPIC_SYSTEM_PROMPT", constants.AnthropicSystemPrompt),
-		AnthropicMaxResponseTokens: ldr.getInt("ANTHROPIC_MAX_RESPONSE_TOKENS", constants.AnthropicMaxResponseTokens),
-		AnthropicCacheTTL:          ldr.getStr("ANTHROPIC_CACHE_TTL", constants.AnthropicCacheTTL),
-		TelegramBotToken:           ldr.getStr("TELEGRAM_BOT_TOKEN", ""),
-		StorePath:                  ldr.getStr("SUBSCRIBER_STORE_PATH", constants.StorePath),
-		TelegramMessageChunkSize:   ldr.getInt("TELEGRAM_MESSAGE_CHUNK_SIZE", constants.TelegramMessageChunkSize),
-		TelegramMaxRetries:         ldr.getInt("TELEGRAM_MAX_RETRIES", constants.TelegramMaxRetries),
-		TelegramLongPollTimeout:    ldr.getDuration("TELEGRAM_LONG_POLL_TIMEOUT", constants.TimeoutTelegramLongPoll),
-		TelegramPollerTimeout:      ldr.getDuration("TELEGRAM_POLLER_TIMEOUT", constants.TimeoutTelegramPoller),
-		TelegramHTTPClientTimeout:  ldr.getDuration("TELEGRAM_HTTP_CLIENT_TIMEOUT", constants.TimeoutTelegramHTTPClient),
-		TimeoutPipelineOverall:     ldr.getDuration("TIMEOUT_PIPELINE_OVERALL", constants.TimeoutPipelineOverall),
-		TimeoutForegroundWindow:    ldr.getDuration("TIMEOUT_FOREGROUND_WINDOW", constants.TimeoutForegroundWindow),
-		TimeoutCapture:             ldr.getDuration("TIMEOUT_CAPTURE", constants.TimeoutCapture),
-		TimeoutOCRExtract:          ldr.getDuration("TIMEOUT_OCR_EXTRACT", constants.TimeoutOCRExtract),
-		TimeoutAIProcess:           ldr.getDuration("TIMEOUT_AI_PROCESS", constants.TimeoutAIProcess),
-		TelegramBroadcastTimeout:   ldr.getDuration("TELEGRAM_BROADCAST_TIMEOUT", constants.TelegramBroadcastTimeout),
-		TimeoutCapturePhase:        ldr.getDuration("TIMEOUT_CAPTURE_PHASE", constants.TimeoutCapturePhase),
-		TimeoutAnalysePhase:        ldr.getDuration("TIMEOUT_ANALYSE_PHASE", constants.TimeoutAnalysePhase),
-		EventTapPollInterval:       ldr.getDuration("EVENT_TAP_POLL_INTERVAL", constants.EventTapPollInterval),
-		AnalyseQueueCapacity:       ldr.getInt("ANALYSE_QUEUE_CAPACITY", constants.AnalyseQueueCapacity),
-		TeleprompterFontFamily:     ldr.getStr("TELEPROMPTER_FONT_FAMILY", ""),
-		TeleprompterFontWeight:     ldr.getStr("TELEPROMPTER_FONT_WEIGHT", constants.TeleprompterFontWeight),
-		TeleprompterFontSize:       ldr.getFloat("TELEPROMPTER_FONT_SIZE", constants.TeleprompterFontSize),
-		TeleprompterOpacity:        ldr.getFloat("TELEPROMPTER_OPACITY", constants.TeleprompterOpacity),
-		TeleprompterVisible:        ldr.getBool("TELEPROMPTER_VISIBLE", false),
-		TeleprompterAlignment:      ldr.getStr("TELEPROMPTER_ALIGNMENT", constants.TeleprompterAlignment),
-		TeleprompterAdaptiveColor:  ldr.getBool("TELEPROMPTER_ADAPTIVE_COLOR", constants.TeleprompterAdaptiveColor),
-		TeleprompterFadeDuration:   ldr.getFloat("TELEPROMPTER_FADE_DURATION", constants.TeleprompterFadeDuration),
-		GridMoveDebounceDuration:   ldr.getDuration("GRID_MOVE_DEBOUNCE_DURATION", constants.GridMoveDebounceDuration),
-		GridStep:                   ldr.getFloat("GRID_STEP", constants.GridStep),
-		GridInitialCol:             ldr.getFloat("GRID_INITIAL_COL", constants.GridInitialCol),
-		GridInitialRow:             ldr.getFloat("GRID_INITIAL_ROW", constants.GridInitialRow),
-		WindowMonitorInterval:      ldr.getDuration("WINDOW_MONITOR_INTERVAL", constants.WindowMonitorInterval),
-		WindowStabilizeDelay:       ldr.getDuration("WINDOW_STABILIZE_DELAY", constants.WindowStabilizeDelay),
+		LogLevel:                             ldr.getLogLevel("LOG_LEVEL", slog.LevelInfo),
+		VisionLanguage:                       ldr.getStr("VISION_LANG", ""),
+		VisionAccuracy:                       ldr.getStr("VISION_ACCURACY", constants.VisionAccuracy),
+		AnthropicAPIKey:                      ldr.getStr("ANTHROPIC_API_KEY", ""),
+		AnthropicModel:                       ldr.getStr("ANTHROPIC_MODEL", constants.AnthropicModel),
+		AnthropicSystemPrompt:                ldr.getStr("ANTHROPIC_SYSTEM_PROMPT", constants.AnthropicSystemPrompt),
+		AnthropicMaxResponseTokens:           ldr.getInt("ANTHROPIC_MAX_RESPONSE_TOKENS", constants.AnthropicMaxResponseTokens),
+		AnthropicCacheTTL:                    ldr.getStr("ANTHROPIC_CACHE_TTL", constants.AnthropicCacheTTL),
+		TelegramBotToken:                     ldr.getStr("TELEGRAM_BOT_TOKEN", ""),
+		TelegramSubscriberStorePath:          ldr.getStr("TELEGRAM_SUBSCRIBER_STORE_PATH", constants.TelegramSubscriberStorePath),
+		TelegramMessageChunkSize:             ldr.getInt("TELEGRAM_MESSAGE_CHUNK_SIZE", constants.TelegramMessageChunkSize),
+		TelegramMaxRetries:                   ldr.getInt("TELEGRAM_MAX_RETRIES", constants.TelegramMaxRetries),
+		TelegramLongPollTimeout:              ldr.getDuration("TELEGRAM_LONG_POLL_TIMEOUT", constants.TimeoutTelegramLongPoll),
+		TelegramPollerTimeout:                ldr.getDuration("TELEGRAM_POLLER_TIMEOUT", constants.TimeoutTelegramPoller),
+		TelegramHTTPClientTimeout:            ldr.getDuration("TELEGRAM_HTTP_CLIENT_TIMEOUT", constants.TimeoutTelegramHTTPClient),
+		TimeoutPipelineOverall:               ldr.getDuration("TIMEOUT_PIPELINE_OVERALL", constants.TimeoutPipelineOverall),
+		TimeoutForegroundWindow:              ldr.getDuration("TIMEOUT_FOREGROUND_WINDOW", constants.TimeoutForegroundWindow),
+		TimeoutCapture:                       ldr.getDuration("TIMEOUT_CAPTURE", constants.TimeoutCapture),
+		TimeoutOCRExtract:                    ldr.getDuration("TIMEOUT_OCR_EXTRACT", constants.TimeoutOCRExtract),
+		TimeoutAIProcess:                     ldr.getDuration("TIMEOUT_AI_PROCESS", constants.TimeoutAIProcess),
+		TelegramBroadcastTimeout:             ldr.getDuration("TELEGRAM_BROADCAST_TIMEOUT", constants.TelegramBroadcastTimeout),
+		TimeoutCapturePhase:                  ldr.getDuration("TIMEOUT_CAPTURE_PHASE", constants.TimeoutCapturePhase),
+		TimeoutAnalysePhase:                  ldr.getDuration("TIMEOUT_ANALYSE_PHASE", constants.TimeoutAnalysePhase),
+		EventTapPollInterval:                 ldr.getDuration("EVENT_TAP_POLL_INTERVAL", constants.EventTapPollInterval),
+		AnalyseQueueCapacity:                 ldr.getInt("ANALYSE_QUEUE_CAPACITY", constants.AnalyseQueueCapacity),
+		TeleprompterFontFamily:               ldr.getStr("TELEPROMPTER_FONT_FAMILY", ""),
+		TeleprompterFontWeight:               ldr.getStr("TELEPROMPTER_FONT_WEIGHT", constants.TeleprompterFontWeight),
+		TeleprompterFontSize:                 ldr.getFloat("TELEPROMPTER_FONT_SIZE", constants.TeleprompterFontSize),
+		TeleprompterOpacity:                  ldr.getFloat("TELEPROMPTER_OPACITY", constants.TeleprompterOpacity),
+		TeleprompterVisible:                  ldr.getBool("TELEPROMPTER_VISIBLE", false),
+		TeleprompterAlignment:                ldr.getStr("TELEPROMPTER_ALIGNMENT", constants.TeleprompterAlignment),
+		TeleprompterAdaptiveColor:            ldr.getBool("TELEPROMPTER_ADAPTIVE_COLOR", constants.TeleprompterAdaptiveColor),
+		TeleprompterFadeDuration:             ldr.getFloat("TELEPROMPTER_FADE_DURATION", constants.TeleprompterFadeDuration),
+		TeleprompterGridMoveDebounceDuration: ldr.getDuration("TELEPROMPTER_GRID_MOVE_DEBOUNCE_DURATION", constants.TeleprompterGridMoveDebounceDuration),
+		TeleprompterGridStep:                 ldr.getFloat("TELEPROMPTER_GRID_STEP", constants.TeleprompterGridStep),
+		TeleprompterGridInitialCol:           ldr.getFloat("TELEPROMPTER_GRID_INITIAL_COL", constants.TeleprompterGridInitialCol),
+		TeleprompterGridInitialRow:           ldr.getFloat("TELEPROMPTER_GRID_INITIAL_ROW", constants.TeleprompterGridInitialRow),
+		TeleprompterWindowMonitorInterval:    ldr.getDuration("TELEPROMPTER_WINDOW_MONITOR_INTERVAL", constants.TeleprompterWindowMonitorInterval),
+		TeleprompterWindowStabilizeDelay:     ldr.getDuration("TELEPROMPTER_WINDOW_STABILIZE_DELAY", constants.TeleprompterWindowStabilizeDelay),
 	}
 
 	if cfg.AnthropicAPIKey == "" {
 		return nil, exceptions.ErrConfigMissingAPIKey
 	}
 
-	cfg.TelegramEnabled = cfg.TelegramBotToken != ""
+	cfg.OutputMethod = ldr.getStr("OUTPUT_METHOD", constants.OutputMethod)
 
 	// Load and validate hotkey names
 	triggerKeyName := ldr.getStr("HOTKEY_TRIGGER_KEYNAME", constants.HotkeyTriggerKeyName)
 	boundsKeyName := ldr.getStr("HOTKEY_BOUNDS_KEYNAME", constants.HotkeyBoundsKeyName)
-	teleprompterKeyName := ldr.getStr("HOTKEY_TOGGLE_KEYNAME", constants.HotkeyToggleKeyName)
+	toggleKeyName := ldr.getStr("HOTKEY_TOGGLE_KEYNAME", constants.HotkeyToggleKeyName)
 
 	triggerKeycode, ok := constants.HotkeyKeycodes[triggerKeyName]
 	if !ok {
@@ -174,14 +174,14 @@ func Load() (*Config, error) {
 	if !ok {
 		return nil, exceptions.ErrConfigInvalidHotkey
 	}
-	teleprompterKeycode, ok := constants.HotkeyKeycodes[teleprompterKeyName]
+	toggleKeycode, ok := constants.HotkeyKeycodes[toggleKeyName]
 	if !ok {
 		return nil, exceptions.ErrConfigInvalidHotkey
 	}
 
 	cfg.HotkeyTriggerKeycode = triggerKeycode
 	cfg.HotkeyBoundsKeycode = boundsKeycode
-	cfg.HotkeyToggleKeycode = teleprompterKeycode
+	cfg.HotkeyToggleKeycode = toggleKeycode
 
 	return cfg, nil
 }

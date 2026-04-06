@@ -47,7 +47,9 @@ func (p *Pipeline) Run(ctx context.Context) error {
 	go p.trackWindowChanges(ctx)
 
 	// Sync the C-side grid position with the configured initial values.
-	appkit.CommitMoveToGridSpot(p.settings.GridInitialCol, p.settings.GridInitialRow)
+	if p.isTeleprompterActive() {
+		appkit.CommitMoveToGridSpot(p.settings.TeleprompterGridInitialCol, p.settings.TeleprompterGridInitialRow)
+	}
 
 	p.logger.Info("pipeline ready — set bounds and press capture key")
 
@@ -68,7 +70,9 @@ func (p *Pipeline) Run(ctx context.Context) error {
 			}
 			return ctx.Err()
 		case <-channels.Triggers:
-			p.teleprompter.Display("")
+			if p.isTeleprompterActive() {
+				p.teleprompter.Display("")
+			}
 			captureGroup.Add(1)
 			go func() {
 				defer captureGroup.Done()

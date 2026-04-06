@@ -58,21 +58,20 @@ func TestLoad_missingAPIKey(t *testing.T) {
 	}
 }
 
-func TestLoad_missingBotToken_telegramDisabled(t *testing.T) {
+func TestLoad_missingBotToken(t *testing.T) {
 	t.Setenv("ANTHROPIC_API_KEY", "test-key")
-	// Do NOT set TELEGRAM_BOT_TOKEN
 
 	configuration, err := config.Load()
 
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	if configuration.TelegramEnabled {
-		t.Errorf("expected TelegramEnabled to be false when bot token is absent")
+	if configuration.TelegramBotToken != "" {
+		t.Errorf("expected empty TelegramBotToken when not set, got %q", configuration.TelegramBotToken)
 	}
 }
 
-func TestLoad_botTokenPresent_telegramEnabled(t *testing.T) {
+func TestLoad_botTokenPresent(t *testing.T) {
 	t.Setenv("ANTHROPIC_API_KEY", "test-key")
 	t.Setenv("TELEGRAM_BOT_TOKEN", "test-token")
 
@@ -81,8 +80,8 @@ func TestLoad_botTokenPresent_telegramEnabled(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	if !configuration.TelegramEnabled {
-		t.Errorf("expected TelegramEnabled to be true when bot token is set")
+	if configuration.TelegramBotToken != "test-token" {
+		t.Errorf("expected TelegramBotToken 'test-token', got %q", configuration.TelegramBotToken)
 	}
 }
 
@@ -281,18 +280,18 @@ func TestLoad_ocrAccuracyFast(t *testing.T) {
 	}
 }
 
-func TestLoad_subscriberStorePath(t *testing.T) {
+func TestLoad_telegramSubscriberStorePath(t *testing.T) {
 	t.Setenv("ANTHROPIC_API_KEY", "test-key")
 	t.Setenv("TELEGRAM_BOT_TOKEN", "test-token")
-	t.Setenv("SUBSCRIBER_STORE_PATH", "/tmp/test-subscribers")
+	t.Setenv("TELEGRAM_SUBSCRIBER_STORE_PATH", "/tmp/test-subscribers")
 
 	configuration, err := config.Load()
 
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	if configuration.StorePath != "/tmp/test-subscribers" {
-		t.Errorf("expected StorePath '/tmp/test-subscribers', got %q", configuration.StorePath)
+	if configuration.TelegramSubscriberStorePath != "/tmp/test-subscribers" {
+		t.Errorf("expected TelegramSubscriberStorePath '/tmp/test-subscribers', got %q", configuration.TelegramSubscriberStorePath)
 	}
 }
 

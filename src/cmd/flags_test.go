@@ -51,7 +51,7 @@ func TestFlagEnvPairs_maxTokensConverted(t *testing.T) {
 	})
 }
 
-// TestFlagEnvPairs_allFlagsSet tests that all seven flags produce seven pairs in order.
+// TestFlagEnvPairs_allFlagsSet tests that all eight flags produce eight pairs in order.
 func TestFlagEnvPairs_allFlagsSet(t *testing.T) {
 	flags := cmd.GlobalFlags{
 		Model:        "claude-3",
@@ -61,14 +61,15 @@ func TestFlagEnvPairs_allFlagsSet(t *testing.T) {
 		APIKey:       "sk-test",
 		BotToken:     "123:ABC",
 		StorePath:    "/tmp/subscribers",
+		OutputMethod: "telegram",
 	}
 	cmd.WithFlags(flags, func() {
 		pairs := cmd.FlagEnvPairs()
-		if len(pairs) != 7 {
-			t.Errorf("expected 7 pairs, got %d", len(pairs))
+		if len(pairs) != 8 {
+			t.Errorf("expected 8 pairs, got %d", len(pairs))
 		}
 
-		expectedKeys := []string{"ANTHROPIC_MODEL", "ANTHROPIC_SYSTEM_PROMPT", "ANTHROPIC_MAX_RESPONSE_TOKENS", "LOG_LEVEL", "ANTHROPIC_API_KEY", "TELEGRAM_BOT_TOKEN", "SUBSCRIBER_STORE_PATH"}
+		expectedKeys := []string{"ANTHROPIC_MODEL", "ANTHROPIC_SYSTEM_PROMPT", "ANTHROPIC_MAX_RESPONSE_TOKENS", "LOG_LEVEL", "ANTHROPIC_API_KEY", "TELEGRAM_BOT_TOKEN", "TELEGRAM_SUBSCRIBER_STORE_PATH", "OUTPUT_METHOD"}
 		for i, expected := range expectedKeys {
 			if pairs[i].Key != expected {
 				t.Errorf("pair %d: expected key %s, got %s", i, expected, pairs[i].Key)
@@ -87,6 +88,20 @@ func TestFlagEnvPairs_partialFlags(t *testing.T) {
 		}
 		if pairs[0].Key != "LOG_LEVEL" || pairs[1].Key != "TELEGRAM_BOT_TOKEN" {
 			t.Errorf("unexpected keys: %s, %s", pairs[0].Key, pairs[1].Key)
+		}
+	})
+}
+
+// TestFlagEnvPairs_outputMethod tests that output-method flag produces a pair.
+func TestFlagEnvPairs_outputMethod(t *testing.T) {
+	flags := cmd.GlobalFlags{OutputMethod: "telegram"}
+	cmd.WithFlags(flags, func() {
+		pairs := cmd.FlagEnvPairs()
+		if len(pairs) != 1 {
+			t.Errorf("expected 1 pair, got %d", len(pairs))
+		}
+		if pairs[0].Key != "OUTPUT_METHOD" || pairs[0].Value != "telegram" {
+			t.Errorf("expected {OUTPUT_METHOD, telegram}, got {%s, %s}", pairs[0].Key, pairs[0].Value)
 		}
 	})
 }

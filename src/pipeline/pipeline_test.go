@@ -26,6 +26,7 @@ func createTestConfig() *config.Config {
 		TimeoutCapturePhase:      40 * time.Second,
 		TimeoutAnalysePhase:      5 * time.Minute,
 		AnalyseQueueCapacity:     16,
+		OutputMethod:             "teleprompter",
 	}
 }
 

@@ -1,4 +1,4 @@
-//go:generate mockgen -destination=../../tests/mocks/mock_teleprompter_service.go -package=mocks -source=types.go -mock_names Service=MockTeleprompterService Service
+//go:generate mockgen -destination=../../../tests/mocks/mock_teleprompter_service.go -package=mocks -source=types.go -mock_names Service=MockTeleprompterService Service
 
 package teleprompter
 

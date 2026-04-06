@@ -5,6 +5,7 @@ import (
 	"image"
 	"log/slog"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/vdyalex/lens-daemon/src/adapters/ai"
@@ -61,4 +62,8 @@ type Pipeline struct {
 	visibleMu       sync.RWMutex
 	intendedVisible bool
 	movingForGrid   bool
+
+	// outputMethod stores the active output adapter ("telegram" or "teleprompter").
+	// Togglable at runtime via IPC. Uses atomic.Value for lock-free reads.
+	outputMethod atomic.Value
 }

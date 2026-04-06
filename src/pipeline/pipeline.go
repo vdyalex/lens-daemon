@@ -34,7 +34,7 @@ func NewWithDependencies(
 	listenerService listener.Service,
 	teleprompterService teleprompter.Service,
 ) *Pipeline {
-	return &Pipeline{
+	pipeline := &Pipeline{
 		settings:        settings,
 		logger:          logger,
 		capturer:        capturerService,
@@ -47,23 +47,25 @@ func NewWithDependencies(
 		startTime:       time.Now(),
 		analyseQueue:    make(chan CaptureResult, settings.AnalyseQueueCapacity),
 		intendedVisible: settings.TeleprompterVisible,
-		gridCol:         settings.GridInitialCol,
-		gridRow:         settings.GridInitialRow,
+		gridCol:         settings.TeleprompterGridInitialCol,
+		gridRow:         settings.TeleprompterGridInitialRow,
 	}
+	pipeline.outputMethod.Store(settings.OutputMethod)
+	return pipeline
 }
 
 // New creates a fully wired pipeline from settings.
 // Returns the pipeline, the subscriber store (nil when Telegram is disabled), and any error.
 // logger must not be nil; pass slog.Default() if no custom logger is required.
-func New(settings *config.Config, logger *slog.Logger) (*Pipeline, im.Store, error) {
+func New(settings *config.Config, logger *slog.Logger) (pipeline *Pipeline, _ im.Store, _ error) {
 	ocr := extractor.New(settings.VisionLanguage, settings.VisionAccuracy)
 
 	var broadcaster im.Broadcaster
 	var pollerService poller.Service
 	var subscriberStore im.Store
 
-	if settings.TelegramEnabled {
-		storeInstance, err := store.New(settings.StorePath, logger)
+	if settings.TelegramBotToken != "" {
+		storeInstance, err := store.New(settings.TelegramSubscriberStorePath, logger)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -76,6 +78,8 @@ func New(settings *config.Config, logger *slog.Logger) (*Pipeline, im.Store, err
 			settings.TelegramMaxRetries,
 			settings.TelegramHTTPClientTimeout,
 		)
+		// enabled func is wired to the pipeline's runtime output method check below.
+		var telegramActive func() bool
 		pollerService = poller.New(
 			settings.TelegramBotToken,
 			storeInstance,
@@ -83,14 +87,16 @@ func New(settings *config.Config, logger *slog.Logger) (*Pipeline, im.Store, err
 			settings.TelegramLongPollTimeout,
 			settings.TelegramPollerTimeout,
 			settings.TelegramHTTPClientTimeout,
+			func() bool { return telegramActive() },
 		)
+		defer func() { telegramActive = pipeline.isTelegramActive }()
 	} else {
 		logger.Info("telegram disabled (no bot token configured)")
 		broadcaster = &im.NoopBroadcaster{}
 		pollerService = &poller.NoopPoller{}
 	}
 
-	pipeline := NewWithDependencies(
+	pipeline = NewWithDependencies(
 		settings,
 		logger,
 		capturer.New(),

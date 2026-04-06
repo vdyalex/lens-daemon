@@ -43,6 +43,8 @@ func (h *CommandHandler) Handle(ctx context.Context, connection net.Conn, reques
 		return h.handleStatus()
 	case CommandShutdown:
 		return h.handleShutdown()
+	case CommandSet:
+		return h.handleSet(request)
 	case CommandLogSubscribe:
 		return h.handleLogSubscribe(ctx, connection)
 	default:
@@ -60,6 +62,7 @@ func (h *CommandHandler) handleStatus() (Response, error) {
 		LastCaptureTime: lastCaptureTime,
 		LastWindowTitle: lastWindowTitle,
 		Subscribers:     h.subscribers(),
+		OutputMethod:    h.pipeline.OutputMethod(),
 	}
 
 	data, err := json.Marshal(payload)
@@ -68,6 +71,27 @@ func (h *CommandHandler) handleStatus() (Response, error) {
 		return Response{OK: false, Error: "internal error"}, nil
 	}
 	return Response{OK: true, Payload: data}, nil
+}
+
+// handleSet updates a runtime setting.
+// Returns an error response for invalid payload or unknown key/value.
+func (h *CommandHandler) handleSet(request Request) (Response, error) {
+	var payload SetPayload
+	if err := json.Unmarshal(request.Payload, &payload); err != nil {
+		return Response{OK: false, Error: "invalid payload"}, nil
+	}
+
+	switch payload.Key {
+	case "output-method":
+		if payload.Value != "telegram" && payload.Value != "teleprompter" {
+			return Response{OK: false, Error: "invalid output method: " + payload.Value}, nil
+		}
+		h.pipeline.SetOutputMethod(payload.Value)
+	default:
+		return Response{OK: false, Error: "unknown setting: " + payload.Key}, nil
+	}
+
+	return Response{OK: true}, nil
 }
 
 // handleShutdown cancels the daemon context to trigger graceful shutdown.

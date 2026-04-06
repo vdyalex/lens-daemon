@@ -1,4 +1,4 @@
-//go:generate mockgen -destination ../../tests/mocks/mock_capturer_service.go -package mocks . Service
+//go:generate mockgen -destination ../../../tests/mocks/mock_capturer_service.go -package mocks -mock_names Service=MockCapturerService . Service
 
 package capturer
 

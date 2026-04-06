@@ -9,6 +9,10 @@ import "github.com/vdyalex/lens-daemon/src/bridges/appkit"
 // Exits when the channel is closed.
 func (p *Pipeline) trackToggles(toggles <-chan struct{}) {
 	for range toggles {
+		if !p.isTeleprompterActive() {
+			continue
+		}
+
 		p.visibleMu.Lock()
 		p.intendedVisible = !p.intendedVisible
 		intended := p.intendedVisible
