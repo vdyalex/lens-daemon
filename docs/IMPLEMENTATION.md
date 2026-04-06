@@ -65,6 +65,7 @@ See `.env.example` for the complete list with descriptions and defaults. Common 
 - `LOG_LEVEL` — Minimum log level: "debug", "info", "warn", "error" (default: "info")
 - `ANTHROPIC_MODEL` — Anthropic model to use (default: "claude-sonnet-4-6")
 - `ANTHROPIC_SYSTEM_PROMPT` — Custom system prompt for Claude (default: generic questionnaire assistant)
+- `ANTHROPIC_CACHE_TTL` — Prompt caching TTL for system prompt and tool definitions: "5m" or "1h" (default: "1h")
 - `HOTKEY_TRIGGER_KEYNAME` — Trigger hotkey name (default: "RightShift")
 - `HOTKEY_BOUNDS_KEYNAME` — Bounds hotkey name (default: "RightOption")
 - `HOTKEY_TOGGLE_KEYNAME` — Teleprompter toggle hotkey name (default: "RightCommand")

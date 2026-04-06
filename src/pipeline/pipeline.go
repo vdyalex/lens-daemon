@@ -7,6 +7,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/anthropics/anthropic-sdk-go"
+
 	"github.com/vdyalex/lens-daemon/src/adapters/ai"
 	"github.com/vdyalex/lens-daemon/src/adapters/im"
 	"github.com/vdyalex/lens-daemon/src/adapters/im/poller"
@@ -98,6 +100,7 @@ func New(settings *config.Config, logger *slog.Logger) (*Pipeline, im.Store, err
 			settings.AnthropicModel,
 			settings.AnthropicSystemPrompt,
 			settings.AnthropicMaxResponseTokens,
+			anthropic.CacheControlEphemeralTTL(settings.AnthropicCacheTTL),
 			logger,
 		),
 		broadcaster,

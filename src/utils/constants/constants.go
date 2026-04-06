@@ -94,6 +94,9 @@ const (
 	// AnthropicMaxResponseTokens is the maximum tokens requested from Anthropic API per call.
 	// Higher values allow longer responses but consume more tokens.
 	AnthropicMaxResponseTokens = 1024
+	// AnthropicCacheTTL is the default prompt caching TTL for system prompt and tool definitions.
+	// Valid values: "5m" (5 minutes) or "1h" (1 hour). Defaults to 1h for maximum cache reuse.
+	AnthropicCacheTTL = "1h"
 )
 
 // Event listener constants.

@@ -37,7 +37,7 @@ Hotkey → Capture    ↓ (queue)    OCR → AI → Teleprompter + Telegram
 2. **Capture** — grabs the active window via AppleScript and CoreGraphics (direct Objective-C bridge via `src/bridges/core_graphics`, no external libraries). When the focused app is a recognised browser (Safari, Chrome, Firefox), the capture is automatically clipped to the page content area, excluding the browser toolbar. Hold `RightOption` to define explicit custom bounds (overrides automatic canvas detection). Customizable via `HOTKEY_BOUNDS_KEYNAME`
 3. **Queue** — captured images are enqueued for Phase 2 analysis (queue capacity: 5 by default, configurable via `ANALYSE_QUEUE_CAPACITY`)
 4. **OCR** — extracts text from the image using Apple Vision framework, entirely in-memory
-5. **AI** — sends extracted text to Claude with a configurable system prompt (max 1024 response tokens). The response is a JSON object with `short` and `detailed` fields
+5. **AI** — sends extracted text to Claude with a configurable system prompt (max 1024 response tokens). The system prompt and tool definition use ephemeral prompt caching (configurable TTL, default 1h) to reduce cost and latency on repeated calls. The response is a JSON object with `short` and `detailed` fields
 6. **Teleprompter** — displays the short answer on a stealth overlay in the bottom-center corner. The overlay is excluded from screen sharing (`NSWindowSharingNone`), invisible to Zoom, Mission Control, Dock, and Cmd+Tab. Toggle visibility with `RightCommand` (configurable via `HOTKEY_TOGGLE_KEYNAME`)
 7. **Notify** (optional) — broadcasts the detailed response to all Telegram subscribers, auto-chunking messages exceeding 4096 runes. Disabled when `TELEGRAM_BOT_TOKEN` is not set
 
@@ -91,6 +91,7 @@ All configuration is done through environment variables. Copy `.env.example` to 
 | `SUBSCRIBER_STORE_PATH` | `tmp/subscribers`* | File path for the subscriber list (persists users who sent `/start`) |
 | `VISION_ACCURACY` | `accurate` | Vision accuracy level: `accurate` (slower, higher quality) or `fast` (faster, lower quality) |
 | `ANTHROPIC_MAX_RESPONSE_TOKENS` | `1024` | Maximum tokens per Anthropic API response |
+| `ANTHROPIC_CACHE_TTL` | `1h` | Prompt caching TTL for system prompt and tool definitions (`5m` or `1h`) |
 | `TELEGRAM_MESSAGE_CHUNK_SIZE` | `4096` | Maximum runes per Telegram message (auto-splits longer responses) |
 | `TELEGRAM_MAX_RETRIES` | `1` | Retry attempts on Telegram rate limit (HTTP 429) |
 | `TELEGRAM_LONG_POLL_TIMEOUT` | `30s` | Server-side long-poll timeout for Telegram updates |

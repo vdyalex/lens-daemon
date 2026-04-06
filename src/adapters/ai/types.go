@@ -1,4 +1,4 @@
-//go:generate mockgen -destination ../../tests/mocks/mock_ai_processor.go -package mocks . Processor
+//go:generate mockgen -source=types.go -destination=../../../tests/mocks/mock_ai_processor.go -package=mocks -mock_names Processor=MockProcessor
 
 // Package ai provides integration with the Anthropic Claude API for text processing.
 package ai
@@ -40,5 +40,6 @@ type AI struct {
 	model             string
 	prompt            string
 	maxResponseTokens int
+	cacheTTL          anthropic.CacheControlEphemeralTTL
 	logger            *slog.Logger
 }
