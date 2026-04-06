@@ -105,6 +105,10 @@ func (p *Pipeline) restoreAfterWindowSettle(ctx context.Context, windowBounds im
 	p.canvasBounds = canvas
 	p.boundsMu.Unlock()
 
+	// Always store the raw window bounds so gridSpotFrame has an outer reference
+	// for per-side margin calculation regardless of whether a canvas is active.
+	appkit.SetOverlayWindowBounds(float64(x), float64(y), float64(w), float64(h))
+
 	if canvas != nil {
 		appkit.SetOverlayCanvasBounds(
 			float64(canvas.Min.X), float64(canvas.Min.Y),
@@ -112,7 +116,6 @@ func (p *Pipeline) restoreAfterWindowSettle(ctx context.Context, windowBounds im
 		)
 	} else {
 		appkit.SetOverlayCanvasBounds(0, 0, 0, 0)
-		appkit.SetOverlayWindowBounds(float64(x), float64(y), float64(w), float64(h))
 	}
 
 	p.gridMu.Lock()
