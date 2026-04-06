@@ -18,7 +18,10 @@ type WindowInfo struct {
 
 // Service abstracts foreground-window detection and screen capture.
 type Service interface {
+	// ForegroundWindow returns the frontmost window's title and geometry via AppleScript.
+	// Slower (~100ms) but provides the window title needed for canvas detection.
 	ForegroundWindow(ctx context.Context) (*WindowInfo, error)
+
 	CaptureCenter(window *WindowInfo, bounds *image.Rectangle) (*image.RGBA, error)
 }
 

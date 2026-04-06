@@ -33,17 +33,20 @@ func NewWithDependencies(
 	teleprompterService teleprompter.Service,
 ) *Pipeline {
 	return &Pipeline{
-		settings:     settings,
-		logger:       logger,
-		capturer:     capturerService,
-		extractor:    extractorService,
-		agent:        agent,
-		messenger:    broadcaster,
-		poller:       pollerService,
-		listener:     listenerService,
-		teleprompter: teleprompterService,
-		startTime:    time.Now(),
-		analyseQueue: make(chan CaptureResult, settings.AnalyseQueueCapacity),
+		settings:        settings,
+		logger:          logger,
+		capturer:        capturerService,
+		extractor:       extractorService,
+		agent:           agent,
+		messenger:       broadcaster,
+		poller:          pollerService,
+		listener:        listenerService,
+		teleprompter:    teleprompterService,
+		startTime:       time.Now(),
+		analyseQueue:    make(chan CaptureResult, settings.AnalyseQueueCapacity),
+		intendedVisible: settings.TeleprompterVisible,
+		gridCol:         settings.GridInitialCol,
+		gridRow:         settings.GridInitialRow,
 	}
 }
 
@@ -105,7 +108,7 @@ func New(settings *config.Config, logger *slog.Logger) (*Pipeline, im.Store, err
 			FontWeight:    settings.TeleprompterFontWeight,
 			FontSize:      settings.TeleprompterFontSize,
 			Opacity:       settings.TeleprompterOpacity,
-			Position:      settings.TeleprompterPosition,
+			Alignment:     settings.TeleprompterAlignment,
 			AdaptiveColor: settings.TeleprompterAdaptiveColor,
 			FadeDuration:  settings.TeleprompterFadeDuration,
 		}, settings.TeleprompterVisible),
@@ -119,12 +122,12 @@ func New(settings *config.Config, logger *slog.Logger) (*Pipeline, im.Store, err
 // Retained for tests and tooling only.
 // Returns nil on success; logs warnings for non-fatal conditions (empty OCR/response).
 func (p *Pipeline) Process(ctx context.Context) error {
-	window, err := p.fetchWindow(ctx)
+	window, canvas, err := p.fetchWindow(ctx)
 	if window == nil || err != nil {
 		return err
 	}
 
-	img, err := p.captureScreenshot(ctx, window)
+	img, err := p.captureScreenshot(ctx, window, canvas)
 	if err != nil {
 		return err
 	}

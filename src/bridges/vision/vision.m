@@ -24,11 +24,13 @@ char* visionRecognizeText(const unsigned char* pngData, size_t length, const cha
 			return strdup("");
 		}
 
-		// Create the text recognition request
+		// Create the text recognition request (revision 3 for best accuracy on macOS 13+).
 		VNRecognizeTextRequest* request = [[VNRecognizeTextRequest alloc] init];
+		request.revision = VNRecognizeTextRequestRevision3;
 		request.recognitionLevel = accurate ? VNRequestTextRecognitionLevelAccurate : VNRequestTextRecognitionLevelFast;
+		request.usesLanguageCorrection = NO;
 
-		// Set language if provided
+		// Set preferred language if provided (Vision uses it as a priority hint).
 		if (language && strlen(language) > 0) {
 			@try {
 				NSString* langString = [NSString stringWithUTF8String:language];
@@ -36,6 +38,8 @@ char* visionRecognizeText(const unsigned char* pngData, size_t length, const cha
 			} @catch (NSException* exception) {
 				// Invalid language code; proceed with system default
 			}
+		} else {
+			request.automaticallyDetectsLanguage = YES;
 		}
 
 		// Perform the request

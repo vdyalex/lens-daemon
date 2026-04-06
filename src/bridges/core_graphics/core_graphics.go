@@ -6,6 +6,7 @@
 package core_graphics
 
 import (
+	"image"
 	"unsafe"
 )
 
@@ -16,6 +17,8 @@ import (
 unsigned char* captureScreenRect(int x, int y, int width, int height, int* outLength, int* outWidth, int* outHeight);
 int getMainDisplayWidth(void);
 int getMainDisplayHeight(void);
+int capturedWindowPID(void);
+int capturedWindowRect(int targetPID, int* outX, int* outY, int* outW, int* outH);
 */
 import "C"
 
@@ -56,4 +59,33 @@ func CaptureScreenRect(x, y, width, height int) ([]byte, int, int, bool) {
 	copy(result, pixelData)
 
 	return result, int(outWidth), int(outHeight), true
+}
+
+// CapturedWindowPID returns the process identifier of the application whose
+// window is being captured (the foreground app at capture time).
+//
+// Uses NSWorkspace — a pure metadata query that does not capture screen pixels
+// and does not trigger the screen-recording indicator.
+//
+// Returns -1 when the application cannot be determined.
+func CapturedWindowPID() int {
+	return int(C.capturedWindowPID())
+}
+
+// CapturedWindowRect returns the bounding rectangle (Y-down, logical pixels)
+// of the front layer-0 window belonging to the given PID.
+//
+// Uses CGWindowListCopyWindowInfo — a pure metadata query that does not capture
+// screen pixels and does not trigger the screen-recording indicator.
+//
+// Returns nil when no matching window is found (app closed, off-screen, etc.).
+func CapturedWindowRect(pid int) *image.Rectangle {
+	var x, y, w, h C.int
+	found := C.capturedWindowRect(C.int(pid), &x, &y, &w, &h)
+	if found == 0 {
+		return nil
+	}
+
+	rect := image.Rect(int(x), int(y), int(x+w), int(y+h))
+	return &rect
 }

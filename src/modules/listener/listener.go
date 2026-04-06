@@ -9,7 +9,7 @@ package listener
 extern void goHotkeyCallback(void);
 extern void goRecordBounds(CGFloat minX, CGFloat minY, CGFloat maxX, CGFloat maxY);
 extern void goTeleprompterToggle(void);
-extern void goPositionChange(int alignment);
+extern void goPositionChangeXY(int dx, int dy);
 extern void goOpacityChange(int direction);
 
 // Global tap reference so the callback can re-enable it on timeout.
@@ -21,8 +21,9 @@ static CGKeyCode gBoundsKeycode        = 0x3D;  // Right Option by default
 static CGKeyCode gTeleprompterKeycode  = 0x36;  // Right Command by default
 
 // Right Option bounds tracking state.
-static bool gOptionHeld = false;
-static bool gMouseMoved = false;
+static bool gOptionHeld  = false;
+static bool gMouseMoved  = false;
+static bool gControlUsed = false; // true if arrows/opacity keys were pressed during this hold
 static CGFloat gMinX, gMinY, gMaxX, gMaxY;
 
 // Right Command teleprompter toggle edge detection state.
@@ -59,15 +60,17 @@ static CGEventRef eventCallback(CGEventTapProxy proxy, CGEventType type,
             bool optionNowHeld = (flags & kCGEventFlagMaskAlternate) != 0;
             if (optionNowHeld && !gOptionHeld) {
                 // Bounds key pressed: start tracking.
-                gOptionHeld = true;
-                gMouseMoved = false;
+                gOptionHeld  = true;
+                gMouseMoved  = false;
+                gControlUsed = false;
                 CGPoint loc = CGEventGetLocation(event);
                 gMinX = gMaxX = loc.x;
                 gMinY = gMaxY = loc.y;
             } else if (!optionNowHeld && gOptionHeld) {
-                // Bounds key released: record bounds only if cursor moved.
+                // Bounds key released: record bounds only if cursor moved and no
+                // grid/opacity keys were pressed during this hold.
                 gOptionHeld = false;
-                if (gMouseMoved) {
+                if (gMouseMoved && !gControlUsed) {
                     goRecordBounds(gMinX, gMinY, gMaxX, gMaxY);
                 }
             }
@@ -98,15 +101,18 @@ static CGEventRef eventCallback(CGEventTapProxy proxy, CGEventType type,
         if (loc.x > gMaxX) gMaxX = loc.x;
         if (loc.y > gMaxY) gMaxY = loc.y;
     }
-    // Handle arrow keys while bounds key is held for position rotation.
-    // 0x7B=Left (backward), 0x7C=Right (forward)
+    // Handle arrow keys while bounds key is held for grid navigation.
+    // 0x7B=Left, 0x7C=Right, 0x7E=Up, 0x7D=Down
     else if (type == kCGEventKeyDown && gOptionHeld) {
+        gControlUsed = true;
         CGKeyCode key = (CGKeyCode)CGEventGetIntegerValueField(event, kCGKeyboardEventKeycode);
-        if (key == 0x7B) goPositionChange(-1);      // move left
-        else if (key == 0x7C) goPositionChange(1);   // move right
-        else if (key == 0x1B) goOpacityChange(-1);   // minus: decrease opacity
-        else if (key == 0x18) goOpacityChange(1);    // plus: increase opacity
-        else if (key == 0x1D) goOpacityChange(0);    // zero: reset to default
+        if      (key == 0x7B) goPositionChangeXY(-1,  0); // Left:  move column back
+        else if (key == 0x7C) goPositionChangeXY( 1,  0); // Right: move column forward
+        else if (key == 0x7E) goPositionChangeXY( 0, -1); // Up:    move row back
+        else if (key == 0x7D) goPositionChangeXY( 0,  1); // Down:  move row forward
+        else if (key == 0x1B) goOpacityChange(-1);         // Minus: decrease opacity
+        else if (key == 0x18) goOpacityChange(1);          // Plus:  increase opacity
+        else if (key == 0x1D) goOpacityChange(0);          // Zero:  reset opacity
     }
 
     return event;
@@ -183,16 +189,17 @@ func goTeleprompterToggle() {
 	}
 }
 
-//export goPositionChange
-func goPositionChange(alignment C.int) {
+//export goPositionChangeXY
+func goPositionChangeXY(dx, dy C.int) {
 	if current != nil {
-		// Drain and replace: always keep the latest position.
+		direction := [2]int{int(dx), int(dy)}
+		// Drain and replace: always keep the latest direction.
 		select {
 		case <-current.positionCh:
 		default:
 		}
 		select {
-		case current.positionCh <- int(alignment):
+		case current.positionCh <- direction:
 		default:
 		}
 	}
@@ -214,7 +221,7 @@ func New() *Listener {
 		triggerCh:      make(chan struct{}, constants.ListenerTriggerChannelBuffer),
 		boundsCh:       make(chan image.Rectangle, 1),
 		teleprompterCh: make(chan struct{}, constants.ListenerTriggerChannelBuffer),
-		positionCh:     make(chan int, 1),
+		positionCh:     make(chan [2]int, 1),
 		opacityCh:      make(chan int, 1),
 	}
 }

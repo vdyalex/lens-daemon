@@ -229,30 +229,54 @@ const (
 
 // Application configuration defaults.
 const (
-	// DefaultVisionLanguage is the BCP-47 tag passed to Vision framework.
-	DefaultVisionLanguage = "en-US"
-	// DefaultVisionAccuracy is the Vision framework accuracy level.
-	DefaultVisionAccuracy = "accurate"
-	// DefaultAnthropicModel is the Anthropic model used when unconfigured.
-	DefaultAnthropicModel = "claude-sonnet-4-6"
-	// DefaultAnthropicSystemPrompt is the system prompt used when unconfigured.
-	DefaultAnthropicSystemPrompt = "You're a questionnaire assistant. Provide quick, accurate responses with maximum efficiency."
-	// DefaultStorePath is the subscriber store file path used when unconfigured.
-	DefaultStorePath = "tmp/subscribers"
+	// VisionAccuracy is the Vision framework accuracy level.
+	VisionAccuracy = "accurate"
+	// AnthropicModel is the Anthropic model identifier.
+	AnthropicModel = "claude-sonnet-4-6"
+	// AnthropicSystemPrompt is the system prompt for the AI assistant.
+	AnthropicSystemPrompt = "You're a questionnaire assistant. Provide quick, accurate responses with maximum efficiency."
+	// StorePath is the subscriber store file path.
+	StorePath = "tmp/subscribers"
 )
 
 // Teleprompter appearance defaults.
 const (
-	// DefaultTeleprompterFontWeight is the NSFontWeight name used when unconfigured.
-	DefaultTeleprompterFontWeight = "ultralight"
-	// DefaultTeleprompterFontSize is the font size in points used when unconfigured.
-	DefaultTeleprompterFontSize = 14.0
-	// DefaultTeleprompterOpacity is the text opacity (0.0–1.0) used when unconfigured.
-	DefaultTeleprompterOpacity = 0.075
-	// DefaultTeleprompterPosition is the window alignment used when unconfigured.
-	DefaultTeleprompterPosition = "center"
-	// DefaultTeleprompterAdaptiveColor enables per-pixel adaptive text color by default.
-	DefaultTeleprompterAdaptiveColor = true
-	// DefaultTeleprompterFadeDuration is the fade animation duration in seconds.
-	DefaultTeleprompterFadeDuration = 0.75
+	// TeleprompterFontWeight is the NSFontWeight name for the overlay text.
+	TeleprompterFontWeight = "ultralight"
+	// TeleprompterFontSize is the font size in points for the overlay text.
+	TeleprompterFontSize = 14.0
+	// TeleprompterOpacity is the text opacity (0.0–1.0) for the overlay.
+	TeleprompterOpacity = 0.05
+	// TeleprompterAlignment is the text alignment for the overlay.
+	TeleprompterAlignment = "dynamic"
+	// TeleprompterAdaptiveColor enables per-pixel adaptive text color.
+	TeleprompterAdaptiveColor = true
+	// TeleprompterFadeDuration is the fade animation duration in seconds.
+	TeleprompterFadeDuration = 0.75
+)
+
+// Grid positioning defaults.
+const (
+	// GridMoveDebounceDuration is the idle delay after the last arrow keypress before
+	// the teleprompter repositions and fades back in. Rapid keystrokes extend the timer,
+	// preventing visible jumps between intermediate spots.
+	GridMoveDebounceDuration = 300 * time.Millisecond
+
+	// WindowMonitorInterval is how often the pipeline checks whether the foreground
+	// window has moved or resized. Uses CGWindowListCopyWindowInfo (metadata only;
+	// does not trigger the screen-capture indicator).
+	WindowMonitorInterval = 200 * time.Millisecond
+
+	// WindowStabilizeDelay is how long the foreground window must remain at the same
+	// bounds before the teleprompter repositions and fades back in after a move/resize.
+	WindowStabilizeDelay = 500 * time.Millisecond
+
+	// GridStep is the percentage increment per arrow-key press (1% = 0.01).
+	GridStep = 0.01
+
+	// GridInitialCol is the initial horizontal position as a percentage (0.0–1.0).
+	GridInitialCol = 0.5
+
+	// GridInitialRow is the initial vertical position as a percentage (0.0–1.0).
+	GridInitialRow = 0.5
 )

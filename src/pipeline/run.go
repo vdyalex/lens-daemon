@@ -3,8 +3,6 @@ package pipeline
 
 import (
 	"context"
-	"image"
-	"log/slog"
 	"sync"
 
 	"github.com/vdyalex/lens-daemon/src/bridges/appkit"
@@ -45,6 +43,10 @@ func (p *Pipeline) Run(ctx context.Context) error {
 	go p.trackVisibility(channels.Toggles)
 	go p.trackPosition(channels.Positions)
 	go p.trackOpacity(channels.Opacities)
+	go p.trackWindowChanges(ctx)
+
+	// Sync the C-side grid position with the configured initial values.
+	appkit.CommitMoveToGridSpot(p.settings.GridInitialCol, p.settings.GridInitialRow)
 
 	p.logger.Info("pipeline ready — set bounds and press capture key")
 
@@ -74,63 +76,6 @@ func (p *Pipeline) Run(ctx context.Context) error {
 				}
 			}()
 		}
-	}
-}
-
-// trackBounds receives updated capture rectangles from the hotkey listener
-// and stores them under boundsMu. Exits when the bounds channel is closed.
-func (p *Pipeline) trackBounds(bounds <-chan image.Rectangle) {
-	for rect := range bounds {
-		p.boundsMu.Lock()
-		p.captureBounds = &rect
-		p.boundsMu.Unlock()
-		p.logger.Info("capture bounds updated",
-			slog.Int("minX", rect.Min.X),
-			slog.Int("minY", rect.Min.Y),
-			slog.Int("maxX", rect.Max.X),
-			slog.Int("maxY", rect.Max.Y),
-		)
-	}
-}
-
-// trackVisibility receives toggle events from the hotkey listener
-// and calls the teleprompter's Toggle method. Exits when the channel is closed.
-func (p *Pipeline) trackVisibility(toggles <-chan struct{}) {
-	for range toggles {
-		visible := p.teleprompter.Toggle()
-		p.logger.Debug("teleprompter visibility toggled", "visible", visible)
-	}
-}
-
-// trackPosition receives rotation direction events from arrow keys and repositions
-// the teleprompter overlay in a circular rotation: left <-> center <-> right <-> left.
-// direction: -1 = backward (left arrow), +1 = forward (right arrow).
-// Exits when the channel is closed.
-func (p *Pipeline) trackPosition(directions <-chan int) {
-	names := [3]string{"left", "center", "right"}
-	current := appkit.AlignmentFromPosition(p.settings.TeleprompterPosition)
-	for direction := range directions {
-		current = (current + direction + 3) % 3
-		appkit.SetOverlayPosition(names[current])
-		p.logger.Debug("teleprompter position changed", "position", names[current])
-	}
-}
-
-// trackOpacity receives direction events from +/- keys and adjusts the teleprompter
-// text opacity by 0.025 per step. direction: -1 = decrease (minus), +1 = increase (plus),
-// 0 = reset to configured default.
-// Exits when the channel is closed.
-func (p *Pipeline) trackOpacity(directions <-chan int) {
-	const step = 0.025
-	for direction := range directions {
-		if direction == 0 {
-			appkit.ResetOverlayOpacity()
-			p.logger.Debug("teleprompter text opacity reset to default")
-			continue
-		}
-		delta := step * float64(direction)
-		appkit.SetOverlayOpacity(delta)
-		p.logger.Debug("teleprompter text opacity adjusted", "delta", delta)
 	}
 }
 

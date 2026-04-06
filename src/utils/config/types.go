@@ -55,9 +55,17 @@ type Config struct {
 	TeleprompterFontFamily    string  // TELEPROMPTER_FONT_FAMILY: font family name (default: "" = system font)
 	TeleprompterFontWeight    string  // TELEPROMPTER_FONT_WEIGHT: font weight name (default: "ultralight")
 	TeleprompterFontSize      float64 // TELEPROMPTER_FONT_SIZE: font size in points (default: 14.0)
-	TeleprompterOpacity       float64 // TELEPROMPTER_OPACITY: text opacity 0.0-1.0 (default: 0.075)
+	TeleprompterOpacity       float64 // TELEPROMPTER_OPACITY: text opacity 0.0-1.0 (default: 0.05)
 	TeleprompterVisible       bool    // TELEPROMPTER_VISIBLE: initial visibility (default: false)
-	TeleprompterPosition      string  // TELEPROMPTER_POSITION: "left", "center", or "right" (default: "center")
+	TeleprompterAlignment     string  // TELEPROMPTER_ALIGNMENT: "left", "center", "right", or "dynamic" (default: "dynamic")
 	TeleprompterAdaptiveColor bool    // TELEPROMPTER_ADAPTIVE_COLOR: enable background-adaptive text color (default: true)
 	TeleprompterFadeDuration  float64 // TELEPROMPTER_FADE_DURATION: fade animation duration in seconds (default: 0.75)
+
+	// Grid positioning
+	GridMoveDebounceDuration time.Duration // GRID_MOVE_DEBOUNCE_DURATION: idle delay before snap commit (default: 300ms)
+	GridStep                 float64       // GRID_STEP: percentage per arrow press, 0.0–1.0 (default: 0.01)
+	GridInitialCol           float64       // GRID_INITIAL_COL: initial horizontal position, 0.0–1.0 (default: 0.5)
+	GridInitialRow           float64       // GRID_INITIAL_ROW: initial vertical position, 0.0–1.0 (default: 0.5)
+	WindowMonitorInterval    time.Duration // WINDOW_MONITOR_INTERVAL: window-bounds poll interval (default: 200ms)
+	WindowStabilizeDelay     time.Duration // WINDOW_STABILIZE_DELAY: stable-window delay before restoring overlay (default: 500ms)
 }

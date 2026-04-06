@@ -18,9 +18,10 @@ type Channels struct {
 	Bounds <-chan image.Rectangle
 	// Toggles receives a value each time the teleprompter toggle hotkey is pressed.
 	Toggles <-chan struct{}
-	// Positions receives rotation direction (-1 backward, +1 forward) from arrow keys.
-	Positions <-chan int
-	// Opacities receives direction (-1 decrease, +1 increase) from minus/plus keys.
+	// Positions receives a [2]int{dx, dy} grid direction from arrow keys.
+	// dx: -1 = left, +1 = right. dy: -1 = up, +1 = down.
+	Positions <-chan [2]int
+	// Opacities receives direction (-1 decrease, +1 increase, 0 reset) from minus/plus/zero keys.
 	Opacities <-chan int
 }
 
@@ -35,7 +36,7 @@ type Listener struct {
 	triggerCh      chan struct{}
 	boundsCh       chan image.Rectangle
 	teleprompterCh chan struct{}
-	positionCh     chan int
+	positionCh     chan [2]int
 	opacityCh      chan int
 	startOnce      sync.Once
 }
