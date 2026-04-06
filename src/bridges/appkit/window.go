@@ -553,12 +553,12 @@ void resetTextOpacity(void) {
 }
 
 // setFontSize adjusts the font size by the given delta in points.
-// The value is clamped to [5.0, 48.0]. Re-renders the text at the new size.
+// The value is clamped to [8.0, 80.0]. Re-renders the text at the new size.
 // Returns the clamped value after adjustment.
 double setFontSize(double delta) {
     gFontSize += (CGFloat)delta;
-    if (gFontSize < 5.0)  gFontSize = 5.0;
-    if (gFontSize > 48.0) gFontSize = 48.0;
+    if (gFontSize < 8.0)  gFontSize = 8.0;
+    if (gFontSize > 80.0) gFontSize = 80.0;
     [gDelegate performSelectorOnMainThread:@selector(reposition)
                                 withObject:nil
                              waitUntilDone:NO];
@@ -933,7 +933,7 @@ func ResetTextOpacity() {
 }
 
 // SetFontSize adjusts the font size by the given delta in points (e.g. +1.0 or -1.0).
-// The value is clamped to [5.0, 48.0]. Re-renders the text at the new size.
+// The value is clamped to [8.0, 80.0]. Re-renders the text at the new size.
 // Returns the clamped font size after adjustment.
 // Safe to call from any goroutine; dispatched to the main thread internally.
 func SetFontSize(delta float64) float64 {

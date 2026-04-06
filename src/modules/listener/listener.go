@@ -114,8 +114,9 @@ static CGEventRef eventCallback(CGEventTapProxy proxy, CGEventType type,
         else if (key == 0x1B) goOpacityChange(-1);         // Minus: decrease opacity
         else if (key == 0x18) goOpacityChange(1);          // Plus:  increase opacity
         else if (key == 0x1D) goOpacityChange(0);          // Zero:  reset opacity
-        else if (key == 0x2B) goFontSizeChange(-1);        // Comma:  decrease font size
-        else if (key == 0x2F) goFontSizeChange(1);         // Period: increase font size
+        else if (key == 0x2B) goFontSizeChange(-1);        // Comma:         decrease font size
+        else if (key == 0x2F) goFontSizeChange(1);         // Period:        increase font size
+        else if (key == 0x2C) goFontSizeChange(0);         // Slash/Question: reset font size
     }
 
     return event;

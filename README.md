@@ -216,7 +216,7 @@ Once running:
 4. **Custom bounds** (optional): Hold the configured bounds hotkey (default: `RightOption`), move your mouse to define a region, then release
 5. **Reposition teleprompter** (optional): Hold the bounds hotkey (default: `RightOption`) and press arrow keys (Up/Down/Left/Right) to move the teleprompter by `TELEPROMPTER_GRID_STEP` (0.5%) per press. Position wraps circularly. Rapid presses debounce — the teleprompter fades out, waits for input to stop, then repositions and fades in
 6. **Adjust text opacity** (optional): Hold the bounds hotkey (default: `RightOption`) and press `−` to decrease or `+` to increase text opacity by 0.01 per step (clamped to 0.0–1.0). Press hotkey + `0` to reset to the configured default
-7. **Adjust font size** (optional): Hold the bounds hotkey (default: `RightOption`) and press `,` to decrease or `.` to increase font size by 0.5pt per step (clamped to 5–48pt)
+7. **Adjust font size** (optional): Hold the bounds hotkey (default: `RightOption`) and press `,` to decrease or `.` to increase font size by 0.5pt per step (clamped to 5–48pt). Press hotkey + `/` (or `?`) to reset to the configured default
 8. The daemon captures the screen, enqueues for analysis, processes OCR, sends the text to Claude, then routes the response based on `OUTPUT_METHOD`: displays the short answer on the teleprompter, or broadcasts the detailed response to Telegram subscribers
 
 Send `/stop` to the Telegram bot to unsubscribe. Run `./bin/lensd stop` to stop the daemon.
