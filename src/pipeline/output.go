@@ -12,6 +12,7 @@ import (
 // method: constants.OutputMethodTelegram or constants.OutputMethodTeleprompter.
 func (p *Pipeline) SetOutputMethod(method string) {
 	p.outputMethod.Store(method)
+	p.poller.SetActive(method == constants.OutputMethodTelegram)
 
 	switch method {
 	case constants.OutputMethodTeleprompter:
@@ -30,13 +31,13 @@ func (p *Pipeline) SetOutputMethod(method string) {
 }
 
 // OutputMethod returns the current runtime output method.
-// Defaults to teleprompter if not yet initialized.
+// Returns the runtime override if set via SetOutputMethod, otherwise the config value.
 func (p *Pipeline) OutputMethod() string {
 	value := p.outputMethod.Load()
-	if value == nil {
-		return constants.OutputMethodTeleprompter
+	if value != nil {
+		return value.(string)
 	}
-	return value.(string)
+	return p.settings.OutputMethod
 }
 
 // isTeleprompterActive reports whether the current output method is teleprompter.

@@ -12,3 +12,6 @@ type NoopPoller struct{}
 func (n *NoopPoller) Run(ctx context.Context) {
 	<-ctx.Done()
 }
+
+// SetActive is a no-op; the noop poller never polls regardless of the active state.
+func (n *NoopPoller) SetActive(_ bool) {}

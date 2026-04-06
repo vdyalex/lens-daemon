@@ -51,6 +51,12 @@ This separation decouples fast Phase 1 captures from slow Phase 2 analysis, prev
   - **Store** -- plain-text file-backed persistence for subscriber chat IDs (package `im/store`)
 - **OCR** -- Apple Vision framework adapter wrapping `src/bridges/vision` (package `ocr`)
 
+**Factory** (`src/factory/`) constructs adapter implementations with noop fallbacks:
+
+- **`store.go`** -- `BuildStore`: opens the subscriber store when `TELEGRAM_BOT_TOKEN` is set, returns nil otherwise
+- **`broadcaster.go`** -- `BroadcasterFactory`: returns a live `im.Sender` or `im.NoopBroadcaster` when store is nil
+- **`poller.go`** -- `PollerFactory`: returns a live `poller.Poller` (active state derived from `OUTPUT_METHOD`) or `poller.NoopPoller` when store is nil
+
 **Bridges** separate CGo boundaries into dedicated packages:
 
 - **`src/bridges/vision`** -- Objective-C wrapper for Apple Vision framework OCR (`visionRecognizeText`)
@@ -60,9 +66,10 @@ This separation decouples fast Phase 1 captures from slow Phase 2 analysis, prev
 
 **Pipeline Components** (`src/pipeline/`) orchestrate the workflow:
 
-- **`pipeline.go`** -- constructors and public interface (`New`, `NewWithDependencies`, `Status`, `Run`)
+- **`pipeline.go`** -- constructors and public interface (`New`, `Status`, `Run`); wires all components using `NewBuilder`
+- **`builder.go`** -- Builder pattern for pipeline construction; injectable dependencies via `With*` methods and `Build()`
 - **`process.go`** -- implementation of the sequential process steps (fetch window, derive canvas bounds, capture with overlay hide/restore, crop to canvas in Go, extract, process with AI, route output to teleprompter or Telegram based on `OUTPUT_METHOD`)
-- **`toggle.go`** -- runtime output method switching (`SetOutputMethod`, `OutputMethod`, `isTeleprompterActive`); hides/shows overlay on switch
+- **`output.go`** -- runtime output method switching (`SetOutputMethod`, `OutputMethod`, `isTeleprompterActive`); hides/shows overlay on switch; activates/deactivates the poller via `SetActive`
 - **`run.go`** -- event loop and goroutine orchestration (`Run` method)
 - **`tracker_bounds.go`** -- capture bounds tracker (hotkey-driven rectangle updates)
 - **`tracker_toggles.go`** -- teleprompter visibility toggle tracker
@@ -86,9 +93,9 @@ flowchart TD
 
     subgraph Init[Initialization]
         G --> I[extractor.New<br/>Vision OCR extractor]
-        G --> J[store.NewStore<br/>Load subscriber list<br/>skipped if no bot token]
-        G --> K[im.New or NoopBroadcaster<br/>Telegram broadcaster]
-        G --> L[poller.New or NoopPoller<br/>Telegram subscriber poller]
+        G --> J[factory.BuildStore<br/>Load subscriber list<br/>skipped if no bot token]
+        G --> K[factory.BroadcasterFactory<br/>Telegram broadcaster or NoopBroadcaster]
+        G --> L[factory.PollerFactory<br/>Telegram subscriber poller or NoopPoller]
         G --> M[capturer.New<br/>MacOS capturer]
         G --> N[ai.New<br/>Anthropic SDK client<br/>structured tool calls]
         G --> O2[teleprompter.New<br/>Stealth overlay window]

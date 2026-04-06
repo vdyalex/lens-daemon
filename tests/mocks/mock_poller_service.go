@@ -51,3 +51,15 @@ func (mr *MockPollerServiceMockRecorder) Run(ctx any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Run", reflect.TypeOf((*MockPollerService)(nil).Run), ctx)
 }
+
+// SetActive mocks base method.
+func (m *MockPollerService) SetActive(active bool) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "SetActive", active)
+}
+
+// SetActive indicates an expected call of SetActive.
+func (mr *MockPollerServiceMockRecorder) SetActive(active any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetActive", reflect.TypeOf((*MockPollerService)(nil).SetActive), active)
+}
