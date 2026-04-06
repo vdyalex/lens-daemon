@@ -11,9 +11,10 @@ package appkit
 #include <string.h>
 
 // Configurable appearance globals (set before createOverlayWindow).
-static CGFloat gFontSize   = 14.0;
-static CGFloat gTextOpacity        = 0.05; // text/pattern alpha, adjusted by hotkey +/-
-static CGFloat gDefaultTextOpacity = 0.05; // configured default from TELEPROMPTER_OPACITY
+static CGFloat gFontSize           = 14.0;
+static CGFloat gDefaultFontSize    = 14.0;  // configured default from TELEPROMPTER_FONT_SIZE
+static CGFloat gTextOpacity        = 0.05;  // text/pattern alpha, adjusted by hotkey +/-
+static CGFloat gDefaultTextOpacity = 0.05;  // configured default from TELEPROMPTER_OPACITY
 static CGFloat gOverlayInterpolation    = 0.0;   // overlay window alpha: 0.0 = hidden, 1.0 = fully visible
 static CGFloat gFontWeight = -0.8; // NSFontWeightUltraLight
 static int     gAlignment  = 3;    // 0=left, 1=center, 2=right, 3=dynamic
@@ -92,7 +93,8 @@ static NSFont* resolveFont(void) {
 void configureOverlay(const char* fontFamily, const char* fontWeight,
                       double fontSize, double opacity, int alignment,
                       int adaptiveColor, double fadeDuration) {
-    gFontSize       = (CGFloat)fontSize;
+    gFontSize           = (CGFloat)fontSize;
+    gDefaultFontSize    = (CGFloat)fontSize;
     gTextOpacity        = (CGFloat)opacity;
     gDefaultTextOpacity = (CGFloat)opacity;
     gFontWeight     = fontWeightFromName(fontWeight);
@@ -530,19 +532,43 @@ void setOverlayPosition(int alignment) {
 // setTextOpacity adjusts the text opacity by the given delta.
 // The value is clamped to [0.0, 1.0]. Re-renders the text with the new
 // opacity baked into the text color / adaptive-color pattern alpha.
-void setTextOpacity(double delta) {
+// Returns the clamped value after adjustment.
+double setTextOpacity(double delta) {
     gTextOpacity += (CGFloat)delta;
     if (gTextOpacity < 0.0) gTextOpacity = 0.0;
     if (gTextOpacity > 1.0) gTextOpacity = 1.0;
     [gDelegate performSelectorOnMainThread:@selector(reposition)
                                 withObject:nil
                              waitUntilDone:NO];
+    return (double)gTextOpacity;
 }
 
 // resetTextOpacity restores the text opacity to the configured default
 // and re-renders the text.
 void resetTextOpacity(void) {
     gTextOpacity = gDefaultTextOpacity;
+    [gDelegate performSelectorOnMainThread:@selector(reposition)
+                                withObject:nil
+                             waitUntilDone:NO];
+}
+
+// setFontSize adjusts the font size by the given delta in points.
+// The value is clamped to [5.0, 48.0]. Re-renders the text at the new size.
+// Returns the clamped value after adjustment.
+double setFontSize(double delta) {
+    gFontSize += (CGFloat)delta;
+    if (gFontSize < 5.0)  gFontSize = 5.0;
+    if (gFontSize > 48.0) gFontSize = 48.0;
+    [gDelegate performSelectorOnMainThread:@selector(reposition)
+                                withObject:nil
+                             waitUntilDone:NO];
+    return (double)gFontSize;
+}
+
+// resetFontSize restores the font size to the configured default
+// and re-renders the text.
+void resetFontSize(void) {
+    gFontSize = gDefaultFontSize;
     [gDelegate performSelectorOnMainThread:@selector(reposition)
                                 withObject:nil
                              waitUntilDone:NO];
@@ -835,9 +861,10 @@ func SetTextAlignment(alignment string) {
 // SetTextOpacity adjusts the text opacity by the given delta (e.g. +0.01 or -0.01).
 // The value is clamped to [0.0, 1.0] and controls the text/pattern alpha.
 // Overlay visibility (window alpha) is driven independently by the overlay interpolation.
+// Returns the clamped opacity after adjustment.
 // Safe to call from any goroutine; dispatched to the main thread internally.
-func SetTextOpacity(delta float64) {
-	C.setTextOpacity(C.double(delta))
+func SetTextOpacity(delta float64) float64 {
+	return float64(C.setTextOpacity(C.double(delta)))
 }
 
 // ResetTextOpacity restores the text opacity to the configured default
@@ -845,6 +872,21 @@ func SetTextOpacity(delta float64) {
 // Safe to call from any goroutine; dispatched to the main thread internally.
 func ResetTextOpacity() {
 	C.resetTextOpacity()
+}
+
+// SetFontSize adjusts the font size by the given delta in points (e.g. +1.0 or -1.0).
+// The value is clamped to [5.0, 48.0]. Re-renders the text at the new size.
+// Returns the clamped font size after adjustment.
+// Safe to call from any goroutine; dispatched to the main thread internally.
+func SetFontSize(delta float64) float64 {
+	return float64(C.setFontSize(C.double(delta)))
+}
+
+// ResetFontSize restores the font size to the configured default
+// and re-renders the text.
+// Safe to call from any goroutine; dispatched to the main thread internally.
+func ResetFontSize() {
+	C.resetFontSize()
 }
 
 // SetOverlayCanvasBounds stores the browser content-area rectangle for grid positioning.

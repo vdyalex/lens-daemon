@@ -37,7 +37,7 @@ This separation decouples fast Phase 1 captures from slow Phase 2 analysis, prev
 
 **Modules** handle MacOS-specific operations:
 
-- **Listener** -- global hotkey detection, bounds tracking, teleprompter toggle, grid navigation (4-direction arrow keys), and opacity adjustment via `CGEventTap` (cgo). Grid/opacity key presses are isolated from bounds selection via a `gControlUsed` flag
+- **Listener** -- global hotkey detection, bounds tracking, teleprompter toggle, grid navigation (4-direction arrow keys), opacity adjustment, and font size adjustment via `CGEventTap` (cgo). Grid/opacity/font-size key presses are isolated from bounds selection via a `gControlUsed` flag
 - **Capturer** -- foreground window detection (AppleScript) and screenshot capture, using `src/bridges/core_graphics` for CoreGraphics calls. Captures the full window; canvas cropping is done in Go
 - **Extractor** -- OCR text extraction interface consumed by the pipeline
 - **Teleprompter** -- stealth overlay management (visibility toggle, text display) delegating to the appkit bridge
@@ -62,8 +62,12 @@ This separation decouples fast Phase 1 captures from slow Phase 2 analysis, prev
 - **`pipeline.go`** -- constructors and public interface (`New`, `NewWithDependencies`, `Status`, `Run`)
 - **`process.go`** -- implementation of the sequential process steps (fetch window, derive canvas bounds, capture with overlay hide/restore, crop to canvas in Go, extract, process with AI, display on teleprompter, broadcast to Telegram)
 - **`run.go`** -- event loop and goroutine orchestration (`Run` method)
-- **`trackers.go`** -- hotkey-driven and polling-based event handlers for capture bounds, visibility, opacity, and window-move/resize evasion
-- **`grid.go`** -- percentage-based grid position tracker with debounced fade animation and circular wrapping
+- **`tracker_bounds.go`** -- capture bounds tracker (hotkey-driven rectangle updates)
+- **`tracker_toggles.go`** -- teleprompter visibility toggle tracker
+- **`tracker_teleprompter_overlay_opacity.go`** -- text opacity adjustment tracker (±0.01 per step, reset to default)
+- **`tracker_teleprompter_text_font_size.go`** -- font size adjustment tracker (±0.5pt per step, clamped to 5–48pt)
+- **`tracker_teleprompter_grid_position.go`** -- percentage-based grid position tracker with debounced fade animation and circular wrapping
+- **`tracker_window_changes.go`** -- window move/resize evasion via `CGWindowListCopyWindowInfo` polling
 
 ## Startup and Daemon Flow
 
@@ -241,7 +245,7 @@ Each capture uses the first bounds available in this priority order:
 
 The overlay is hidden synchronously (`orderOut`) before each screen capture and restored after, ensuring the teleprompter does not appear in the captured image.
 
-While the bounds key is held, **arrow keys** navigate the teleprompter on a percentage-based grid (configurable step via `GRID_STEP`, default 1%). **Minus/plus keys** adjust the text opacity by ±0.01 per step (clamped to 0.0–1.0). **0** resets opacity to the configured default.
+While the bounds key is held, **arrow keys** navigate the teleprompter on a percentage-based grid (configurable step via `GRID_STEP`, default 1%). **Minus/plus keys** adjust the text opacity by ±0.01 per step (clamped to 0.0–1.0). **0** resets opacity to the configured default. **Comma/period keys** adjust the font size by ±0.5pt per step (clamped to 5–48pt).
 
 For fullscreen windows (width and height >= screen dimensions), the daemon captures the entire display.
 
@@ -260,6 +264,7 @@ The teleprompter is a stealth macOS overlay window positioned within the capture
 - **Window evasion** — polls the captured window's bounds via `CGWindowListCopyWindowInfo` (metadata only, no screen-capture indicator) at `WINDOW_MONITOR_INTERVAL` (default 200ms). When the window moves or resizes, the teleprompter fades out. After the window stabilises for `WINDOW_STABILIZE_DELAY` (default 500ms), the teleprompter recalculates canvas bounds, repositions at the current grid spot, and fades back in. Tracks by PID so switching to a different app does not affect the teleprompter
 - **Opacity model** — text opacity (`gTextOpacity`, controlled by hotkey +/−) and overlay visibility (`gOverlayInterpolation`, controlled by animations) are independent. Text opacity is baked into the text color alpha / adaptive color pattern. Window alpha is driven by the interpolation (0→1 for fade-in, 1→0 for fade-out)
 - **Runtime opacity adjustment** — hold bounds key + minus/plus keys to decrease/increase text opacity by 0.01 per step. Press 0 to reset to the configured default
+- **Runtime font size adjustment** — hold bounds key + comma/period keys to decrease/increase font size by 0.5pt per step (clamped to 5–48pt)
 - **Toggle visibility** — press the configured toggle hotkey (default: `RightCommand`) to show/hide with fade animation. Toggle during a grid move defers the visual change to the move's completion handler
 
 The AppKit run loop runs on the main OS thread (pinned via `runtime.LockOSThread`). All daemon logic runs in background goroutines. Window operations are dispatched to the main thread via a channel-based work queue pumped at ~60 Hz.

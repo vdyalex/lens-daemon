@@ -72,7 +72,7 @@ See `.env.example` for the complete list with descriptions and defaults. Common 
 - `TELEPROMPTER_FONT_FAMILY` — Font family name (default: system font)
 - `TELEPROMPTER_FONT_WEIGHT` — Font weight: ultralight, thin, light, regular, medium, semibold, bold, heavy, black (default: "ultralight")
 - `TELEPROMPTER_FONT_SIZE` — Font size in points (default: 14.0)
-- `TELEPROMPTER_OPACITY` — Text opacity 0.0-1.0 (default: 0.05). Adjustable at runtime via bounds hotkey + minus/plus keys (±0.01 per step). Press bounds hotkey + 0 to reset to default
+- `TELEPROMPTER_OPACITY` — Text opacity 0.0-1.0 (default: 0.05). Adjustable at runtime via bounds hotkey + minus/plus keys (±0.01 per step). Press bounds hotkey + 0 to reset to default. Font size is also adjustable at runtime via bounds hotkey + comma/period keys (±0.5pt per step, clamped to 5–48pt)
 - `TELEPROMPTER_VISIBLE` — Initial visibility on startup (default: false)
 - `TELEPROMPTER_ALIGNMENT` — Text alignment: left, center, right, dynamic (default: "dynamic"). Dynamic adapts based on grid column position
 - `TELEPROMPTER_ADAPTIVE_COLOR` — Per-pixel adaptive text color via background inversion (default: true)

@@ -40,9 +40,10 @@ func (p *Pipeline) Run(ctx context.Context) error {
 
 	go p.poller.Run(ctx)
 	go p.trackBounds(channels.Bounds)
-	go p.trackVisibility(channels.Toggles)
-	go p.trackPosition(channels.Positions)
-	go p.trackOpacity(channels.Opacities)
+	go p.trackToggles(channels.Toggles)
+	go p.trackTeleprompterGridPosition(channels.TeleprompterGridPositions)
+	go p.trackTeleprompterOverlayOpacity(channels.TeleprompterOverlayOpacities)
+	go p.trackTeleprompterTextFontSize(channels.TeleprompterTextFontSizes)
 	go p.trackWindowChanges(ctx)
 
 	// Sync the C-side grid position with the configured initial values.

@@ -21,7 +21,7 @@ func TestGoCallbacksDoNotCrossContaminate(t *testing.T) {
 
 		// Position channel should have the event.
 		select {
-		case dir := <-listener.positionCh:
+		case dir := <-listener.teleprompterGridPositionCh:
 			if dir != [2]int{1, 0} {
 				t.Fatalf("expected [1,0], got %v", dir)
 			}
@@ -54,7 +54,7 @@ func TestGoCallbacksDoNotCrossContaminate(t *testing.T) {
 
 		// Position channel must remain empty.
 		select {
-		case dir := <-listener.positionCh:
+		case dir := <-listener.teleprompterGridPositionCh:
 			t.Fatalf("position channel should be empty, got %v", dir)
 		default:
 			// expected
@@ -65,7 +65,7 @@ func TestGoCallbacksDoNotCrossContaminate(t *testing.T) {
 		goOpacityChange(1)
 
 		select {
-		case dir := <-listener.opacityCh:
+		case dir := <-listener.teleprompterOverlayOpacityCh:
 			if dir != 1 {
 				t.Fatalf("expected 1, got %d", dir)
 			}
@@ -79,7 +79,7 @@ func TestGoCallbacksDoNotCrossContaminate(t *testing.T) {
 		default:
 		}
 		select {
-		case dir := <-listener.positionCh:
+		case dir := <-listener.teleprompterGridPositionCh:
 			t.Fatalf("position channel should be empty, got %v", dir)
 		default:
 		}
@@ -89,7 +89,7 @@ func TestGoCallbacksDoNotCrossContaminate(t *testing.T) {
 		goTeleprompterToggle()
 
 		select {
-		case <-listener.teleprompterCh:
+		case <-listener.togglesCh:
 			// expected
 		default:
 			t.Fatal("expected toggle event, channel was empty")
@@ -101,8 +101,37 @@ func TestGoCallbacksDoNotCrossContaminate(t *testing.T) {
 		default:
 		}
 		select {
-		case dir := <-listener.positionCh:
+		case dir := <-listener.teleprompterGridPositionCh:
 			t.Fatalf("position channel should be empty, got %v", dir)
+		default:
+		}
+	})
+
+	t.Run("font size change does not send to bounds or position", func(t *testing.T) {
+		goFontSizeChange(1)
+
+		select {
+		case dir := <-listener.teleprompterTextFontSizeCh:
+			if dir != 1 {
+				t.Fatalf("expected 1, got %d", dir)
+			}
+		default:
+			t.Fatal("expected font size event, channel was empty")
+		}
+
+		select {
+		case rect := <-listener.boundsCh:
+			t.Fatalf("bounds channel should be empty, got %v", rect)
+		default:
+		}
+		select {
+		case dir := <-listener.teleprompterGridPositionCh:
+			t.Fatalf("position channel should be empty, got %v", dir)
+		default:
+		}
+		select {
+		case dir := <-listener.teleprompterOverlayOpacityCh:
+			t.Fatalf("opacity channel should be empty, got %d", dir)
 		default:
 		}
 	})
@@ -112,7 +141,7 @@ func TestGoCallbacksDoNotCrossContaminate(t *testing.T) {
 		goPositionChangeXY(0, -1)
 
 		select {
-		case dir := <-listener.positionCh:
+		case dir := <-listener.teleprompterGridPositionCh:
 			if dir != [2]int{0, -1} {
 				t.Fatalf("expected latest direction [0,-1], got %v", dir)
 			}

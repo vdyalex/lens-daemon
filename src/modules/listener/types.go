@@ -18,11 +18,13 @@ type Channels struct {
 	Bounds <-chan image.Rectangle
 	// Toggles receives a value each time the teleprompter toggle hotkey is pressed.
 	Toggles <-chan struct{}
-	// Positions receives a [2]int{dx, dy} grid direction from arrow keys.
+	// TeleprompterGridPositions receives a [2]int{dx, dy} grid direction from arrow keys.
 	// dx: -1 = left, +1 = right. dy: -1 = up, +1 = down.
-	Positions <-chan [2]int
-	// Opacities receives direction (-1 decrease, +1 increase, 0 reset) from minus/plus/zero keys.
-	Opacities <-chan int
+	TeleprompterGridPositions <-chan [2]int
+	// TeleprompterOverlayOpacities receives direction (-1 decrease, +1 increase, 0 reset) from minus/plus/zero keys.
+	TeleprompterOverlayOpacities <-chan int
+	// TeleprompterTextFontSizes receives direction (-1 decrease, +1 increase) from comma/period keys.
+	TeleprompterTextFontSizes <-chan int
 }
 
 // Service abstracts the hotkey listener for testability.
@@ -31,12 +33,13 @@ type Service interface {
 		triggerKeycode, boundsKeycode, teleprompterKeycode int) (*Channels, error)
 }
 
-// Listener manages global hotkey detection, bounds tracking, teleprompter toggling, position changes, and opacity adjustments.
+// Listener manages global hotkey detection, bounds tracking, teleprompter toggling, position changes, opacity adjustments, and font size changes.
 type Listener struct {
-	triggerCh      chan struct{}
-	boundsCh       chan image.Rectangle
-	teleprompterCh chan struct{}
-	positionCh     chan [2]int
-	opacityCh      chan int
-	startOnce      sync.Once
+	triggerCh                    chan struct{}
+	boundsCh                     chan image.Rectangle
+	togglesCh                    chan struct{}
+	teleprompterGridPositionCh   chan [2]int
+	teleprompterOverlayOpacityCh chan int
+	teleprompterTextFontSizeCh   chan int
+	startOnce                    sync.Once
 }
