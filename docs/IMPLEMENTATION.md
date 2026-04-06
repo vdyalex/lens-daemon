@@ -4,8 +4,10 @@
 
 - **Platform**: MacOS only. Uses MacOS-specific APIs (`CGEventTap`, `CFRunLoop`, `CoreGraphics`, `CoreFoundation`, `Vision framework`) via cgo and AppleScript via `osascript`.
 - **In-memory processing**: No screenshots, intermediate images, or temporary files are written to disk at any point in the pipeline.
+- **Browser content-area capture**: The full window is always captured first. When the focused application is a recognised browser (Safari, Chrome, Firefox), the image is cropped in Go to the content-area rectangle (derived by `browser.CanvasBounds` subtracting the browser toolbar height). This avoids `CGDisplayCreateImageForRect` coordinate-offset issues and gives Vision OCR a focused image. Canvas bounds are also used independently for teleprompter grid positioning. Falls back to the full window for unrecognised apps.
+- **Capture isolation**: The teleprompter overlay is hidden synchronously (`orderOut`, `waitUntilDone:YES`) before each screenshot and restored after, ensuring it does not appear in the captured image despite `CGDisplayCreateImageForRect` capturing the display framebuffer.
 - **CLI and daemon operation**: Single binary with Cobra subcommands (daemon, start, stop, status, logs, restart). The `start` command daemonizes via process re-exec with `syscall.SysProcAttr{Setsid: true}`. Does not appear in Dock or Cmd-Tab (pure CLI process).
-- **Event-driven**: Idle until hotkey pressed or IPC command received. No polling, no timers, no periodic screen checks.
+- **Event-driven**: Idle until hotkey pressed or IPC command received. The only background polling is the window monitor (`CGWindowListCopyWindowInfo` at 200ms intervals) which is a pure metadata query — no screen capture, no privacy indicator.
 - **Two-phase pipeline**: Each hotkey press triggers a capture (Phase 1) that enqueues results for concurrent analysis (Phase 2: OCR -> AI -> Teleprompter + Telegram). Multiple captures and analyses run concurrently; triggers are only dropped when the analyse queue is full.
 - **Stealth overlay**: A macOS overlay window (teleprompter) displays the short answer. Excluded from screen sharing via `NSWindowSharingNone`. The AppKit run loop runs on the main OS thread; all daemon logic runs in background goroutines.
 - **Language**: Go 1.25+ with cgo (for `CoreGraphics`/`CoreFoundation` bindings and Vision framework).
@@ -69,11 +71,17 @@ See `.env.example` for the complete list with descriptions and defaults. Common 
 - `TELEPROMPTER_FONT_FAMILY` — Font family name (default: system font)
 - `TELEPROMPTER_FONT_WEIGHT` — Font weight: ultralight, thin, light, regular, medium, semibold, bold, heavy, black (default: "ultralight")
 - `TELEPROMPTER_FONT_SIZE` — Font size in points (default: 14.0)
-- `TELEPROMPTER_OPACITY` — Text opacity 0.0-1.0 (default: 0.075). Adjustable at runtime via bounds hotkey + minus/plus keys (±0.025 per step). Press bounds hotkey + 0 to reset to default
+- `TELEPROMPTER_OPACITY` — Text opacity 0.0-1.0 (default: 0.05). Adjustable at runtime via bounds hotkey + minus/plus keys (±0.01 per step). Press bounds hotkey + 0 to reset to default
 - `TELEPROMPTER_VISIBLE` — Initial visibility on startup (default: false)
-- `TELEPROMPTER_POSITION` — Window alignment: left, center, right (default: "center")
+- `TELEPROMPTER_ALIGNMENT` — Text alignment: left, center, right, dynamic (default: "dynamic"). Dynamic adapts based on grid column position
 - `TELEPROMPTER_ADAPTIVE_COLOR` — Per-pixel adaptive text color via background inversion (default: true)
 - `TELEPROMPTER_FADE_DURATION` — Fade animation duration in seconds for show/hide/text updates (default: 0.75)
+- `GRID_STEP` — Percentage increment per arrow-key press, 0.0–1.0 (default: 0.01)
+- `GRID_INITIAL_COL` — Initial horizontal position, 0.0–1.0 (default: 0.5)
+- `GRID_INITIAL_ROW` — Initial vertical position, 0.0–1.0 (default: 0.5)
+- `GRID_MOVE_DEBOUNCE_DURATION` — Idle delay before snap commit (default: 300ms)
+- `WINDOW_MONITOR_INTERVAL` — Window-bounds poll interval (default: 200ms)
+- `WINDOW_STABILIZE_DELAY` — Stable-window delay before restoring overlay (default: 500ms)
 - Various timeout settings for pipeline stages and Telegram communication
 
 See the `Config` struct in `src/utils/config/config.go` for a complete list with defaults.

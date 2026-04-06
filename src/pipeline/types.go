@@ -30,20 +30,35 @@ type CaptureResult struct {
 
 // Pipeline orchestrates the full screen-monitor workflow.
 type Pipeline struct {
-	settings        *config.Config
-	logger          *slog.Logger
-	capturer        capturer.Service
-	extractor       extractor.Service
-	agent           ai.Processor
-	messenger       im.Broadcaster
-	poller          poller.Service
-	listener        listener.Service
-	teleprompter    teleprompter.Service
-	boundsMu        sync.RWMutex
-	captureBounds   *image.Rectangle
-	startTime       time.Time
-	lastCaptureMu   sync.RWMutex
-	lastCaptureTime time.Time
-	lastWindowTitle string
-	analyseQueue    chan CaptureResult
+	settings          *config.Config
+	logger            *slog.Logger
+	capturer          capturer.Service
+	extractor         extractor.Service
+	agent             ai.Processor
+	messenger         im.Broadcaster
+	poller            poller.Service
+	listener          listener.Service
+	teleprompter      teleprompter.Service
+	boundsMu          sync.RWMutex
+	captureBounds     *image.Rectangle
+	canvasBounds      *image.Rectangle // content area excluding browser chrome; nil for non-browsers
+	lastWindowBounds  image.Rectangle  // raw foreground-window bounds for non-browser grid fallback
+	capturedWindowPID int              // PID of the app from the last capture; monitor ignores other apps
+	startTime         time.Time
+	lastCaptureMu     sync.RWMutex
+	lastCaptureTime   time.Time
+	lastWindowTitle   string
+	analyseQueue      chan CaptureResult
+
+	// Grid positioning state.
+	gridMu  sync.Mutex
+	gridCol float64 // 0.0–1.0 horizontal position (5% steps), default 0.5
+	gridRow float64 // 0.0–1.0 vertical position (5% steps), default 0.5
+
+	// Visibility state shared between trackPosition and trackVisibility.
+	// intendedVisible is the user's desired visibility; movingForGrid is true while a
+	// debounce-animation sequence is in progress. Both protected by visibleMu.
+	visibleMu       sync.RWMutex
+	intendedVisible bool
+	movingForGrid   bool
 }

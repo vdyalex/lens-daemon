@@ -33,8 +33,8 @@ func TestLoad_defaults(t *testing.T) {
 	if configuration.LogLevel != slog.LevelInfo {
 		t.Errorf("expected default LogLevel to be Info, got %v", configuration.LogLevel)
 	}
-	if configuration.VisionLanguage != "en-US" {
-		t.Errorf("expected default VisionLanguage to be 'en-US', got %q", configuration.VisionLanguage)
+	if configuration.VisionLanguage != "" {
+		t.Errorf("expected default VisionLanguage to be empty (auto-detect), got %q", configuration.VisionLanguage)
 	}
 	if configuration.VisionAccuracy != "accurate" {
 		t.Errorf("expected default VisionAccuracy to be 'accurate', got %q", configuration.VisionAccuracy)
@@ -392,9 +392,9 @@ func TestLoad_teleprompterFadeDurationDefault(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	if configuration.TeleprompterFadeDuration != constants.DefaultTeleprompterFadeDuration {
+	if configuration.TeleprompterFadeDuration != constants.TeleprompterFadeDuration {
 		t.Errorf("expected TeleprompterFadeDuration %v, got %v",
-			constants.DefaultTeleprompterFadeDuration, configuration.TeleprompterFadeDuration)
+			constants.TeleprompterFadeDuration, configuration.TeleprompterFadeDuration)
 	}
 }
 

@@ -37,8 +37,8 @@ This separation decouples fast Phase 1 captures from slow Phase 2 analysis, prev
 
 **Modules** handle MacOS-specific operations:
 
-- **Listener** -- global hotkey detection, bounds tracking, teleprompter toggle, position rotation, and opacity adjustment via `CGEventTap` (cgo)
-- **Capturer** -- foreground window detection (AppleScript) and screenshot capture, using `src/bridges/core_graphics` for CoreGraphics calls
+- **Listener** -- global hotkey detection, bounds tracking, teleprompter toggle, grid navigation (4-direction arrow keys), and opacity adjustment via `CGEventTap` (cgo). Grid/opacity key presses are isolated from bounds selection via a `gControlUsed` flag
+- **Capturer** -- foreground window detection (AppleScript) and screenshot capture, using `src/bridges/core_graphics` for CoreGraphics calls. Captures the full window; canvas cropping is done in Go
 - **Extractor** -- OCR text extraction interface consumed by the pipeline
 - **Teleprompter** -- stealth overlay management (visibility toggle, text display) delegating to the appkit bridge
 
@@ -53,14 +53,17 @@ This separation decouples fast Phase 1 captures from slow Phase 2 analysis, prev
 **Bridges** separate CGo boundaries into dedicated packages:
 
 - **`src/bridges/vision`** -- Objective-C wrapper for Apple Vision framework OCR (`visionRecognizeText`)
-- **`src/bridges/core_graphics`** -- Objective-C wrappers for CoreGraphics screen capture and display queries (`captureScreenRect`, `getMainDisplayWidth`, `getMainDisplayHeight`)
+- **`src/bridges/core_graphics`** -- Objective-C wrappers for CoreGraphics screen capture, display queries (`captureScreenRect`, `getMainDisplayWidth`, `getMainDisplayHeight`), and window metadata (`capturedWindowPID`, `capturedWindowRect` via `CGWindowListCopyWindowInfo` — pure metadata, no screen-capture indicator)
 - **`src/bridges/appkit`** -- Objective-C wrappers for AppKit overlay window (NSWindow creation, text rendering, positioning) and NSApplication run loop management
+- **`src/bridges/browser`** -- Pure Go package that derives the browser content-area rectangle from window geometry, excluding the browser toolbar (address bar, tab bar). Supports Safari (74 px), Google Chrome (88 px), and Firefox (90 px). Returns nil for unrecognised apps so callers fall back to the full window
 
 **Pipeline Components** (`src/pipeline/`) orchestrate the workflow:
 
 - **`pipeline.go`** -- constructors and public interface (`New`, `NewWithDependencies`, `Status`, `Run`)
-- **`process.go`** -- implementation of the sequential process steps (fetch window, capture, extract, process with AI, display on teleprompter, broadcast to Telegram)
-- **`run.go`** -- event loop and goroutine orchestration (`Run` method), including visibility toggle and position tracking
+- **`process.go`** -- implementation of the sequential process steps (fetch window, derive canvas bounds, capture with overlay hide/restore, crop to canvas in Go, extract, process with AI, display on teleprompter, broadcast to Telegram)
+- **`run.go`** -- event loop and goroutine orchestration (`Run` method)
+- **`trackers.go`** -- hotkey-driven and polling-based event handlers for capture bounds, visibility, opacity, and window-move/resize evasion
+- **`grid.go`** -- percentage-based grid position tracker with debounced fade animation and circular wrapping
 
 ## Startup and Daemon Flow
 
@@ -95,7 +98,8 @@ flowchart TD
         R --> T[poller.Run<br/>Telegram subscriber poller]
         R --> U[bounds tracker<br/>Bounds hotkey updates]
         R --> U2[visibility tracker<br/>Toggle hotkey]
-        R --> U3[position tracker<br/>Arrow key repositioning]
+        R --> U3[grid tracker<br/>Arrow key grid positioning<br/>debounced fade animation]
+        R --> U4[window monitor<br/>CGWindowListCopyWindowInfo<br/>move/resize evasion]
         R --> V{Wait for<br/>trigger hotkey or<br/>IPC commands}
     end
 
@@ -104,7 +108,8 @@ flowchart TD
 
     subgraph Phase1[Phase 1: Capture - Sequential per trigger]
         X --> Y[ForegroundWindow<br/>AppleScript - window info<br/>5 s timeout]
-        Y --> Z[CaptureCenter<br/>Full window or custom bounds<br/>30 s timeout]
+        Y --> Y2[browser.CanvasBounds<br/>Derive content-area rect<br/>from app name + window geometry]
+        Y2 --> Z[CaptureCenter<br/>hide overlay → capture full window → restore overlay<br/>crop to canvas in Go<br/>30 s timeout]
     end
 
     Phase1 --> X2{Enqueue to<br/>analyseQueue}
@@ -135,6 +140,7 @@ sequenceDiagram
     actor User
     participant Listener
     participant Pipeline
+    participant Browser as browser.CanvasBounds
     participant Capturer
     participant Vision
     participant Claude as Claude API
@@ -151,7 +157,15 @@ sequenceDiagram
         Capturer->>Capturer: AppleScript / System Events
         Capturer-->>Pipeline: WindowInfo
 
+        Pipeline->>Browser: CanvasBounds(appName, x, y, w, h)
+        alt recognised browser
+            Browser-->>Pipeline: content-area rect (toolbar excluded)
+        else unrecognised app
+            Browser-->>Pipeline: nil
+        end
+
         Pipeline->>Capturer: CaptureCenter
+        Note over Pipeline,Capturer: bounds priority: captureBounds > canvasBounds > full window
         Capturer->>Capturer: CoreGraphics screenshot
         Capturer-->>Pipeline: image RGBA
 
@@ -219,30 +233,34 @@ The Telegram poller runs in the background, long-polling for updates with a 30-s
 
 ## Custom Capture Bounds
 
-By default, the daemon captures the entire active window. You can override this with custom screen-coordinate bounds:
+Each capture uses the first bounds available in this priority order:
 
-1. **Hold the configured bounds hotkey** (default: `RightOption`, customizable via `HOTKEY_BOUNDS_KEYNAME`) and move your mouse to define a rectangular region
-2. The daemon tracks the minimum and maximum coordinates of your mouse movement while the key is held
-3. **Release the bounds hotkey** to lock in the bounds — bounds are only recorded if the mouse actually moved (arrow-only presses are ignored)
-4. All subsequent captures will use the custom bounds instead of capturing the full window
+1. **Custom bounds** (highest priority) — set by holding the bounds hotkey (default: `RightOption`) and moving the mouse to define a rectangular region. The daemon tracks minimum and maximum mouse coordinates while the key is held; bounds are locked on release. Bounds selection is isolated from grid/opacity controls: pressing arrow keys or +/- while the bounds key is held activates grid/opacity mode and suppresses bounds recording for that keypress session.
+2. **Canvas crop** — when the focused application is a recognised browser (Safari, Chrome, Firefox), the full window is captured first, then cropped in Go to the content-area rectangle (subtracting the browser toolbar height: Safari 74 px, Chrome 88 px, Firefox 90 px). This gives Vision OCR a focused image without toolbar chrome. Canvas bounds are also used for teleprompter grid positioning (independent of capture).
+3. **Full window** (fallback) — when neither custom bounds are set nor a browser is recognised, the entire active window is captured.
 
-While the bounds key is held, **arrow keys** reposition the teleprompter overlay: Left/Right rotate through left-center-right alignment. **Minus/plus keys** adjust the text opacity by ±0.025 per step (clamped to 0.0–1.0).
+The overlay is hidden synchronously (`orderOut`) before each screen capture and restored after, ensuring the teleprompter does not appear in the captured image.
+
+While the bounds key is held, **arrow keys** navigate the teleprompter on a percentage-based grid (configurable step via `GRID_STEP`, default 1%). **Minus/plus keys** adjust the text opacity by ±0.01 per step (clamped to 0.0–1.0). **0** resets opacity to the configured default.
 
 For fullscreen windows (width and height >= screen dimensions), the daemon captures the entire display.
 
 ## Teleprompter Overlay
 
-The teleprompter is a stealth macOS overlay window positioned at the bottom of the screen:
+The teleprompter is a stealth macOS overlay window positioned within the captured window's content area:
 
 - **Excluded from screen sharing** via `NSWindowSharingNone` — invisible to Zoom, QuickTime, and all capture pipelines
 - **Excluded from Mission Control, Cmd+Tab, and Dock** via accessory activation policy and collection behavior flags
 - **Click-through** — does not intercept mouse events
-- **Configurable appearance** — font family, weight, size, opacity, position, adaptive color, and fade duration via environment variables
-- **Adaptive text color** — when enabled (`TELEPROMPTER_ADAPTIVE_COLOR=true`), the overlay captures the background behind the text strip on each text update, inverts every pixel via `kCGBlendModeDifference`, and uses the result as the text color pattern so each glyph pixel contrasts with whatever is beneath it. Sampling is event-gated (on `Display(text)` calls, which co-time with the OCR hotkey) rather than periodic, so the macOS screen-recording privacy indicator is only lit during the ~60s debounce window following each hotkey press — the same exposure the OCR capture already incurs
+- **Configurable appearance** — font family, weight, size, opacity, alignment, adaptive color, and fade duration via environment variables
+- **Adaptive text color** — when enabled (`TELEPROMPTER_ADAPTIVE_COLOR=true`), the overlay captures the background behind the text strip on each text update, inverts every pixel via `kCGBlendModeDifference`, and uses the result as the text color pattern so each glyph pixel contrasts with whatever is beneath it. Sampling is event-gated (on `Display(text)` calls, which co-time with the OCR hotkey) rather than periodic
 - **Fade animations** — show, hide, and text updates cross-fade with configurable duration (`TELEPROMPTER_FADE_DURATION`). Animation cancellation uses a generation counter to avoid stale completions
-- **Runtime repositioning** — hold bounds key + arrow keys to rotate alignment (left/center/right)
-- **Runtime opacity adjustment** — hold bounds key + minus/plus keys to decrease/increase text opacity by 0.025 per step. Press 0 to reset to the configured default
-- **Toggle visibility** — press the configured toggle hotkey (default: `RightCommand`) to show/hide with fade animation
+- **Percentage-based grid positioning** — hold bounds key + arrow keys to move the teleprompter by `GRID_STEP` (default 1%) per press. Position wraps circularly. Initial position configurable via `GRID_INITIAL_COL`/`GRID_INITIAL_ROW`. Rapid presses debounce: first press fades out, subsequent presses extend the timer, timer fires repositions and fades in
+- **Dynamic text alignment** — `TELEPROMPTER_ALIGNMENT=dynamic` (default) adapts alignment based on grid column: left-aligned at left edge, right-aligned at right edge, centered elsewhere. Also accepts `left`, `center`, `right` for fixed alignment
+- **Window evasion** — polls the captured window's bounds via `CGWindowListCopyWindowInfo` (metadata only, no screen-capture indicator) at `WINDOW_MONITOR_INTERVAL` (default 200ms). When the window moves or resizes, the teleprompter fades out. After the window stabilises for `WINDOW_STABILIZE_DELAY` (default 500ms), the teleprompter recalculates canvas bounds, repositions at the current grid spot, and fades back in. Tracks by PID so switching to a different app does not affect the teleprompter
+- **Opacity model** — text opacity (`gTextOpacity`, controlled by hotkey +/−) and overlay visibility (`gOverlayInterpolation`, controlled by animations) are independent. Text opacity is baked into the text color alpha / adaptive color pattern. Window alpha is driven by the interpolation (0→1 for fade-in, 1→0 for fade-out)
+- **Runtime opacity adjustment** — hold bounds key + minus/plus keys to decrease/increase text opacity by 0.01 per step. Press 0 to reset to the configured default
+- **Toggle visibility** — press the configured toggle hotkey (default: `RightCommand`) to show/hide with fade animation. Toggle during a grid move defers the visual change to the move's completion handler
 
 The AppKit run loop runs on the main OS thread (pinned via `runtime.LockOSThread`). All daemon logic runs in background goroutines. Window operations are dispatched to the main thread via a channel-based work queue pumped at ~60 Hz.
 

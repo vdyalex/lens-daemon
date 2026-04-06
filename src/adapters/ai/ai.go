@@ -22,19 +22,19 @@ var responseSchema = anthropic.ToolInputSchemaParam{
 	Properties: map[string]any{
 		"short": map[string]any{
 			"type":        "string",
-			"description": "Short raw correct option without formatting or explanation",
+			"description": "The shortest distinguishing fragment of the correct option — just enough to identify it among the alternatives without reproducing the full text. No formatting or explanation.",
 		},
 		"detailed": map[string]any{
 			"type":        "object",
-			"description": "Detailed answer with raw option and markdown explanation",
+			"description": "Full answer with the correct option and a concise explanation for broadcast.",
 			"properties": map[string]any{
 				"answer": map[string]any{
 					"type":        "string",
-					"description": "Short raw correct option without formatting or explanation",
+					"description": "The correct option reproduced verbatim as it appears in the source text.",
 				},
 				"reason": map[string]any{
 					"type":        "string",
-					"description": "Markdown formatted explanation of why this is the correct answer",
+					"description": "Compact markdown explanation of why this is the correct answer. Optimised for quick evaluation.",
 				},
 			},
 			"required": []string{"answer", "reason"},
@@ -47,7 +47,7 @@ var responseSchema = anthropic.ToolInputSchemaParam{
 var responseTool = anthropic.ToolUnionParam{
 	OfTool: &anthropic.ToolParam{
 		Name:        toolName,
-		Description: anthropic.String("Return the answer in short and detailed form"),
+		Description: anthropic.String("Return a short distinguishing fragment for the teleprompter and a detailed answer with explanation for broadcast"),
 		InputSchema: responseSchema,
 	},
 }

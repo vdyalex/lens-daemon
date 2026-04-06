@@ -40,14 +40,14 @@ test-integration:
 check: format validate lint vulnerabilities test test-integration
 
 # Daemon management convenience targets
-daemon: build
+daemon:
 	$(BINARY_PATH) daemon
 
 develop: build
 	$(BINARY_PATH) restart
 	$(BINARY_PATH) logs
 
-start: build
+start:
 	$(BINARY_PATH) start
 
 stop:
@@ -56,7 +56,7 @@ stop:
 status:
 	$(BINARY_PATH) status
 
-restart: build
+restart:
 	$(BINARY_PATH) restart
 
 logs:

@@ -24,12 +24,12 @@ func (p *Pipeline) capture(ctx context.Context) error {
 	captureCtx, cancel := context.WithTimeout(ctx, p.settings.TimeoutCapturePhase)
 	defer cancel()
 
-	window, err := p.fetchWindow(captureCtx)
+	window, canvas, err := p.fetchWindow(captureCtx)
 	if window == nil || err != nil {
 		return err
 	}
 
-	img, err := p.captureScreenshot(captureCtx, window)
+	img, err := p.captureScreenshot(captureCtx, window, canvas)
 	if err != nil {
 		return err
 	}

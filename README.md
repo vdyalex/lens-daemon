@@ -34,7 +34,7 @@ Hotkey → Capture    ↓ (queue)    OCR → AI → Teleprompter + Telegram
 ```
 
 1. **Hotkey** — global keyboard listener via MacOS `CGEventTap`. Default: `RightShift` key. Customizable via `HOTKEY_TRIGGER_KEYNAME` environment variable
-2. **Capture** — grabs the entire active window via AppleScript and CoreGraphics (direct Objective-C bridge via `src/bridges/core_graphics`, no external libraries). Default: hold `RightOption` key to define custom bounds. Customizable via `HOTKEY_BOUNDS_KEYNAME`
+2. **Capture** — grabs the active window via AppleScript and CoreGraphics (direct Objective-C bridge via `src/bridges/core_graphics`, no external libraries). When the focused app is a recognised browser (Safari, Chrome, Firefox), the capture is automatically clipped to the page content area, excluding the browser toolbar. Hold `RightOption` to define explicit custom bounds (overrides automatic canvas detection). Customizable via `HOTKEY_BOUNDS_KEYNAME`
 3. **Queue** — captured images are enqueued for Phase 2 analysis (queue capacity: 5 by default, configurable via `ANALYSE_QUEUE_CAPACITY`)
 4. **OCR** — extracts text from the image using Apple Vision framework, entirely in-memory
 5. **AI** — sends extracted text to Claude with a configurable system prompt (max 1024 response tokens). The response is a JSON object with `short` and `detailed` fields
@@ -107,7 +107,7 @@ All configuration is done through environment variables. Copy `.env.example` to 
 | `EVENT_TAP_POLL_INTERVAL` | `500ms` | CFRunLoop polling interval for keyboard event detection |
 | `ANALYSE_QUEUE_CAPACITY` | `5` | Buffer size for Phase 2 analyse queue (captures are queued when analyse is slower than capture) |
 | `LOG_LEVEL` | `info` | Minimum log level (`debug`, `info`, `warn`, `error`) |
-| `VISION_LANG` | `en-US` | Vision language (BCP 47 code, e.g., `en-US`, `fr-FR`, `de-DE`, `zh-Hans`, `ja`, `ko`) |
+| `VISION_LANG` | *(auto-detect)* | Vision language hint (BCP 47 code, e.g., `en-US`, `fr-FR`). Empty enables auto-detection |
 | `ANTHROPIC_MODEL` | `claude-sonnet-4-6` | Anthropic model ID to use for AI processing |
 | `ANTHROPIC_SYSTEM_PROMPT` | *(built-in)* | System prompt sent to Anthropic with each request |
 | `TELEGRAM_BOT_TOKEN` | *(none)* | Telegram bot token from @BotFather. When absent, Telegram broadcasting is disabled (teleprompter-only mode) |
@@ -117,9 +117,15 @@ All configuration is done through environment variables. Copy `.env.example` to 
 | `TELEPROMPTER_FONT_FAMILY` | *(system font)* | Font family name (e.g., `Menlo`, `Helvetica Neue`). Empty uses the system font |
 | `TELEPROMPTER_FONT_WEIGHT` | `ultralight` | Font weight: `ultralight`, `thin`, `light`, `regular`, `medium`, `semibold`, `bold`, `heavy`, `black` |
 | `TELEPROMPTER_FONT_SIZE` | `14.0` | Font size in points |
-| `TELEPROMPTER_OPACITY` | `0.075` | Text opacity from `0.0` (invisible) to `1.0` (fully opaque). Adjustable at runtime with bounds hotkey + `−`/`+` keys (±0.025 per step). Press `0` to reset to default |
+| `TELEPROMPTER_OPACITY` | `0.05` | Text opacity from `0.0` (invisible) to `1.0` (fully opaque). Adjustable at runtime with bounds hotkey + `−`/`+` keys (±0.01 per step). Press `0` to reset to default |
 | `TELEPROMPTER_VISIBLE` | `false` | Initial visibility on startup (`true` to show immediately) |
-| `TELEPROMPTER_POSITION` | `center` | Window alignment: `left`, `center`, or `right` |
+| `TELEPROMPTER_ALIGNMENT` | `dynamic` | Text alignment: `left`, `center`, `right`, or `dynamic` (adapts to grid column position) |
+| `GRID_STEP` | `0.01` | Percentage increment per arrow-key press (0.0–1.0) |
+| `GRID_INITIAL_COL` | `0.5` | Initial horizontal grid position (0.0 = left, 1.0 = right) |
+| `GRID_INITIAL_ROW` | `0.5` | Initial vertical grid position (0.0 = top, 1.0 = bottom) |
+| `GRID_MOVE_DEBOUNCE_DURATION` | `300ms` | Idle delay before teleprompter repositions after arrow presses |
+| `WINDOW_MONITOR_INTERVAL` | `200ms` | How often to check if the captured window moved/resized |
+| `WINDOW_STABILIZE_DELAY` | `500ms` | How long window must stay still before teleprompter restores |
 | `TELEPROMPTER_ADAPTIVE_COLOR` | `true` | Per-pixel adaptive text color: captures the background behind the overlay, inverts it, and uses the result as the text color so each pixel contrasts with whatever is beneath it. Sampling is event-gated (runs once on each text update, co-timed with the OCR hotkey) rather than periodic |
 | `TELEPROMPTER_FADE_DURATION` | `0.75` | Fade animation duration in seconds for show, hide, and text updates. Set to `0` to disable |
 
@@ -203,8 +209,8 @@ Once running:
    - If the queue is full (5 items by default), the newest capture is dropped with a warning log
    - The teleprompter text is cleared while the new result is being processed
 4. **Custom bounds** (optional): Hold the configured bounds hotkey (default: `RightOption`), move your mouse to define a region, then release
-5. **Reposition teleprompter** (optional): Hold the bounds hotkey (default: `RightOption`) and press `Left`/`Right` arrow keys to cycle alignment (left ↔ center ↔ right)
-6. **Adjust text opacity** (optional): Hold the bounds hotkey (default: `RightOption`) and press `−` to decrease or `+` to increase text opacity by 0.025 per step (clamped to 0.0–1.0). Press hotkey + `0` to reset to the configured default
+5. **Reposition teleprompter** (optional): Hold the bounds hotkey (default: `RightOption`) and press arrow keys (Up/Down/Left/Right) to move the teleprompter by `GRID_STEP` (1%) per press. Position wraps circularly. Rapid presses debounce — the teleprompter fades out, waits for input to stop, then repositions and fades in
+6. **Adjust text opacity** (optional): Hold the bounds hotkey (default: `RightOption`) and press `−` to decrease or `+` to increase text opacity by 0.01 per step (clamped to 0.0–1.0). Press hotkey + `0` to reset to the configured default
 7. The daemon captures the screen, enqueues for analysis, processes OCR, sends the text to Claude, then displays the short answer on the teleprompter and broadcasts the detailed response to Telegram subscribers
 
 Send `/stop` to the Telegram bot to unsubscribe. Run `./bin/lensd stop` to stop the daemon.
