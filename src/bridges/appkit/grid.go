@@ -20,8 +20,8 @@ extern void fadeInAfterMove(void);
 import "C"
 
 // SetOverlayWindowBounds stores the raw window bounds (Y-down screen coordinates,
-// logical pixels) for use as a grid-positioning fallback when no browser canvas is
-// detected. Pass (0, 0, 0, 0) to clear.
+// logical pixels). Always set alongside canvas bounds so the outer reference is
+// available for per-side margin calculation in gridSpotFrame.
 // Safe to call from any goroutine; C scalar writes only, no Obj-C dispatch required.
 func SetOverlayWindowBounds(x, y, width, height float64) {
 	C.setOverlayWindowBounds(C.double(x), C.double(y), C.double(width), C.double(height))

@@ -590,8 +590,9 @@ void setOverlayCanvasBounds(double x, double y, double width, double height) {
     gCanvasHeight = (CGFloat)height;
 }
 
-// setOverlayWindowBounds stores the raw window rect (Y-down, logical pixels) for
-// non-browser fallback. Pass (0,0,0,0) to clear.
+// setOverlayWindowBounds stores the raw window rect (Y-down, logical pixels).
+// Always set alongside canvas bounds so the outer reference is always available
+// for per-side margin calculation in gridSpotFrame.
 void setOverlayWindowBounds(double x, double y, double width, double height) {
     gWindowX      = (CGFloat)x;
     gWindowY      = (CGFloat)y;
@@ -616,15 +617,20 @@ static NSRect gridSpotFrame(NSWindow* window, NSTextField* label, double col, do
     if (gCurrentText == nil || [gCurrentText length] == 0) return NSZeroRect;
     if (label == nil) return NSZeroRect;
 
-    // Prefer canvas bounds; fall back to raw window bounds.
-    CGFloat areaX = (gCanvasWidth > 0) ? gCanvasX : gWindowX;
-    CGFloat areaY = (gCanvasWidth > 0) ? gCanvasY : gWindowY;
-    CGFloat areaW = (gCanvasWidth > 0) ? gCanvasWidth  : gWindowWidth;
-    CGFloat areaH = (gCanvasWidth > 0) ? gCanvasHeight : gWindowHeight;
+    // Active area: browser canvas if available, otherwise raw window (Y-down coords).
+    // Custom capture bounds do not affect grid distribution; they are capture-only.
+    CGFloat areaX, areaY, areaW, areaH;
+    if (gCanvasWidth > 0) {
+        areaX = gCanvasX; areaY = gCanvasY; areaW = gCanvasWidth; areaH = gCanvasHeight;
+    } else {
+        areaX = gWindowX; areaY = gWindowY; areaW = gWindowWidth; areaH = gWindowHeight;
+    }
     if (areaW <= 0 || areaH <= 0) return NSZeroRect;
 
     NSScreen* screen = [NSScreen mainScreen];
-    CGFloat screenH = [screen frame].size.height;
+    NSRect screenFrame = [screen frame];
+    CGFloat screenW = screenFrame.size.width;
+    CGFloat screenH = screenFrame.size.height;
 
     // Size the label text to get the frame dimensions.
     [label sizeToFit];
@@ -632,32 +638,64 @@ static NSRect gridSpotFrame(NSWindow* window, NSTextField* label, double col, do
     CGFloat frameW = textSize.width;
     CGFloat frameH = textSize.height;
 
-    // Spot position in Y-down space (col/row are 0.0–1.0 percentages).
-    CGFloat spotX = areaX + col * areaW;
-    CGFloat spotY = areaY + row * areaH;
+    // Outer reference for per-side margin (Y-down coords).
+    // canvas → window (if set) or screen
+    // window → screen
+    CGFloat refLeft, refTop, refRight, refBottom;
+    if (gCanvasWidth > 0) {
+        if (gWindowWidth > 0) {
+            refLeft = gWindowX; refTop = gWindowY;
+            refRight = gWindowX + gWindowWidth; refBottom = gWindowY + gWindowHeight;
+        } else {
+            refLeft = 0; refTop = 0; refRight = screenW; refBottom = screenH;
+        }
+    } else {
+        refLeft = 0; refTop = 0; refRight = screenW; refBottom = screenH;
+    }
 
-    // Horizontal origin:
-    //   col ≤ 0 → left-aligned: left edge + margin.
-    //   col ≥ 1 → right-aligned: right edge − frameW − margin.
-    //   otherwise → center the frame on spotX.
+    // Per-side inset: only fill the gap needed to reach gMargin clearance from the outer ref.
+    // If the area already has >= gMargin clearance on a side, no inset is applied there.
+    CGFloat leftInset   = MAX(0, gMargin - (areaX           - refLeft));
+    CGFloat topInset    = MAX(0, gMargin - (areaY           - refTop));
+    CGFloat rightInset  = MAX(0, gMargin - (refRight  - (areaX + areaW)));
+    CGFloat bottomInset = MAX(0, gMargin - (refBottom - (areaY + areaH)));
+
+    // Effective canvas after insets; guard against degenerate bounds.
+    CGFloat effectiveX = areaX + leftInset;
+    CGFloat effectiveY = areaY + topInset;
+    CGFloat effectiveW = MAX(1.0, areaW - leftInset - rightInset);
+    CGFloat effectiveH = MAX(1.0, areaH - topInset  - bottomInset);
+
+    // Spot position within the effective canvas (col/row are 0.0–1.0 percentages).
+    CGFloat spotX = effectiveX + col * effectiveW;
+    CGFloat spotY = effectiveY + row * effectiveH;
+
+    // Horizontal origin based on alignment:
+    //   col ≤ 0 → pin to effective left edge.
+    //   col ≥ 1 → pin to effective right edge.
+    //   otherwise → position by alignment (left/center/right/dynamic).
     CGFloat originX;
     if (col <= 0.0) {
-        originX = areaX + gMargin;
+        originX = effectiveX;
     } else if (col >= 1.0) {
-        originX = areaX + areaW - frameW - gMargin;
+        originX = effectiveX + effectiveW - frameW;
     } else {
-        originX = spotX - frameW / 2.0;
+        switch (gAlignment) {
+            case 0:  originX = spotX;                break; // left:  left edge at spot
+            case 2:  originX = spotX - frameW;       break; // right: right edge at spot
+            default: originX = spotX - frameW / 2.0; break; // center / dynamic: centered
+        }
     }
 
     // Vertical origin (Y-down):
-    //   row ≤ 0 → top edge + margin.
-    //   row ≥ 1 → bottom edge − frameH − margin.
+    //   row ≤ 0 → pin to effective top edge.
+    //   row ≥ 1 → pin to effective bottom edge.
     //   otherwise → center the frame on spotY.
     CGFloat originYDown;
     if (row <= 0.0) {
-        originYDown = areaY + gMargin;
+        originYDown = effectiveY;
     } else if (row >= 1.0) {
-        originYDown = areaY + areaH - frameH - gMargin;
+        originYDown = effectiveY + effectiveH - frameH;
     } else {
         originYDown = spotY - frameH / 2.0;
     }
