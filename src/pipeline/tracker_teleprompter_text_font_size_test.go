@@ -8,7 +8,7 @@ import (
 )
 
 func TestTrackTeleprompterTextFontSize_consumesAllDirections(t *testing.T) {
-	directions := make(chan int, 2)
+	directions := make(chan int, 3)
 	done := make(chan struct{})
 	pipeline := &Pipeline{logger: slog.Default(), settings: &config.Config{OutputMethod: "teleprompter"}}
 
@@ -19,6 +19,7 @@ func TestTrackTeleprompterTextFontSize_consumesAllDirections(t *testing.T) {
 
 	directions <- 1
 	directions <- -1
+	directions <- 0
 	close(directions)
 	<-done
 }
