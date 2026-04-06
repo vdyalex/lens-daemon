@@ -8,6 +8,7 @@ import (
 	"image"
 	"log/slog"
 	"strings"
+	"time"
 
 	"github.com/vdyalex/lens-daemon/src/bridges/appkit"
 	"github.com/vdyalex/lens-daemon/src/bridges/browser"
@@ -190,12 +191,16 @@ func (p *Pipeline) extractAndProcessText(ctx context.Context, img *image.RGBA) (
 	return text, nil
 }
 
-// processWithAIAndBroadcast sends text to Claude AI, then routes the response:
-//   - short version to the teleprompter overlay
-//   - detailed version to Telegram subscribers (or noop if disabled)
+// processWithAIAndBroadcast sends text to Claude AI, then routes the response
+// according to the active output method:
+//   - teleprompter: displays the short answer only when Deterministic is true;
+//     suppresses display for uncertain or hedged responses.
+//   - telegram: always broadcasts the detailed answer regardless of Deterministic.
 //
+// triggerTime is the wall-clock time the hotkey was pressed; used to log end-to-end
+// latency from trigger to committed display or broadcast.
 // Returns nil if AI produces empty response (non-fatal).
-func (p *Pipeline) processWithAIAndBroadcast(ctx context.Context, text string) error {
+func (p *Pipeline) processWithAIAndBroadcast(ctx context.Context, text string, triggerTime time.Time) error {
 	agentCtx, agentCancel := context.WithTimeout(ctx, p.settings.TimeoutAIProcess)
 	defer agentCancel()
 	response, err := p.agent.Process(agentCtx, text)
@@ -214,8 +219,17 @@ func (p *Pipeline) processWithAIAndBroadcast(ctx context.Context, text string) e
 
 	switch p.OutputMethod() {
 	case constants.OutputMethodTeleprompter:
-		p.teleprompter.Display(response.Short)
-		p.logger.Info("teleprompter updated", slog.String("text", response.Short))
+		if response.Deterministic {
+			p.teleprompter.Display(response.Short)
+			p.logger.Info("teleprompter updated", slog.String("text", response.Short))
+			p.logger.Debug("trigger to display latency",
+				slog.Duration("latency", time.Since(triggerTime)),
+			)
+		} else {
+			p.logger.Info("teleprompter suppressed: non-deterministic response",
+				slog.String("text", response.Short),
+			)
+		}
 
 	case constants.OutputMethodTelegram:
 		broadcast := fmt.Sprintf("Answer: **%s**\n\nReason:\n%s", response.Detailed.Answer, response.Detailed.Reason)
@@ -226,6 +240,9 @@ func (p *Pipeline) processWithAIAndBroadcast(ctx context.Context, text string) e
 			return nil
 		}
 		p.logger.Info("broadcast to telegram subscribers successfully")
+		p.logger.Debug("trigger to broadcast latency",
+			slog.Duration("latency", time.Since(triggerTime)),
+		)
 	}
 
 	return nil

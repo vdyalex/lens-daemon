@@ -96,7 +96,14 @@ func TestRunAnalyseWorker_processesItemsConcurrently(t *testing.T) {
 	// Mock the AI and broadcast to succeed without blocking.
 	testMocks.agent.EXPECT().
 		Process(gomock.Any(), gomock.Any()).
-		Return(ai.Response{Short: "response", Detailed: ai.ResponseDetail{Answer: "response", Reason: "because"}}, nil).
+		Return(ai.Response{
+			Deterministic: true,
+			Short:         "response",
+			Detailed: ai.ResponseDetail{
+				Answer: "response",
+				Reason: "because",
+			},
+		}, nil).
 		Times(2)
 
 	testMocks.teleprompter.EXPECT().
@@ -154,7 +161,7 @@ func TestRunAnalyseWorker_drainsAllBeforeClosingDone(t *testing.T) {
 	// Mock the AI and broadcast to succeed.
 	testMocks.agent.EXPECT().
 		Process(gomock.Any(), gomock.Any()).
-		Return(ai.Response{Short: "response", Detailed: ai.ResponseDetail{Answer: "response", Reason: "because"}}, nil).
+		Return(ai.Response{Short: "response", Detailed: ai.ResponseDetail{Answer: "response", Reason: "because"}, Deterministic: true}, nil).
 		Times(3)
 
 	testMocks.teleprompter.EXPECT().
@@ -231,7 +238,7 @@ func TestRunAnalyseWorker_logsErrorOnFatalAnalyseFailure(t *testing.T) {
 
 	testMocks.agent.EXPECT().
 		Process(gomock.Any(), "text").
-		Return(ai.Response{Short: "response", Detailed: ai.ResponseDetail{Answer: "response", Reason: "because"}}, nil).
+		Return(ai.Response{Short: "response", Detailed: ai.ResponseDetail{Answer: "response", Reason: "because"}, Deterministic: true}, nil).
 		Times(1)
 
 	testMocks.teleprompter.EXPECT().

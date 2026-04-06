@@ -270,7 +270,14 @@ func TestProcess_broadcastError(t *testing.T) {
 
 	mocks.agent.EXPECT().
 		Process(gomock.Any(), "extracted text").
-		Return(ai.Response{Short: "agent response", Detailed: ai.ResponseDetail{Answer: "agent response", Reason: "because"}}, nil)
+		Return(ai.Response{
+			Deterministic: true,
+			Short:         "agent response",
+			Detailed: ai.ResponseDetail{
+				Answer: "agent response",
+				Reason: "because",
+			},
+		}, nil)
 
 	mocks.teleprompter.EXPECT().
 		Display(gomock.Any())
@@ -316,7 +323,14 @@ func TestProcess_happyPath(t *testing.T) {
 
 	mocks.agent.EXPECT().
 		Process(gomock.Any(), "extracted text").
-		Return(ai.Response{Short: "agent response", Detailed: ai.ResponseDetail{Answer: "agent response", Reason: "because"}}, nil)
+		Return(ai.Response{
+			Deterministic: true,
+			Short:         "agent response",
+			Detailed: ai.ResponseDetail{
+				Answer: "agent response",
+				Reason: "because",
+			},
+		}, nil)
 
 	mocks.teleprompter.EXPECT().
 		Display(gomock.Any())
@@ -365,7 +379,14 @@ func TestProcess_textTrimmed(t *testing.T) {
 		Process(gomock.Any(), gomock.Any()).
 		DoAndReturn(func(ctx context.Context, text string) (ai.Response, error) {
 			capturedText = text
-			return ai.Response{Short: "response", Detailed: ai.ResponseDetail{Answer: "response", Reason: "because"}}, nil
+			return ai.Response{
+				Deterministic: true,
+				Short:         "response",
+				Detailed: ai.ResponseDetail{
+					Answer: "response",
+					Reason: "because",
+				},
+			}, nil
 		})
 
 	mocks.teleprompter.EXPECT().
@@ -386,6 +407,105 @@ func TestProcess_textTrimmed(t *testing.T) {
 
 	if capturedText != "extracted text" {
 		t.Errorf("expected trimmed text 'extracted text', got %q", capturedText)
+	}
+}
+
+func TestProcess_deterministicTrue_displaysOnTeleprompter(t *testing.T) {
+	testMocks := createTestMocks(t)
+	defer testMocks.ctrl.Finish()
+
+	windowInfo := &capturer.WindowInfo{
+		Title:  "Test Window",
+		X:      0,
+		Y:      0,
+		Width:  100,
+		Height: 100,
+	}
+
+	testMocks.capturer.EXPECT().
+		ForegroundWindow(gomock.Any()).
+		Return(windowInfo, nil)
+
+	testMocks.capturer.EXPECT().
+		CaptureCenter(gomock.Any(), gomock.Any()).
+		Return(image.NewRGBA(image.Rect(0, 0, 100, 100)), nil)
+
+	testMocks.extractor.EXPECT().
+		Extract(gomock.Any()).
+		Return("question text", nil)
+
+	testMocks.agent.EXPECT().
+		Process(gomock.Any(), "question text").
+		Return(ai.Response{
+			Deterministic: true,
+			Short:         "B",
+			Detailed: ai.ResponseDetail{
+				Answer: "B",
+				Reason: "reason",
+			},
+		}, nil)
+
+	testMocks.teleprompter.EXPECT().
+		Display("B").
+		Times(1)
+
+	client := createTestPipeline(t, testMocks)
+
+	ctx := context.Background()
+	err := client.Process(ctx)
+
+	if err != nil {
+		t.Errorf("expected no error, got %v", err)
+	}
+}
+
+func TestProcess_deterministicFalse_suppressesTeleprompter(t *testing.T) {
+	testMocks := createTestMocks(t)
+	defer testMocks.ctrl.Finish()
+
+	windowInfo := &capturer.WindowInfo{
+		Title:  "Test Window",
+		X:      0,
+		Y:      0,
+		Width:  100,
+		Height: 100,
+	}
+
+	testMocks.capturer.EXPECT().
+		ForegroundWindow(gomock.Any()).
+		Return(windowInfo, nil)
+
+	testMocks.capturer.EXPECT().
+		CaptureCenter(gomock.Any(), gomock.Any()).
+		Return(image.NewRGBA(image.Rect(0, 0, 100, 100)), nil)
+
+	testMocks.extractor.EXPECT().
+		Extract(gomock.Any()).
+		Return("ambiguous question", nil)
+
+	testMocks.agent.EXPECT().
+		Process(gomock.Any(), "ambiguous question").
+		Return(ai.Response{
+			Deterministic: false,
+			Short:         "maybe C",
+			Detailed: ai.ResponseDetail{
+				Answer: "maybe C",
+				Reason: "uncertain",
+			},
+		}, nil)
+
+	// Display must NOT be called when Deterministic is false.
+	testMocks.teleprompter.EXPECT().
+		Display(gomock.Any()).
+		Times(0)
+
+	client := createTestPipeline(t, testMocks)
+
+	ctx := context.Background()
+	err := client.Process(ctx)
+
+	if err != nil {
+		t.Errorf("expected no error, got %v", err)
 	}
 }
 

@@ -4,6 +4,7 @@ package pipeline
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/vdyalex/lens-daemon/src/bridges/appkit"
 	"github.com/vdyalex/lens-daemon/src/utils/constants"
@@ -74,10 +75,11 @@ func (p *Pipeline) Run(ctx context.Context) error {
 			if p.isMethodActive(constants.OutputMethodTeleprompter) {
 				p.teleprompter.Display("")
 			}
+			triggerTime := time.Now()
 			captureGroup.Add(1)
 			go func() {
 				defer captureGroup.Done()
-				if err := p.capture(ctx); isFatalError(err) {
+				if err := p.capture(ctx, triggerTime); isFatalError(err) {
 					p.logger.Error("capture error", "error", err)
 				}
 			}()

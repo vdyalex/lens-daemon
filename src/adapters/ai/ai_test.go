@@ -77,8 +77,9 @@ func buildToolUseMessage(response ai.Response) *anthropic.Message {
 
 func TestProcess_validToolUseBlock(t *testing.T) {
 	expected := ai.Response{
-		Short:    "B",
-		Detailed: ai.ResponseDetail{Answer: "B", Reason: "Because X and Y."},
+		Deterministic: true,
+		Short:         "B",
+		Detailed:      ai.ResponseDetail{Answer: "B", Reason: "Because X and Y."},
 	}
 	m := &mockMessages{result: buildToolUseMessage(expected)}
 	agent := ai.NewWithMessages(m, "claude-test", "prompt", 1024, anthropic.CacheControlEphemeralTTLTTL1h, mocks.NopLogger())
@@ -96,6 +97,31 @@ func TestProcess_validToolUseBlock(t *testing.T) {
 	}
 	if response.Detailed.Reason != expected.Detailed.Reason {
 		t.Errorf("expected detailed reason %q, got %q", expected.Detailed.Reason, response.Detailed.Reason)
+	}
+	if !response.Deterministic {
+		t.Errorf("expected Deterministic true, got false")
+	}
+}
+
+func TestProcess_deterministicFalse(t *testing.T) {
+	input := ai.Response{
+		Deterministic: false,
+		Short:         "C",
+		Detailed:      ai.ResponseDetail{Answer: "C", Reason: "Uncertain."},
+	}
+	m := &mockMessages{result: buildToolUseMessage(input)}
+	agent := ai.NewWithMessages(m, "claude-test", "prompt", 1024, anthropic.CacheControlEphemeralTTLTTL1h, mocks.NopLogger())
+
+	response, err := agent.Process(context.Background(), "input")
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if response.Deterministic {
+		t.Errorf("expected Deterministic false, got true")
+	}
+	if response.Short != input.Short {
+		t.Errorf("expected short %q, got %q", input.Short, response.Short)
 	}
 }
 

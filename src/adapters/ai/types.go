@@ -17,10 +17,14 @@ type MessagesService interface {
 }
 
 // Response holds the structured AI response with short and detailed branches.
-// Short is displayed on the teleprompter overlay; Detailed is broadcast to Telegram.
+// Short is displayed on the teleprompter overlay when Deterministic is true.
+// Detailed is always broadcast to Telegram.
+// Deterministic gates teleprompter display: false suppresses the overlay to
+// prevent uncertain or hedged answers from appearing on screen.
 type Response struct {
-	Short    string         `json:"short"`
-	Detailed ResponseDetail `json:"detailed"`
+	Deterministic bool           `json:"deterministic"`
+	Short         string         `json:"short"`
+	Detailed      ResponseDetail `json:"detailed"`
 }
 
 // ResponseDetail holds the detailed answer with the raw answer and markdown explanation.
