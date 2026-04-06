@@ -205,12 +205,15 @@ func TestRunAnalyseWorker_logsErrorOnFatalAnalyseFailure(t *testing.T) {
 	logger := slog.New(handler)
 
 	settings := createTestConfig()
-	p := pipeline.NewWithDependencies(
-		settings, logger,
-		testMocks.capturer, testMocks.extractor, testMocks.agent,
-		testMocks.broadcaster, testMocks.poller, testMocks.listener,
-		testMocks.teleprompter,
-	)
+	p := pipeline.NewBuilder(settings, logger).
+		WithCapturer(testMocks.capturer).
+		WithExtractor(testMocks.extractor).
+		WithAgent(testMocks.agent).
+		WithBroadcaster(testMocks.broadcaster).
+		WithPoller(testMocks.poller).
+		WithListener(testMocks.listener).
+		WithTeleprompter(testMocks.teleprompter).
+		Build()
 
 	fatalErr := fmt.Errorf("ocr hardware failure")
 

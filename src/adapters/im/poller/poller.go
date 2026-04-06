@@ -19,8 +19,9 @@ import (
 
 // NewWithClient creates a Poller with a custom HTTP client.
 // This is primarily used for testing with mock HTTP clients.
-func NewWithClient(token string, subscriberStore im.Store, client im.HTTPClient, logger *slog.Logger, longPollTimeout, pollerTimeout time.Duration) *Poller {
-	return &Poller{
+// active sets the initial polling state; call SetActive to change it at runtime.
+func NewWithClient(token string, subscriberStore im.Store, client im.HTTPClient, logger *slog.Logger, longPollTimeout, pollerTimeout time.Duration, active bool) *Poller {
+	p := &Poller{
 		token:           token,
 		store:           subscriberStore,
 		client:          client,
@@ -29,33 +30,55 @@ func NewWithClient(token string, subscriberStore im.Store, client im.HTTPClient,
 		longPollTimeout: longPollTimeout,
 		pollerTimeout:   pollerTimeout,
 	}
+	p.active.Store(active)
+	return p
 }
 
 // New creates a Poller. The offset starts at 0 and is advanced as updates are processed.
-func New(token string, subscriberStore im.Store, logger *slog.Logger, longPollTimeout, pollerTimeout, httpClientTimeout time.Duration) *Poller {
-	return NewWithClient(token, subscriberStore, &http.Client{Timeout: httpClientTimeout}, logger, longPollTimeout, pollerTimeout)
+// active sets the initial polling state; call SetActive to change it at runtime.
+func New(token string, subscriberStore im.Store, logger *slog.Logger, longPollTimeout, pollerTimeout, httpClientTimeout time.Duration, active bool) *Poller {
+	return NewWithClient(token, subscriberStore, &http.Client{Timeout: httpClientTimeout}, logger, longPollTimeout, pollerTimeout, active)
+}
+
+// SetActive activates or deactivates polling.
+// Safe to call concurrently with Run.
+func (p *Poller) SetActive(active bool) {
+	p.active.Store(active)
 }
 
 // Run polls for updates indefinitely until ctx is cancelled.
 // Expected deadline/canceled errors from the polling timeout are not logged;
 // other errors are logged as warnings and retried with a 5-second backoff.
 func (p *Poller) Run(ctx context.Context) {
-	p.logger.Debug("poller started")
-	for {
-		if err := p.poll(ctx); err != nil {
-			if ctx.Err() != nil {
-				return
+	for ctx.Err() == nil {
+		if !p.active.Load() {
+			select {
+			case <-time.After(p.longPollTimeout):
+			case <-ctx.Done():
 			}
+			continue
+		}
+
+		p.logger.Debug("poller started")
+		p.pollUntilInactive(ctx)
+		p.logger.Debug("poller stopped")
+	}
+}
+
+// pollUntilInactive polls Telegram until deactivated or ctx is cancelled.
+func (p *Poller) pollUntilInactive(ctx context.Context) {
+	for p.active.Load() && ctx.Err() == nil {
+		if err := p.poll(ctx); err == nil {
+			continue
+		} else if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
 			// Our own pollerTimeout fired — expected for long-polling when no updates
 			// arrive before the timeout. Resume immediately without logging.
-			if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
-				continue
-			}
+			continue
+		} else {
 			p.logger.Warn("poller error", "error", err)
 			select {
 			case <-time.After(constants.TimeoutTelegramRetryBackoff):
 			case <-ctx.Done():
-				return
 			}
 		}
 	}

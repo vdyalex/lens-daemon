@@ -11,8 +11,8 @@ import (
 )
 
 // trackWindowChanges polls the captured window's bounding rectangle at
-// WindowMonitorInterval. When the bounds change, it fades out the teleprompter.
-// Once the window has been stable for WindowStabilizeDelay, it recalculates the
+// TeleprompterWindowMonitorInterval. When the bounds change, it fades out the teleprompter.
+// Once the window has been stable for TeleprompterWindowStabilizeDelay, it recalculates the
 // canvas bounds, updates the grid spot, and fades the teleprompter back in (if
 // it was visible before the move).
 //
@@ -22,7 +22,7 @@ import (
 //
 // Exits when ctx is cancelled.
 func (p *Pipeline) trackWindowChanges(ctx context.Context) {
-	ticker := time.NewTicker(p.settings.WindowMonitorInterval)
+	ticker := time.NewTicker(p.settings.TeleprompterWindowMonitorInterval)
 	defer ticker.Stop()
 
 	var (
@@ -71,11 +71,11 @@ func (p *Pipeline) trackWindowChanges(ctx context.Context) {
 			}
 
 			// Reset the stability timer: the window must be stable for
-			// WindowStabilizeDelay before we restore the teleprompter.
+			// TeleprompterWindowStabilizeDelay before we restore the teleprompter.
 			if stableTimer != nil {
 				stableTimer.Stop()
 			}
-			stableTimer = time.AfterFunc(p.settings.WindowStabilizeDelay, func() {
+			stableTimer = time.AfterFunc(p.settings.TeleprompterWindowStabilizeDelay, func() {
 				unstable = false
 				p.restoreAfterWindowSettle(ctx, settled)
 			})

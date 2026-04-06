@@ -1,4 +1,4 @@
-//go:generate mockgen -destination=../../tests/mocks/mock_listener_service.go -package=mocks -source=types.go -mock_names Service=MockListenerService Service
+//go:generate mockgen -destination=../../../tests/mocks/mock_listener_service.go -package=mocks -source=types.go -mock_names Service=MockListenerService Service
 
 package listener
 
@@ -30,7 +30,7 @@ type Channels struct {
 // Service abstracts the hotkey listener for testability.
 type Service interface {
 	Listen(ctx context.Context, logger *slog.Logger, pollInterval time.Duration,
-		triggerKeycode, boundsKeycode, teleprompterKeycode int) (*Channels, error)
+		triggerKeycode, boundsKeycode, toggleKeycode int) (*Channels, error)
 }
 
 // Listener manages global hotkey detection, bounds tracking, teleprompter toggling, position changes, opacity adjustments, and font size changes.

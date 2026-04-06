@@ -224,6 +224,18 @@ const (
 	PermissionSubscribersFile = 0600
 )
 
+// Output method constants.
+const (
+	// OutputMethodTelegram routes AI responses to Telegram subscribers.
+	OutputMethodTelegram = "telegram"
+
+	// OutputMethodTeleprompter routes AI responses to the on-screen overlay.
+	OutputMethodTeleprompter = "teleprompter"
+
+	// OutputMethod is the default output method.
+	OutputMethod = OutputMethodTeleprompter
+)
+
 // Image capture constants.
 const (
 	// BytesPerPixelRGBA is the number of bytes per pixel in a raw RGBA image buffer.
@@ -238,8 +250,8 @@ const (
 	AnthropicModel = "claude-sonnet-4-6"
 	// AnthropicSystemPrompt is the system prompt for the AI assistant.
 	AnthropicSystemPrompt = "You're a questionnaire assistant. Provide quick, accurate responses with maximum efficiency."
-	// StorePath is the subscriber store file path.
-	StorePath = "tmp/subscribers"
+	// TelegramSubscriberStorePath is the default subscriber store file path.
+	TelegramSubscriberStorePath = "tmp/subscribers"
 )
 
 // Teleprompter appearance defaults.
@@ -259,31 +271,31 @@ const (
 	// TeleprompterAdaptiveColor enables per-pixel adaptive text color.
 	TeleprompterAdaptiveColor = true
 	// TeleprompterFadeDuration is the fade animation duration in seconds.
-	TeleprompterFadeDuration = 0.75
+	TeleprompterFadeDuration = 0.8
 )
 
-// Grid positioning defaults.
+// Teleprompter grid positioning and window tracking defaults.
 const (
-	// GridMoveDebounceDuration is the idle delay after the last arrow keypress before
+	// TeleprompterGridMoveDebounceDuration is the idle delay after the last arrow keypress before
 	// the teleprompter repositions and fades back in. Rapid keystrokes extend the timer,
 	// preventing visible jumps between intermediate spots.
-	GridMoveDebounceDuration = 300 * time.Millisecond
+	TeleprompterGridMoveDebounceDuration = 300 * time.Millisecond
 
-	// WindowMonitorInterval is how often the pipeline checks whether the foreground
+	// TeleprompterWindowMonitorInterval is how often the pipeline checks whether the foreground
 	// window has moved or resized. Uses CGWindowListCopyWindowInfo (metadata only;
 	// does not trigger the screen-capture indicator).
-	WindowMonitorInterval = 200 * time.Millisecond
+	TeleprompterWindowMonitorInterval = 200 * time.Millisecond
 
-	// WindowStabilizeDelay is how long the foreground window must remain at the same
+	// TeleprompterWindowStabilizeDelay is how long the foreground window must remain at the same
 	// bounds before the teleprompter repositions and fades back in after a move/resize.
-	WindowStabilizeDelay = 500 * time.Millisecond
+	TeleprompterWindowStabilizeDelay = 500 * time.Millisecond
 
-	// GridStep is the percentage increment per arrow-key press (1% = 0.01).
-	GridStep = 0.01
+	// TeleprompterGridStep is the percentage increment per arrow-key press (1% = 0.005).
+	TeleprompterGridStep = 0.005
 
-	// GridInitialCol is the initial horizontal position as a percentage (0.0–1.0).
-	GridInitialCol = 0.5
+	// TeleprompterGridInitialCol is the initial horizontal position as a percentage (0.0–1.0).
+	TeleprompterGridInitialCol = 0.5
 
-	// GridInitialRow is the initial vertical position as a percentage (0.0–1.0).
-	GridInitialRow = 0.5
+	// TeleprompterGridInitialRow is the initial vertical position as a percentage (0.0–1.0).
+	TeleprompterGridInitialRow = 0.5
 )

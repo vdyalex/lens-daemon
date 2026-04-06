@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/vdyalex/lens-daemon/src/bridges/appkit"
+	"github.com/vdyalex/lens-daemon/src/utils/constants"
 )
 
 // Run starts the two-phase pipeline event loop and blocks until ctx is cancelled.
@@ -47,7 +48,9 @@ func (p *Pipeline) Run(ctx context.Context) error {
 	go p.trackWindowChanges(ctx)
 
 	// Sync the C-side grid position with the configured initial values.
-	appkit.CommitMoveToGridSpot(p.settings.GridInitialCol, p.settings.GridInitialRow)
+	if p.isMethodActive(constants.OutputMethodTeleprompter) {
+		appkit.CommitMoveToGridSpot(p.settings.TeleprompterGridInitialCol, p.settings.TeleprompterGridInitialRow)
+	}
 
 	p.logger.Info("pipeline ready — set bounds and press capture key")
 
@@ -68,7 +71,9 @@ func (p *Pipeline) Run(ctx context.Context) error {
 			}
 			return ctx.Err()
 		case <-channels.Triggers:
-			p.teleprompter.Display("")
+			if p.isMethodActive(constants.OutputMethodTeleprompter) {
+				p.teleprompter.Display("")
+			}
 			captureGroup.Add(1)
 			go func() {
 				defer captureGroup.Done()

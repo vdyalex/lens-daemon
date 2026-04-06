@@ -15,6 +15,7 @@ const (
 	CommandStatus       CommandName = "status"
 	CommandShutdown     CommandName = "shutdown"
 	CommandLogSubscribe CommandName = "log.subscribe"
+	CommandSet          CommandName = "set"
 )
 
 // Request is the JSON envelope sent from client to server.
@@ -38,6 +39,12 @@ type LogEvent struct {
 	Attrs   map[string]any `json:"attrs,omitempty"`
 }
 
+// SetPayload carries the key and value for the IPC set command.
+type SetPayload struct {
+	Key   string `json:"key"`   // setting key (e.g. "output-method")
+	Value string `json:"value"` // setting value
+}
+
 // StatusPayload carries runtime status information for the IPC status command.
 type StatusPayload struct {
 	PID             int       `json:"pid"`
@@ -45,11 +52,14 @@ type StatusPayload struct {
 	LastCaptureTime time.Time `json:"last_capture_time,omitempty"`
 	LastWindowTitle string    `json:"last_window_title,omitempty"`
 	Subscribers     int       `json:"subscribers"`
+	OutputMethod    string    `json:"output_method"` // active output adapter
 }
 
 // PipelineService abstracts the pipeline for IPC handler testability.
 type PipelineService interface {
 	Status() (PID int, Uptime float64, LastCaptureTime time.Time, LastWindowTitle string)
+	SetOutputMethod(method string)
+	OutputMethod() string
 }
 
 // Handler is the interface that processes an IPC Request and returns a Response.

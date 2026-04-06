@@ -19,7 +19,7 @@ static CFMachPortRef gTap = NULL;
 // Configurable hotkey keycodes.
 static CGKeyCode gTriggerKeycode       = 0x3C;  // Right Shift by default
 static CGKeyCode gBoundsKeycode        = 0x3D;  // Right Option by default
-static CGKeyCode gTeleprompterKeycode  = 0x36;  // Right Command by default
+static CGKeyCode gToggleKeycode  = 0x36;  // Right Command by default
 
 // Right Option bounds tracking state.
 static bool gOptionHeld  = false;
@@ -30,11 +30,11 @@ static CGFloat gMinX, gMinY, gMaxX, gMaxY;
 // Right Command teleprompter toggle edge detection state.
 static bool gCommandHeld = false;
 
-// setKeycodes sets the trigger, bounds, and teleprompter hotkey keycodes.
-static inline void setKeycodes(int trigger, int bounds, int teleprompter) {
-    gTriggerKeycode      = (CGKeyCode)trigger;
-    gBoundsKeycode       = (CGKeyCode)bounds;
-    gTeleprompterKeycode = (CGKeyCode)teleprompter;
+// setKeycodes sets the trigger, bounds, and toggle hotkey keycodes.
+static inline void setKeycodes(int trigger, int bounds, int toggle) {
+    gTriggerKeycode = (CGKeyCode)trigger;
+    gBoundsKeycode  = (CGKeyCode)bounds;
+    gToggleKeycode  = (CGKeyCode)toggle;
 }
 
 // CGEventTap callback: fires on every flagsChanged event.
@@ -83,7 +83,7 @@ static CGEventRef eventCallback(CGEventTapProxy proxy, CGEventType type,
         }
 
         // Detect teleprompter toggle on configured keycode (press edge only).
-        if (keycode == gTeleprompterKeycode) {
+        if (keycode == gToggleKeycode) {
             bool commandNowHeld = (flags & kCGEventFlagMaskCommand) != 0;
             if (commandNowHeld && !gCommandHeld) {
                 gCommandHeld = true;
@@ -248,15 +248,15 @@ func New() *Listener {
 // The caller must have Accessibility permission (System Settings > Privacy &
 // Security > Accessibility). The event tap runs until parentCtx is cancelled.
 // pollInterval is the CFRunLoop polling timeout; smaller values increase responsiveness but use more CPU.
-// triggerKeycode, boundsKeycode, and teleprompterKeycode are the MacOS virtual keycodes for the hotkeys.
+// triggerKeycode, boundsKeycode, and toggleKeycode are the MacOS virtual keycodes for the hotkeys.
 // Listen can only be called once per Listener instance; subsequent calls return the same channels.
-func (l *Listener) Listen(parentCtx context.Context, logger *slog.Logger, pollInterval time.Duration, triggerKeycode, boundsKeycode, teleprompterKeycode int) (*Channels, error) {
+func (l *Listener) Listen(parentCtx context.Context, logger *slog.Logger, pollInterval time.Duration, triggerKeycode, boundsKeycode, toggleKeycode int) (*Channels, error) {
 	var listenErr error
 
 	l.startOnce.Do(func() {
 		current = l // Register this listener as the active one for CGo callbacks
 
-		C.setKeycodes(C.int(triggerKeycode), C.int(boundsKeycode), C.int(teleprompterKeycode))
+		C.setKeycodes(C.int(triggerKeycode), C.int(boundsKeycode), C.int(toggleKeycode))
 
 		tap := C.createTap()
 		if tap == 0 {
@@ -275,7 +275,7 @@ func (l *Listener) Listen(parentCtx context.Context, logger *slog.Logger, pollIn
 			logger.Info("hotkey listener started",
 				"trigger_keycode", triggerKeycode,
 				"bounds_keycode", boundsKeycode,
-				"teleprompter_keycode", teleprompterKeycode,
+				"toggle_keycode", toggleKeycode,
 			)
 
 			// Poll the run loop with a short timeout to check context cancellation responsively.

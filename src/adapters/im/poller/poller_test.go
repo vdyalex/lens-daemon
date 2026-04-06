@@ -52,7 +52,7 @@ func TestPoller_startCommand(t *testing.T) {
 		},
 	}
 
-	client := poller.NewWithClient("token", store, mockClient, mocks.NopLogger(), 30*time.Second, 35*time.Second)
+	client := poller.NewWithClient("token", store, mockClient, mocks.NopLogger(), 30*time.Second, 35*time.Second, true)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -127,7 +127,7 @@ func TestPoller_stopCommand(t *testing.T) {
 		},
 	}
 
-	client := poller.NewWithClient("token", store, mockClient, mocks.NopLogger(), 30*time.Second, 35*time.Second)
+	client := poller.NewWithClient("token", store, mockClient, mocks.NopLogger(), 30*time.Second, 35*time.Second, true)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
@@ -180,7 +180,7 @@ func TestPoller_unknownCommand(t *testing.T) {
 		},
 	}
 
-	client := poller.NewWithClient("token", store, mockClient, mocks.NopLogger(), 30*time.Second, 35*time.Second)
+	client := poller.NewWithClient("token", store, mockClient, mocks.NopLogger(), 30*time.Second, 35*time.Second, true)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
@@ -227,7 +227,7 @@ func TestPoller_nilMessage(t *testing.T) {
 		},
 	}
 
-	client := poller.NewWithClient("token", store, mockClient, mocks.NopLogger(), 30*time.Second, 35*time.Second)
+	client := poller.NewWithClient("token", store, mockClient, mocks.NopLogger(), 30*time.Second, 35*time.Second, true)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
@@ -271,7 +271,7 @@ func TestPoller_emptyResult(t *testing.T) {
 		},
 	}
 
-	client := poller.NewWithClient("token", store, mockClient, mocks.NopLogger(), 30*time.Second, 35*time.Second)
+	client := poller.NewWithClient("token", store, mockClient, mocks.NopLogger(), 30*time.Second, 35*time.Second, true)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
@@ -320,7 +320,7 @@ func TestPoller_apiError(t *testing.T) {
 		},
 	}
 
-	client := poller.NewWithClient("token", store, mockClient, mocks.NopLogger(), 30*time.Second, 35*time.Second)
+	client := poller.NewWithClient("token", store, mockClient, mocks.NopLogger(), 30*time.Second, 35*time.Second, true)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
@@ -368,7 +368,7 @@ func TestPoller_requestURL(t *testing.T) {
 		},
 	}
 
-	client := poller.NewWithClient("token123", store, mockClient, mocks.NopLogger(), 30*time.Second, 35*time.Second)
+	client := poller.NewWithClient("token123", store, mockClient, mocks.NopLogger(), 30*time.Second, 35*time.Second, true)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
@@ -435,11 +435,12 @@ func TestPoller_whitespaceCommand(t *testing.T) {
 		},
 	}
 
-	client := poller.NewWithClient("token", store, mockClient, mocks.NopLogger(), 30*time.Second, 35*time.Second)
+	client := poller.NewWithClient("token", store, mockClient, mocks.NopLogger(), 30*time.Second, 35*time.Second, true)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
+	client.SetActive(true)
 	runDone := make(chan struct{})
 	go func() {
 		client.Run(ctx)
@@ -496,7 +497,7 @@ func TestPoller_deadlineExceeded(t *testing.T) {
 	}
 
 	logger := mocks.NopLogger()
-	client := poller.NewWithClient("token", store, mockClient, logger, 30*time.Second, 35*time.Second)
+	client := poller.NewWithClient("token", store, mockClient, logger, 30*time.Second, 35*time.Second, true)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
@@ -529,7 +530,7 @@ func TestPoller_malformedJSONResponse(t *testing.T) {
 		},
 	}
 
-	client := poller.NewWithClient("token", store, mockClient, mocks.NopLogger(), 30*time.Second, 35*time.Second)
+	client := poller.NewWithClient("token", store, mockClient, mocks.NopLogger(), 30*time.Second, 35*time.Second, true)
 
 	pollerCtx, pollerCancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 	defer pollerCancel()

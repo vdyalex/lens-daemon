@@ -5,15 +5,16 @@ import (
 	"time"
 
 	"github.com/vdyalex/lens-daemon/src/bridges/appkit"
+	"github.com/vdyalex/lens-daemon/src/utils/constants"
 )
 
 // trackTeleprompterGridPosition receives 2-D direction events from the hotkey listener and
 // maintains the (gridCol, gridRow) position as percentages in [0.0, 1.0].
-// Each arrow press moves by p.settings.GridStep (5%). Values wrap circularly.
+// Each arrow press moves by p.settings.TeleprompterGridStep (5%). Values wrap circularly.
 //
 // Animation protocol:
 //  1. First arrow press while visible → fade out (alpha=0, window stays open).
-//  2. Subsequent presses within GridMoveDebounceDuration → extend the debounce timer;
+//  2. Subsequent presses within TeleprompterGridMoveDebounceDuration → extend the debounce timer;
 //     target position advances silently.
 //  3. Timer fires → reposition to target spot → fade in (if still intended visible).
 //
@@ -47,9 +48,13 @@ func (p *Pipeline) trackTeleprompterGridPosition(directions <-chan [2]int) {
 	}
 
 	for direction := range directions {
+		if !p.isMethodActive(constants.OutputMethodTeleprompter) {
+			continue
+		}
+
 		p.gridMu.Lock()
-		p.gridCol = wrapPercent(p.gridCol + float64(direction[0])*p.settings.GridStep)
-		p.gridRow = wrapPercent(p.gridRow + float64(direction[1])*p.settings.GridStep)
+		p.gridCol = wrapPercent(p.gridCol + float64(direction[0])*p.settings.TeleprompterGridStep)
+		p.gridRow = wrapPercent(p.gridRow + float64(direction[1])*p.settings.TeleprompterGridStep)
 		col := p.gridCol
 		row := p.gridRow
 		p.gridMu.Unlock()
@@ -77,7 +82,7 @@ func (p *Pipeline) trackTeleprompterGridPosition(directions <-chan [2]int) {
 		if debounceTimer != nil {
 			debounceTimer.Stop()
 		}
-		debounceTimer = time.AfterFunc(p.settings.GridMoveDebounceDuration, func() {
+		debounceTimer = time.AfterFunc(p.settings.TeleprompterGridMoveDebounceDuration, func() {
 			commit(col, row)
 		})
 		mu.Unlock()

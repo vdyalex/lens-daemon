@@ -3,12 +3,14 @@ package pipeline
 import (
 	"log/slog"
 	"testing"
+
+	"github.com/vdyalex/lens-daemon/src/utils/config"
 )
 
 func TestTrackToggles_flipsVisibility(t *testing.T) {
 	toggles := make(chan struct{}, 3)
 	done := make(chan struct{})
-	pipeline := &Pipeline{logger: slog.Default(), intendedVisible: false}
+	pipeline := &Pipeline{logger: slog.Default(), intendedVisible: false, settings: &config.Config{OutputMethod: "teleprompter"}}
 
 	go func() {
 		pipeline.trackToggles(toggles)
@@ -35,7 +37,7 @@ func TestTrackToggles_flipsVisibility(t *testing.T) {
 func TestTrackToggles_startsVisible(t *testing.T) {
 	toggles := make(chan struct{}, 1)
 	done := make(chan struct{})
-	pipeline := &Pipeline{logger: slog.Default(), intendedVisible: true}
+	pipeline := &Pipeline{logger: slog.Default(), intendedVisible: true, settings: &config.Config{OutputMethod: "teleprompter"}}
 
 	go func() {
 		pipeline.trackToggles(toggles)

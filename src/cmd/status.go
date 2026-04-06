@@ -52,6 +52,7 @@ func runStatus() error {
 		{"PID", fmt.Sprintf("%d", pid)},
 		{"Uptime", formatSeconds(payload.Uptime)},
 		{"Subscribers", fmt.Sprintf("%d", payload.Subscribers)},
+		{"Output", payload.OutputMethod},
 	}
 	if payload.LastWindowTitle != "" {
 		rows = append(rows, []string{"Last window", payload.LastWindowTitle})

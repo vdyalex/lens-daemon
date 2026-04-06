@@ -26,6 +26,7 @@ func createTestConfig() *config.Config {
 		TimeoutCapturePhase:      40 * time.Second,
 		TimeoutAnalysePhase:      5 * time.Minute,
 		AnalyseQueueCapacity:     16,
+		OutputMethod:             "teleprompter",
 	}
 }
 
@@ -57,12 +58,27 @@ func createTestMocks(t *testing.T) *testMocks {
 
 func createTestPipeline(_ *testing.T, testMocks *testMocks) *pipeline.Pipeline {
 	settings := createTestConfig()
-	logger := mocks.NopLogger()
-	return pipeline.NewWithDependencies(settings, logger, testMocks.capturer, testMocks.extractor, testMocks.agent, testMocks.broadcaster, testMocks.poller, testMocks.listener, testMocks.teleprompter)
+	return pipeline.NewBuilder(settings, mocks.NopLogger()).
+		WithCapturer(testMocks.capturer).
+		WithExtractor(testMocks.extractor).
+		WithAgent(testMocks.agent).
+		WithBroadcaster(testMocks.broadcaster).
+		WithPoller(testMocks.poller).
+		WithListener(testMocks.listener).
+		WithTeleprompter(testMocks.teleprompter).
+		Build()
 }
 
 func createTestPipelineWithSettings(_ *testing.T, settings *config.Config, logger *slog.Logger, testMocks *testMocks) *pipeline.Pipeline {
-	return pipeline.NewWithDependencies(settings, logger, testMocks.capturer, testMocks.extractor, testMocks.agent, testMocks.broadcaster, testMocks.poller, testMocks.listener, testMocks.teleprompter)
+	return pipeline.NewBuilder(settings, logger).
+		WithCapturer(testMocks.capturer).
+		WithExtractor(testMocks.extractor).
+		WithAgent(testMocks.agent).
+		WithBroadcaster(testMocks.broadcaster).
+		WithPoller(testMocks.poller).
+		WithListener(testMocks.listener).
+		WithTeleprompter(testMocks.teleprompter).
+		Build()
 }
 
 func containsError(err error, substr string) bool {

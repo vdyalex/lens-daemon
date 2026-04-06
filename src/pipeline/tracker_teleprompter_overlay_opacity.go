@@ -1,6 +1,7 @@
 package pipeline
 
 import "github.com/vdyalex/lens-daemon/src/bridges/appkit"
+import "github.com/vdyalex/lens-daemon/src/utils/constants"
 
 // trackTeleprompterOverlayOpacity receives direction events from +/- keys and adjusts the teleprompter
 // text opacity by 0.01 per step. direction: -1 = decrease (minus), +1 = increase (plus),
@@ -9,6 +10,9 @@ import "github.com/vdyalex/lens-daemon/src/bridges/appkit"
 func (p *Pipeline) trackTeleprompterOverlayOpacity(directions <-chan int) {
 	const step = 0.01
 	for direction := range directions {
+		if !p.isMethodActive(constants.OutputMethodTeleprompter) {
+			continue
+		}
 		if direction == 0 {
 			appkit.ResetTextOpacity()
 			p.logger.Debug("teleprompter text opacity reset to default")

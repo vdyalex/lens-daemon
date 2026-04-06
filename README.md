@@ -4,7 +4,7 @@
 [![Go Version](https://img.shields.io/github/go-mod/go-version/vdyalex/lens-daemon?style=flat-square)](https://golang.org)
 [![License](https://img.shields.io/github/license/vdyalex/lens-daemon?style=flat-square)](LICENSE)
 
-A MacOS daemon that captures your screen on demand via a global hotkey, extracts text using OCR, processes it through Claude AI (Anthropic), and routes the response to a stealth teleprompter overlay and optionally to Telegram subscribers. All operations happen in-memory with zero disk writes for screenshots.
+A MacOS daemon that captures your screen on demand via a global hotkey, extracts text using OCR, processes it through Claude AI (Anthropic), and routes the response to either a stealth teleprompter overlay or Telegram subscribers (configurable via `OUTPUT_METHOD`). All operations happen in-memory with zero disk writes for screenshots.
 
 - [Lens](#lens)
   - [⚡ How it works](#-how-it-works)
@@ -29,7 +29,7 @@ The daemon uses a **two-phase pipeline** for low-latency capture and parallel pr
 
 ```
 Phase 1 (Fast)      Phase 2 (Async)
-Hotkey → Capture    ↓ (queue)    OCR → AI → Teleprompter + Telegram
+Hotkey → Capture    ↓ (queue)    OCR → AI → Route (Teleprompter | Telegram)
                     ↓ (concurrent)
 ```
 
@@ -38,8 +38,9 @@ Hotkey → Capture    ↓ (queue)    OCR → AI → Teleprompter + Telegram
 3. **Queue** — captured images are enqueued for Phase 2 analysis (queue capacity: 5 by default, configurable via `ANALYSE_QUEUE_CAPACITY`)
 4. **OCR** — extracts text from the image using Apple Vision framework, entirely in-memory
 5. **AI** — sends extracted text to Claude with a configurable system prompt (max 1024 response tokens). The system prompt and tool definition use ephemeral prompt caching (configurable TTL, default 1h) to reduce cost and latency on repeated calls. The response is a JSON object with `short` and `detailed` fields
-6. **Teleprompter** — displays the short answer on a stealth overlay in the bottom-center corner. The overlay is excluded from screen sharing (`NSWindowSharingNone`), invisible to Zoom, Mission Control, Dock, and Cmd+Tab. Toggle visibility with `RightCommand` (configurable via `HOTKEY_TOGGLE_KEYNAME`)
-7. **Notify** (optional) — broadcasts the detailed response to all Telegram subscribers, auto-chunking messages exceeding 4096 runes. Disabled when `TELEGRAM_BOT_TOKEN` is not set
+6. **Route** — routes the AI response based on `OUTPUT_METHOD` (default: `teleprompter`, switchable at runtime via `lensd set output-method`):
+   - **Teleprompter** — displays the short answer on a stealth overlay excluded from screen sharing (`NSWindowSharingNone`), invisible to Zoom, Mission Control, Dock, and Cmd+Tab. Toggle visibility with `RightCommand` (configurable via `HOTKEY_TOGGLE_KEYNAME`)
+   - **Telegram** — broadcasts the detailed response to all subscribers, auto-chunking messages exceeding 4096 runes. Requires `TELEGRAM_BOT_TOKEN`
 
 **Key benefit**: Rapid hotkey presses are captured immediately in Phase 1 while Phase 2 processes previous results concurrently. If analysis is slower than capture (typical case), results queue up and are processed in parallel without losing captures.
 
@@ -56,7 +57,7 @@ For detailed documentation, see:
 - **MacOS** (uses CoreGraphics CGEventTap, Vision framework, and AppleScript)
 - **Go 1.25+** (with cgo support)
 - **Anthropic API key** — get one at [console.anthropic.com](https://console.anthropic.com)
-- **Telegram bot** (optional) — create one via [@BotFather](https://t.me/BotFather). When omitted, the daemon runs in teleprompter-only mode
+- **Telegram bot** (optional) — create one via [@BotFather](https://t.me/BotFather). Required when `OUTPUT_METHOD=telegram`
 
 ## 🔧 Installation
 
@@ -88,7 +89,6 @@ All configuration is done through environment variables. Copy `.env.example` to 
 
 | Variable | Default | Description |
 |---|---|---|
-| `SUBSCRIBER_STORE_PATH` | `tmp/subscribers`* | File path for the subscriber list (persists users who sent `/start`) |
 | `VISION_ACCURACY` | `accurate` | Vision accuracy level: `accurate` (slower, higher quality) or `fast` (faster, lower quality) |
 | `ANTHROPIC_MAX_RESPONSE_TOKENS` | `1024` | Maximum tokens per Anthropic API response |
 | `ANTHROPIC_CACHE_TTL` | `1h` | Prompt caching TTL for system prompt and tool definitions (`5m` or `1h`) |
@@ -111,7 +111,9 @@ All configuration is done through environment variables. Copy `.env.example` to 
 | `VISION_LANG` | *(auto-detect)* | Vision language hint (BCP 47 code, e.g., `en-US`, `fr-FR`). Empty enables auto-detection |
 | `ANTHROPIC_MODEL` | `claude-sonnet-4-6` | Anthropic model ID to use for AI processing |
 | `ANTHROPIC_SYSTEM_PROMPT` | *(built-in)* | System prompt sent to Anthropic with each request |
-| `TELEGRAM_BOT_TOKEN` | *(none)* | Telegram bot token from @BotFather. When absent, Telegram broadcasting is disabled (teleprompter-only mode) |
+| `OUTPUT_METHOD` | `teleprompter` | Output method: `telegram` or `teleprompter`. Switchable at runtime via `lensd set output-method <value>` |
+| `TELEGRAM_BOT_TOKEN` | *(none)* | Telegram bot token from @BotFather. Required when `OUTPUT_METHOD=telegram` |
+| `TELEGRAM_SUBSCRIBER_STORE_PATH` | `tmp/subscribers` | File path for the subscriber list (persists users who sent `/start`) |
 | `HOTKEY_TRIGGER_KEYNAME` | `RightShift` | Hotkey to trigger capture (see [Hotkey Configuration](#-hotkey-configuration) below) |
 | `HOTKEY_BOUNDS_KEYNAME` | `RightOption` | Hotkey to define custom capture bounds (see [Hotkey Configuration](#-hotkey-configuration) below) |
 | `HOTKEY_TOGGLE_KEYNAME` | `RightCommand` | Hotkey to toggle teleprompter overlay visibility (see [Hotkey Configuration](#️-hotkey-configuration) below) |
@@ -121,14 +123,14 @@ All configuration is done through environment variables. Copy `.env.example` to 
 | `TELEPROMPTER_OPACITY` | `0.05` | Text opacity from `0.0` (invisible) to `1.0` (fully opaque). Adjustable at runtime with bounds hotkey + `−`/`+` keys (±0.01 per step). Press `0` to reset to default |
 | `TELEPROMPTER_VISIBLE` | `false` | Initial visibility on startup (`true` to show immediately) |
 | `TELEPROMPTER_ALIGNMENT` | `dynamic` | Text alignment: `left`, `center`, `right`, or `dynamic` (adapts to grid column position) |
-| `GRID_STEP` | `0.01` | Percentage increment per arrow-key press (0.0–1.0) |
-| `GRID_INITIAL_COL` | `0.5` | Initial horizontal grid position (0.0 = left, 1.0 = right) |
-| `GRID_INITIAL_ROW` | `0.5` | Initial vertical grid position (0.0 = top, 1.0 = bottom) |
-| `GRID_MOVE_DEBOUNCE_DURATION` | `300ms` | Idle delay before teleprompter repositions after arrow presses |
-| `WINDOW_MONITOR_INTERVAL` | `200ms` | How often to check if the captured window moved/resized |
-| `WINDOW_STABILIZE_DELAY` | `500ms` | How long window must stay still before teleprompter restores |
+| `TELEPROMPTER_GRID_STEP` | `0.005` | Percentage increment per arrow-key press (0.0–1.0) |
+| `TELEPROMPTER_GRID_INITIAL_COL` | `0.5` | Initial horizontal grid position (0.0 = left, 1.0 = right) |
+| `TELEPROMPTER_GRID_INITIAL_ROW` | `0.5` | Initial vertical grid position (0.0 = top, 1.0 = bottom) |
+| `TELEPROMPTER_GRID_MOVE_DEBOUNCE_DURATION` | `300ms` | Idle delay before teleprompter repositions after arrow presses |
+| `TELEPROMPTER_WINDOW_MONITOR_INTERVAL` | `200ms` | How often to check if the captured window moved/resized |
+| `TELEPROMPTER_WINDOW_STABILIZE_DELAY` | `500ms` | How long window must stay still before teleprompter restores |
 | `TELEPROMPTER_ADAPTIVE_COLOR` | `true` | Per-pixel adaptive text color: captures the background behind the overlay, inverts it, and uses the result as the text color so each pixel contrasts with whatever is beneath it. Sampling is event-gated (runs once on each text update, co-timed with the OCR hotkey) rather than periodic |
-| `TELEPROMPTER_FADE_DURATION` | `0.75` | Fade animation duration in seconds for show, hide, and text updates. Set to `0` to disable |
+| `TELEPROMPTER_FADE_DURATION` | `0.8` | Fade animation duration in seconds for show, hide, and text updates. Set to `0` to disable |
 
 Claude responds with a structured JSON tool call containing `short` (concise answer for the teleprompter) and `detailed` (answer + reason for Telegram).
 
@@ -162,9 +164,10 @@ The binary provides a set of subcommands for starting, stopping, and managing th
 | `lensd daemon` | Run the pipeline with IPC server (called by `start` command); accepts config flags |
 | `lensd start` | Start daemon in background (re-execs `lensd daemon` detached); accepts config flags |
 | `lensd stop` | Stop the running daemon |
-| `lensd status` | Check daemon status (PID, uptime, subscribers, last window) |
+| `lensd status` | Check daemon status (PID, uptime, subscribers, output method, last window) |
 | `lensd logs` | Stream daemon logs to stdout (with level-based colorization) |
 | `lensd restart` | Stop and start the daemon; accepts config flags |
+| `lensd set output-method <telegram\|teleprompter>` | Switch output method at runtime |
 
 All start/daemon/restart commands accept optional flags to override configuration:
 
@@ -175,7 +178,8 @@ All start/daemon/restart commands accept optional flags to override configuratio
 --system-prompt        AI system prompt
 --max-tokens           Max response tokens
 --log-level            Log level (debug/info/warn/error)
---store-path           Subscriber store file path
+--store-path           Telegram subscriber store file path
+--output-method        Output method: telegram or teleprompter
 ```
 
 ### Manually
@@ -210,10 +214,10 @@ Once running:
    - If the queue is full (5 items by default), the newest capture is dropped with a warning log
    - The teleprompter text is cleared while the new result is being processed
 4. **Custom bounds** (optional): Hold the configured bounds hotkey (default: `RightOption`), move your mouse to define a region, then release
-5. **Reposition teleprompter** (optional): Hold the bounds hotkey (default: `RightOption`) and press arrow keys (Up/Down/Left/Right) to move the teleprompter by `GRID_STEP` (1%) per press. Position wraps circularly. Rapid presses debounce — the teleprompter fades out, waits for input to stop, then repositions and fades in
+5. **Reposition teleprompter** (optional): Hold the bounds hotkey (default: `RightOption`) and press arrow keys (Up/Down/Left/Right) to move the teleprompter by `TELEPROMPTER_GRID_STEP` (1%) per press. Position wraps circularly. Rapid presses debounce — the teleprompter fades out, waits for input to stop, then repositions and fades in
 6. **Adjust text opacity** (optional): Hold the bounds hotkey (default: `RightOption`) and press `−` to decrease or `+` to increase text opacity by 0.01 per step (clamped to 0.0–1.0). Press hotkey + `0` to reset to the configured default
 7. **Adjust font size** (optional): Hold the bounds hotkey (default: `RightOption`) and press `,` to decrease or `.` to increase font size by 0.5pt per step (clamped to 5–48pt)
-8. The daemon captures the screen, enqueues for analysis, processes OCR, sends the text to Claude, then displays the short answer on the teleprompter and broadcasts the detailed response to Telegram subscribers
+8. The daemon captures the screen, enqueues for analysis, processes OCR, sends the text to Claude, then routes the response based on `OUTPUT_METHOD`: displays the short answer on the teleprompter, or broadcasts the detailed response to Telegram subscribers
 
 Send `/stop` to the Telegram bot to unsubscribe. Run `./bin/lensd stop` to stop the daemon.
 
@@ -223,8 +227,7 @@ Send `/stop` to the Telegram bot to unsubscribe. Run `./bin/lensd stop` to stop 
 |---|---|
 | `make build` | Compile the binary to `bin/` |
 | `make test` | Run all unit tests |
-| `make test-integration` | Run integration tests (daemon + IPC tests) |
-| `make check` | Run all static checks and tests (format + validate + lint + vulnerabilities + test + test-integration) |
+| `make check` | Run all static checks and tests (format + validate + lint + vulnerabilities + test) |
 | `make clean` | Remove build artifacts from `bin/` |
 | `make format` | Format source files with gofmt |
 | `make validate` | Run go vet static analysis |

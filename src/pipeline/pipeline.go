@@ -11,9 +11,8 @@ import (
 
 	"github.com/vdyalex/lens-daemon/src/adapters/ai"
 	"github.com/vdyalex/lens-daemon/src/adapters/im"
-	"github.com/vdyalex/lens-daemon/src/adapters/im/poller"
-	"github.com/vdyalex/lens-daemon/src/adapters/im/store"
 	"github.com/vdyalex/lens-daemon/src/bridges/appkit"
+	"github.com/vdyalex/lens-daemon/src/factory"
 	"github.com/vdyalex/lens-daemon/src/modules/capturer"
 	"github.com/vdyalex/lens-daemon/src/modules/extractor"
 	"github.com/vdyalex/lens-daemon/src/modules/listener"
@@ -21,92 +20,30 @@ import (
 	"github.com/vdyalex/lens-daemon/src/utils/config"
 )
 
-// NewWithDependencies creates a pipeline with injectable dependencies.
-// This is primarily used for testing with mock implementations.
-func NewWithDependencies(
-	settings *config.Config,
-	logger *slog.Logger,
-	capturerService capturer.Service,
-	extractorService extractor.Service,
-	agent ai.Processor,
-	broadcaster im.Broadcaster,
-	pollerService poller.Service,
-	listenerService listener.Service,
-	teleprompterService teleprompter.Service,
-) *Pipeline {
-	return &Pipeline{
-		settings:        settings,
-		logger:          logger,
-		capturer:        capturerService,
-		extractor:       extractorService,
-		agent:           agent,
-		messenger:       broadcaster,
-		poller:          pollerService,
-		listener:        listenerService,
-		teleprompter:    teleprompterService,
-		startTime:       time.Now(),
-		analyseQueue:    make(chan CaptureResult, settings.AnalyseQueueCapacity),
-		intendedVisible: settings.TeleprompterVisible,
-		gridCol:         settings.GridInitialCol,
-		gridRow:         settings.GridInitialRow,
-	}
-}
-
 // New creates a fully wired pipeline from settings.
 // Returns the pipeline, the subscriber store (nil when Telegram is disabled), and any error.
 // logger must not be nil; pass slog.Default() if no custom logger is required.
 func New(settings *config.Config, logger *slog.Logger) (*Pipeline, im.Store, error) {
-	ocr := extractor.New(settings.VisionLanguage, settings.VisionAccuracy)
-
-	var broadcaster im.Broadcaster
-	var pollerService poller.Service
-	var subscriberStore im.Store
-
-	if settings.TelegramEnabled {
-		storeInstance, err := store.New(settings.StorePath, logger)
-		if err != nil {
-			return nil, nil, err
-		}
-		subscriberStore = storeInstance
-		broadcaster = im.New(
-			settings.TelegramBotToken,
-			storeInstance,
-			logger,
-			settings.TelegramMessageChunkSize,
-			settings.TelegramMaxRetries,
-			settings.TelegramHTTPClientTimeout,
-		)
-		pollerService = poller.New(
-			settings.TelegramBotToken,
-			storeInstance,
-			logger,
-			settings.TelegramLongPollTimeout,
-			settings.TelegramPollerTimeout,
-			settings.TelegramHTTPClientTimeout,
-		)
-	} else {
-		logger.Info("telegram disabled (no bot token configured)")
-		broadcaster = &im.NoopBroadcaster{}
-		pollerService = &poller.NoopPoller{}
+	subscriberStore, err := factory.BuildStore(settings, logger)
+	if err != nil {
+		return nil, nil, err
 	}
 
-	pipeline := NewWithDependencies(
-		settings,
-		logger,
-		capturer.New(),
-		ocr,
-		ai.New(
+	pipeline := NewBuilder(settings, logger).
+		WithCapturer(capturer.New()).
+		WithExtractor(extractor.New(settings.VisionLanguage, settings.VisionAccuracy)).
+		WithAgent(ai.New(
 			settings.AnthropicAPIKey,
 			settings.AnthropicModel,
 			settings.AnthropicSystemPrompt,
 			settings.AnthropicMaxResponseTokens,
 			anthropic.CacheControlEphemeralTTL(settings.AnthropicCacheTTL),
 			logger,
-		),
-		broadcaster,
-		pollerService,
-		listener.New(),
-		teleprompter.New(appkit.OverlayConfig{
+		)).
+		WithBroadcaster(factory.BroadcasterFactory{Settings: settings, Store: subscriberStore, Logger: logger}.Build()).
+		WithPoller(factory.PollerFactory{Settings: settings, Store: subscriberStore, Logger: logger}.Build()).
+		WithListener(listener.New()).
+		WithTeleprompter(teleprompter.New(appkit.OverlayConfig{
 			FontFamily:    settings.TeleprompterFontFamily,
 			FontWeight:    settings.TeleprompterFontWeight,
 			FontSize:      settings.TeleprompterFontSize,
@@ -114,8 +51,9 @@ func New(settings *config.Config, logger *slog.Logger) (*Pipeline, im.Store, err
 			Alignment:     settings.TeleprompterAlignment,
 			AdaptiveColor: settings.TeleprompterAdaptiveColor,
 			FadeDuration:  settings.TeleprompterFadeDuration,
-		}, settings.TeleprompterVisible),
-	)
+		}, settings.TeleprompterVisible)).
+		Build()
+
 	return pipeline, subscriberStore, nil
 }
 

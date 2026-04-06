@@ -13,6 +13,7 @@ import (
 	"github.com/vdyalex/lens-daemon/src/bridges/browser"
 	"github.com/vdyalex/lens-daemon/src/bridges/core_graphics"
 	"github.com/vdyalex/lens-daemon/src/modules/capturer"
+	"github.com/vdyalex/lens-daemon/src/utils/constants"
 	"github.com/vdyalex/lens-daemon/src/utils/exceptions"
 )
 
@@ -209,17 +210,22 @@ func (p *Pipeline) processWithAIAndBroadcast(ctx context.Context, text string) e
 		slog.Int("detailed_character_count", len(response.Detailed.Reason)),
 	)
 
-	p.teleprompter.Display(response.Short)
-	p.logger.Info("teleprompter updated", slog.String("text", response.Short))
+	switch p.OutputMethod() {
+	case constants.OutputMethodTeleprompter:
+		p.teleprompter.Display(response.Short)
+		p.logger.Info("teleprompter updated", slog.String("text", response.Short))
 
-	broadcast := fmt.Sprintf("Answer: **%s**\n\nReason:\n%s", response.Detailed.Answer, response.Detailed.Reason)
-	broadcastCtx, broadcastCancel := context.WithTimeout(ctx, p.settings.TelegramBroadcastTimeout)
-	defer broadcastCancel()
-	if err := p.messenger.Broadcast(broadcastCtx, broadcast); err != nil {
-		p.logger.Info("broadcast skipped", "error", err)
-		return nil
+	case constants.OutputMethodTelegram:
+		broadcast := fmt.Sprintf("Answer: **%s**\n\nReason:\n%s", response.Detailed.Answer, response.Detailed.Reason)
+		broadcastCtx, broadcastCancel := context.WithTimeout(ctx, p.settings.TelegramBroadcastTimeout)
+		defer broadcastCancel()
+		if err := p.messenger.Broadcast(broadcastCtx, broadcast); err != nil {
+			p.logger.Info("broadcast skipped", "error", err)
+			return nil
+		}
+		p.logger.Info("broadcast to telegram subscribers successfully")
 	}
-	p.logger.Info("broadcast to telegram subscribers successfully")
+
 	return nil
 }
 

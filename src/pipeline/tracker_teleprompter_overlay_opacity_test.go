@@ -3,12 +3,14 @@ package pipeline
 import (
 	"log/slog"
 	"testing"
+
+	"github.com/vdyalex/lens-daemon/src/utils/config"
 )
 
 func TestTrackTeleprompterOverlayOpacity_consumesAllDirections(t *testing.T) {
 	directions := make(chan int, 3)
 	done := make(chan struct{})
-	pipeline := &Pipeline{logger: slog.Default()}
+	pipeline := &Pipeline{logger: slog.Default(), settings: &config.Config{OutputMethod: "teleprompter"}}
 
 	go func() {
 		pipeline.trackTeleprompterOverlayOpacity(directions)
@@ -25,7 +27,7 @@ func TestTrackTeleprompterOverlayOpacity_consumesAllDirections(t *testing.T) {
 func TestTrackTeleprompterOverlayOpacity_exitsOnChannelClose(t *testing.T) {
 	directions := make(chan int)
 	done := make(chan struct{})
-	pipeline := &Pipeline{logger: slog.Default()}
+	pipeline := &Pipeline{logger: slog.Default(), settings: &config.Config{OutputMethod: "teleprompter"}}
 
 	go func() {
 		pipeline.trackTeleprompterOverlayOpacity(directions)

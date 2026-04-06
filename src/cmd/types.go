@@ -9,6 +9,7 @@ type GlobalFlags struct {
 	APIKey       string
 	BotToken     string
 	StorePath    string
+	OutputMethod string
 }
 
 var flags GlobalFlags
